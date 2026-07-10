@@ -10,11 +10,13 @@ if ! command -v sbt >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "pre-commit: scalafmtCheckAll…"
+echo "pre-commit: running sbt scalafmtCheckAll (same gate as CI)…"
 if ! sbt -batch -no-colors scalafmtCheckAll; then
   echo >&2
-  echo "pre-commit: scalafmtCheckAll failed." >&2
-  echo "  Fix with:  sbt scalafmtAll" >&2
-  echo "  Then re-stage and commit." >&2
+  echo "pre-commit: BLOCKED — scalafmtCheckAll failed." >&2
+  echo "  Fix with:  sbt scalafmtAll && git add -u" >&2
+  echo "  Then commit again." >&2
   exit 1
 fi
+
+echo "pre-commit: OK — scalafmtCheckAll passed."
