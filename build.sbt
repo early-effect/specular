@@ -177,8 +177,19 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           },
           // One-shot site build: link JS client, then run BuildSite (copies client.js itself).
           // Use LocalProject — do NOT call docs.js(...) here (deadlocks lazy val init).
+          // Write the absolute main.js path for BuildSite — walking target/out is brittle in CI
+          // (fork cwd / incremental linker edge cases).
           specularSite := Def.uncached {
             (LocalProject("docsJS") / Compile / fastLinkJS).value
+            val outDir = (LocalProject("docsJS") / Compile / fastLinkJSOutput).value
+            val mainJs = outDir / "main.js"
+            if (!mainJs.exists)
+              sys.error(
+                s"Expected $mainJs after fastLinkJS; directory contains: " +
+                  Option(outDir.list).toSeq.flatten.mkString(", ")
+              )
+            val marker = (ThisBuild / baseDirectory).value / "target" / "specular-client-js.path"
+            IO.write(marker, mainJs.getAbsolutePath)
             (Compile / runMain).toTask(" specular.docs.BuildSite").value
           },
         ),

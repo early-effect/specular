@@ -56,7 +56,8 @@ object BuildSite extends ZIOAppDefault:
       val dest = out.resolve("assets/client.js")
       val src  = findClientJs.getOrElse {
         throw new RuntimeException(
-          "JS client not linked — run docs/specularSite (or docsJS/fastLinkJS) first"
+          "JS client not linked; run docs/specularSite (or docsJS/fastLinkJS) first. " +
+            s"Looked for marker ${clientJsMarker} and under ${repoRoot.resolve("target/out")}"
         )
       }
       Files.createDirectories(dest.getParent)
@@ -64,8 +65,25 @@ object BuildSite extends ZIOAppDefault:
       ()
     }
 
-  /** Prefer the linked fastOpt main.js under target/out, without hardcoding the Scala version path. */
+  /** Path written by the `docs/specularSite` sbt task after `fastLinkJS`. */
+  private def clientJsMarker: Path =
+    repoRoot.resolve("target/specular-client-js.path")
+
+  /** Prefer the sbt-written marker, then fall back to walking `target/out`. */
   private def findClientJs: Option[Path] =
+    readMarker.orElse(walkTargetOut)
+
+  private def readMarker: Option[Path] =
+    val marker = clientJsMarker
+    if !Files.isRegularFile(marker) then None
+    else
+      val line = Files.readString(marker).nn.trim
+      if line.isEmpty then None
+      else
+        val path = Paths.get(line)
+        Option.when(Files.isRegularFile(path))(path)
+
+  private def walkTargetOut: Option[Path] =
     val outRoot = repoRoot.resolve("target/out")
     if !Files.isDirectory(outRoot) then None
     else
@@ -80,7 +98,7 @@ object BuildSite extends ZIOAppDefault:
         if found.isPresent then Some(found.get.nn) else None
       finally stream.close()
     end if
-  end findClientJs
+  end walkTargetOut
 
   private def repoRoot: Path =
     Iterator
