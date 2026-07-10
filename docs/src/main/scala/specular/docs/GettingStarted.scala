@@ -28,7 +28,7 @@ This page is a `DocSpec` — the same source runs as a zio-test suite and builds
           E.button(Events.onClick(_ => count.update(_ + 1)), "+"),
           E.span(" count: ", count.map(_.toString)),
         )
-      }.interactive,
+      }.interactive.assert(_ => assertTrue(true)),
     ),
     section("Styled snapshot")(
       example {

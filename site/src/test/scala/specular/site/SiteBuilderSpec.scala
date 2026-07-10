@@ -99,7 +99,13 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       val model = SiteModel(
         title = "Early Effect",
         description = Some("functional Scala libraries"),
-        brand = Some(Brand("Early Effect", Some("Open-source Scala & ZIO"), Vector(BrandLink("GitHub", "https://github.com/early-effect")))),
+        brand = Some(
+          Brand(
+            "Early Effect",
+            Some("Open-source Scala & ZIO"),
+            Vector(BrandLink("GitHub", "https://github.com/early-effect")),
+          )
+        ),
         home = Some(
           HomePage(
             hero = Some(Hero("Early Effect", Some("Open-source Scala & ZIO"))),
@@ -144,6 +150,29 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         page.contains("v2.0.0"),
       )
       end for
+    },
+    test("duplicate slugs fail the build") {
+      val model = SiteModel(
+        title = "Docs",
+        pages = Vector(
+          page("Hello World")(md"a"),
+          page("Hello_World")(md"b"),
+        ),
+      )
+      for
+        tmp <- ZIO.attempt(Files.createTempDirectory("specular-dup"))
+        ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp)).flip
+      yield assertTrue(ex.getMessage.contains("Duplicate"))
+    },
+    test("empty slug fails the build") {
+      val model = SiteModel(
+        title = "Docs",
+        pages = Vector(DocPage("!!!", Vector(md"x"))),
+      )
+      for
+        tmp <- ZIO.attempt(Files.createTempDirectory("specular-empty"))
+        ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp)).flip
+      yield assertTrue(ex.getMessage.contains("empty slug"))
     },
   ).provide(
     MarkdownRenderer.live,

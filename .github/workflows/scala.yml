@@ -37,3 +37,7 @@ jobs:
       - name: Check formatting, compile, and test
         shell: bash
         run: sbt -v "scalafmtCheckAll; test"
+
+      - name: Link docs JS and build dogfood site
+        shell: bash
+        run: sbt -v "docs/specularSite"

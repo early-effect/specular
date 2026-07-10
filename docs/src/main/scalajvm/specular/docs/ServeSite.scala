@@ -7,7 +7,7 @@ import java.nio.file.Paths
 
 /** Preview server entry for sbt-reload: `ServeSite <port> <siteRoot>`.
   *
-  * Started via `docs/runReload` / `docs/specularServe` (forked JVM — does not block sbt).
+  * Started via `docs/run` / `docs/runReload` (forked JVM — does not block sbt).
   */
 object ServeSite extends ZIOAppDefault:
 

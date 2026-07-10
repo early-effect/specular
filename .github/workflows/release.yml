@@ -29,6 +29,10 @@ jobs:
       - name: Set up sbt
         uses: sbt/setup-sbt@66fb4376e81982c7d92a4074170846fff88e2e30 # v1.5.0
 
+      - name: Test
+        shell: bash
+        run: sbt -v "scalafmtCheckAll; test"
+
       - name: Import signing key
         env:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}

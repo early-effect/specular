@@ -31,6 +31,9 @@ object MarkdownRenderer:
     private def el(tag: String, children: Vector[UI[Any]], attrs: Vector[Attr[Any]] = Vector.empty): UI[Any] =
       UI.Element(tag, attrs, children)
 
+    private def attr(name: String, value: String): Attr[Any] =
+      Attr.StaticAttr(name, AttrValue.Str(value))
+
     private def renderChildren(parent: Node): UI[Any] =
       val kids = collect(parent).map(renderNode)
       kids match
@@ -98,14 +101,9 @@ object MarkdownRenderer:
       case c: Code =>
         Vector(el("code", Vector(UI.Text(c.getLiteral))))
       case l: Link =>
-        val href = Option(l.getDestination).getOrElse("#")
-        Vector(
-          el(
-            "a",
-            inlineChildren(l),
-            Vector(Attr.StaticAttr("href", AttrValue.Str(href))),
-          )
-        )
+        val raw   = Option(l.getDestination).getOrElse("#")
+        val attrs = SafeHref.anchorAttrs(raw).map { case (k, v) => attr(k, v) }
+        Vector(el("a", inlineChildren(l), attrs))
       case _: HtmlInline =>
         Vector.empty
       case other if other.getFirstChild != null =>
