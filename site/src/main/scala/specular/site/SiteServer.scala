@@ -59,7 +59,9 @@ object SiteServer:
 
     def serve(root: JPath, port: Int): UIO[Nothing] =
       val dir = root.toAbsolutePath.normalize.toFile
-      ZIO.logInfo(s"Serving ${dir.getAbsolutePath} at http://localhost:$port") *>
+      val url = s"http://localhost:$port/"
+      Console.printLine(s"Serving ${dir.getAbsolutePath}").orDie *>
+        Console.printLine(s"Open $url").orDie *>
         Server
           .serve(routes(root))
           .provide(Server.defaultWith(_.port(port)))
