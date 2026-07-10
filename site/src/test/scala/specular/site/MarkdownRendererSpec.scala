@@ -41,7 +41,17 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
       for
         ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi("[ascent](https://example.com)"))
         html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
-      yield assertTrue(html.contains("href=\"https://example.com\""), html.contains("ascent"))
+      yield assertTrue(
+        html.contains("href=\"https://example.com\""),
+        html.contains("ascent"),
+        html.contains("noopener"),
+      )
+    },
+    test("neutralizes javascript: links") {
+      for
+        ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi("[x](javascript:alert(1))"))
+        html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
+      yield assertTrue(!html.contains("javascript:"), html.contains("href=\"#\""))
     },
     test("renders lists") {
       for

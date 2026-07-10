@@ -261,7 +261,12 @@ object Theme:
         Selector(" h3", Declaration("margin", "0 0 0.25rem"), Declaration("font-size", "1.15rem")),
         Selector(" h3 a", Declaration("color", "var(--specular-text)")),
         Selector(" h3 a:hover", Declaration("color", "var(--specular-accent)"), Declaration("text-decoration", "none")),
-        Selector(" p", Declaration("margin", "0"), Declaration("color", "var(--specular-muted)"), Declaration("font-size", "0.95rem")),
+        Selector(
+          " p",
+          Declaration("margin", "0"),
+          Declaration("color", "var(--specular-muted)"),
+          Declaration("font-size", "0.95rem"),
+        ),
         Selector(
           " .specular-card-meta",
           Declaration("display", "flex"),
@@ -280,35 +285,41 @@ object Theme:
         ),
       )
 
+  private def cssValue(raw: String): String =
+    // Theme tokens are author-controlled; still reject CSS breakout characters.
+    if raw.exists(c => c == ';' || c == '{' || c == '}' || c == '\n' || c == '\r') then
+      throw new IllegalArgumentException(s"Theme token contains illegal CSS characters: ${raw.take(40)}")
+    raw
+
   private def rootVars(t: ThemeTokens): String =
     s""":root {
-       |  --specular-bg: ${t.bg};
-       |  --specular-surface: ${t.surface};
-       |  --specular-text: ${t.text};
-       |  --specular-muted: ${t.muted};
-       |  --specular-accent: ${t.accent};
-       |  --specular-link: ${t.link};
-       |  --specular-border: ${t.border};
-       |  --specular-code-bg: ${t.codeBg};
-       |  --specular-code-fg: ${t.codeFg};
-       |  --specular-font-sans: ${t.fontSans};
-       |  --specular-radius: ${t.radius};
+       |  --specular-bg: ${cssValue(t.bg)};
+       |  --specular-surface: ${cssValue(t.surface)};
+       |  --specular-text: ${cssValue(t.text)};
+       |  --specular-muted: ${cssValue(t.muted)};
+       |  --specular-accent: ${cssValue(t.accent)};
+       |  --specular-link: ${cssValue(t.link)};
+       |  --specular-border: ${cssValue(t.border)};
+       |  --specular-code-bg: ${cssValue(t.codeBg)};
+       |  --specular-code-fg: ${cssValue(t.codeFg)};
+       |  --specular-font-sans: ${cssValue(t.fontSans)};
+       |  --specular-radius: ${cssValue(t.radius)};
        |}""".stripMargin
 
   private def lightOverrides(t: ThemeTokens): String =
     s"""@media (prefers-color-scheme: light) {
        |  :root {
-       |    --specular-bg: ${t.bg};
-       |    --specular-surface: ${t.surface};
-       |    --specular-text: ${t.text};
-       |    --specular-muted: ${t.muted};
-       |    --specular-accent: ${t.accent};
-       |    --specular-link: ${t.link};
-       |    --specular-border: ${t.border};
-       |    --specular-code-bg: ${t.codeBg};
-       |    --specular-code-fg: ${t.codeFg};
-       |    --specular-font-sans: ${t.fontSans};
-       |    --specular-radius: ${t.radius};
+       |    --specular-bg: ${cssValue(t.bg)};
+       |    --specular-surface: ${cssValue(t.surface)};
+       |    --specular-text: ${cssValue(t.text)};
+       |    --specular-muted: ${cssValue(t.muted)};
+       |    --specular-accent: ${cssValue(t.accent)};
+       |    --specular-link: ${cssValue(t.link)};
+       |    --specular-border: ${cssValue(t.border)};
+       |    --specular-code-bg: ${cssValue(t.codeBg)};
+       |    --specular-code-fg: ${cssValue(t.codeFg)};
+       |    --specular-font-sans: ${cssValue(t.fontSans)};
+       |    --specular-radius: ${cssValue(t.radius)};
        |  }
        |}""".stripMargin
 
