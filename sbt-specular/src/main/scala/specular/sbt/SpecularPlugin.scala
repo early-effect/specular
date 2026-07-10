@@ -47,7 +47,8 @@ object SpecularPlugin extends AutoPlugin:
     run / javaOptions := jdk24PlusRunOptions,
     specularSiteDirectory := target.value / "site",
     specularPort          := 8765,
-    specularBuildMain     := "specular.docs.BuildSite",
+    // Consumers must set this — there is no default main (avoids this repo's BuildSite).
+    specularBuildMain     := "",
     specularJsLink        := {},
     specularMetaProps := Def.uncached {
       def opt(key: String, value: String): Seq[String] =
@@ -65,16 +66,22 @@ object SpecularPlugin extends AutoPlugin:
     },
     specularSite := Def.uncached {
       val log       = streams.value.log
-      val mainClass = specularBuildMain.value
+      val mainClass = specularBuildMain.value.trim
       val dir       = specularSiteDirectory.value
       val converter = fileConverter.value
       val metaProps = specularMetaProps.value
+
+      if mainClass.isEmpty then
+        sys.error(
+          "specularBuildMain is not set. Example: specularBuildMain := \"com.example.BuildSite\""
+        )
 
       specularJsLink.value
 
       val jars =
         (Runtime / fullClasspath).value
           .map(af => converter.toPath(af.data).toFile.getAbsolutePath)
+      // JVM opts are passed as argv to Fork.java (not via a shell).
       val jvmOpts = (run / javaOptions).value.toVector ++ metaProps
       log.info(s"specularSite: running $mainClass → $dir")
       log.debug(s"specularSite: meta props ${metaProps.mkString(" ")}")

@@ -145,6 +145,29 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("duplicate slugs fail the build") {
+      val model = SiteModel(
+        title = "Docs",
+        pages = Vector(
+          page("Hello World")(md"a"),
+          page("Hello_World")(md"b"),
+        ),
+      )
+      for
+        tmp <- ZIO.attempt(Files.createTempDirectory("specular-dup"))
+        ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp)).flip
+      yield assertTrue(ex.getMessage.contains("Duplicate"))
+    },
+    test("empty slug fails the build") {
+      val model = SiteModel(
+        title = "Docs",
+        pages = Vector(DocPage("!!!", Vector(md"x"))),
+      )
+      for
+        tmp <- ZIO.attempt(Files.createTempDirectory("specular-empty"))
+        ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp)).flip
+      yield assertTrue(ex.getMessage.contains("empty slug"))
+    },
   ).provide(
     MarkdownRenderer.live,
     ExampleRunner.live,

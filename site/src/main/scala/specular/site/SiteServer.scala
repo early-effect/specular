@@ -28,6 +28,12 @@ object SiteServer:
   def serveForever(root: JPath, port: Int): UIO[Nothing] =
     ZIO.serviceWithZIO[SiteServer](_.serve(root, port)).provide(live)
 
+  /** True when `candidate` is `root` or a descendant (canonical paths). */
+  private[site] def isUnderRoot(root: File, candidate: File): Boolean =
+    val rootPath = root.getCanonicalFile.toPath.normalize
+    val candPath = candidate.getCanonicalFile.toPath.normalize
+    candPath.startsWith(rootPath)
+
   private object Live extends SiteServer:
     def routes(root: JPath): Routes[Any, Response] =
       val docRoot = root.toAbsolutePath.normalize.toFile
@@ -60,6 +66,8 @@ object SiteServer:
 
     private def resolveFile(docRoot: File, path: Path): Option[File] =
       val relative = path.dropLeadingSlash.encode
+      // Reject encoded / raw traversal before joining.
+      if relative.contains("..") then return None
       val target =
         if relative.isEmpty then docRoot
         else new File(docRoot, relative)
@@ -67,11 +75,11 @@ object SiteServer:
         try target.getCanonicalFile
         catch case _: Exception => return None
       val rootCanon = docRoot.getCanonicalFile
-      if !canonical.getPath.startsWith(rootCanon.getPath) then None
+      if !isUnderRoot(rootCanon, canonical) then None
       else
         val file =
           if canonical.isDirectory then new File(canonical, "index.html")
           else canonical
-        Option.when(file.isFile && file.canRead)(file)
+        Option.when(file.isFile && file.canRead && isUnderRoot(rootCanon, file))(file)
   end Live
 end SiteServer

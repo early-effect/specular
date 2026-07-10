@@ -53,5 +53,30 @@ object ProjectMetaSpec extends ZIOSpecDefault:
         meta.get.title.contains("Specular"),
       )
     },
+    test("isAllowedMetaUrl accepts only http(s) with host") {
+      assertTrue(
+        ProjectMeta.isAllowedMetaUrl("https://early-effect.github.io/ascent/metadata.json"),
+        ProjectMeta.isAllowedMetaUrl("http://example.com/m.json"),
+        !ProjectMeta.isAllowedMetaUrl("file:///etc/passwd"),
+        !ProjectMeta.isAllowedMetaUrl("javascript:alert(1)"),
+        !ProjectMeta.isAllowedMetaUrl("https:///nohost"),
+      )
+    },
+    test("parseJson drops unsafe homepage/docsUrl schemes") {
+      val raw =
+        """{"name":"x","organization":"o","version":"1","scalaVersion":"3",""" +
+          """"homepage":"javascript:alert(1)","docsUrl":"https://ok.example/"}"""
+      val parsed = ProjectMeta.parseJson(raw)
+      assertTrue(
+        parsed.isRight,
+        parsed.toOption.get.homepage.isEmpty,
+        parsed.toOption.get.docsUrl.contains("https://ok.example/"),
+      )
+    },
+    test("escape encodes control characters") {
+      val meta = ProjectMeta("n", "o", "1", "3", description = Some("a\u0001b"))
+      val json = meta.toJson
+      assertTrue(json.contains("\\u0001"), !json.contains("\u0001"))
+    },
   )
 end ProjectMetaSpec

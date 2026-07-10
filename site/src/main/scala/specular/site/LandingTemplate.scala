@@ -83,7 +83,9 @@ object LandingTemplate:
           Vector(
             el(
               "nav",
-              links.map(l => el("a", Vector(UI.Text(l.label)), Vector(attr("href", l.href)))),
+              links.map { l =>
+                el("a", Vector(UI.Text(l.label)), SafeHref.anchorAttrs(l.href).map { case (k, v) => attr(k, v) })
+              },
               Vector(attr("class", "specular-hero-links")),
             )
           )
@@ -106,7 +108,8 @@ object LandingTemplate:
         case ProjectCatalog(projects) =>
           ZIO.succeed:
             val cards = projects.map { p =>
-              val href = p.docsUrl.orElse(p.homepage).getOrElse("#")
+              val rawHref = p.docsUrl.orElse(p.homepage).getOrElse("#")
+              val linkAttrs = SafeHref.anchorAttrs(rawHref).map { case (k, v) => attr(k, v) }
               val badges =
                 Vector(s"v${p.version}") ++ p.language.toVector
               el(
@@ -114,7 +117,7 @@ object LandingTemplate:
                 Vector(
                   el(
                     "h3",
-                    Vector(el("a", Vector(UI.Text(p.displayTitle)), Vector(attr("href", href)))),
+                    Vector(el("a", Vector(UI.Text(p.displayTitle)), linkAttrs)),
                   )
                 ) ++ p.description.toVector.map(d => el("p", Vector(UI.Text(d)))) ++ Vector(
                   el(

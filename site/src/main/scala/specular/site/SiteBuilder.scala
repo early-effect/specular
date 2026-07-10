@@ -47,17 +47,38 @@ object SiteBuilder:
       buildSite(model, outDir)
 
     def buildSite(model: SiteModel, outDir: JPath): Task[SiteOutput] =
+      val root = outDir.toAbsolutePath.normalize
       for
+        _        <- validatePages(model.pages)
         themeCss <- theme.cssText
-        _        <- writer.writeText(outDir.resolve("assets/theme.css"), themeCss)
+        _        <- writeUnder(root, root.resolve("assets/theme.css"), themeCss)
         paths    <- ZIO.foreach(model.pages) { page =>
-          renderOne(model, page, outDir)
+          renderOne(model, page, root)
         }
         index <-
-          if model.isLanding then writeLandingIndex(model, outDir)
-          else writeDocsIndex(model, outDir)
-        metaPath <- writeMetadata(model, outDir)
-      yield SiteOutput(outDir, paths :+ index :+ metaPath)
+          if model.isLanding then writeLandingIndex(model, root)
+          else writeDocsIndex(model, root)
+        metaPath <- writeMetadata(model, root)
+      yield SiteOutput(root, paths :+ index :+ metaPath)
+
+    private def validatePages(pages: Vector[DocPage]): Task[Unit] =
+      val empty = pages.filter(_.slug.isEmpty).map(_.title)
+      val dupes =
+        pages
+          .groupBy(_.slug)
+          .collect { case (slug, group) if group.size > 1 => s"$slug ← ${group.map(_.title).mkString(", ")}" }
+          .toVector
+      if empty.nonEmpty then
+        ZIO.fail(new IllegalArgumentException(s"DocPage title(s) produce empty slug: ${empty.mkString(", ")}"))
+      else if dupes.nonEmpty then
+        ZIO.fail(new IllegalArgumentException(s"Duplicate DocPage slug(s): ${dupes.mkString("; ")}"))
+      else ZIO.unit
+
+    private def writeUnder(root: JPath, path: JPath, content: String): Task[Unit] =
+      val abs = path.toAbsolutePath.normalize
+      if !abs.startsWith(root) then
+        ZIO.fail(new IllegalArgumentException(s"Refusing to write outside site root: $abs (root=$root)"))
+      else writer.writeText(abs, content)
 
     private def renderOne(model: SiteModel, page: DocPage, outDir: JPath): Task[JPath] =
       for
@@ -67,8 +88,8 @@ object SiteBuilder:
         htmlPath = outDir.resolve(s"${page.slug}.html")
         cssPath  = outDir.resolve(s"assets/${page.slug}.css")
         fullHtml = s"<!DOCTYPE html>\n${rendered.html}"
-        _ <- writer.writeText(htmlPath, fullHtml)
-        _ <- writer.writeText(cssPath, rendered.css)
+        _ <- writeUnder(outDir, htmlPath, fullHtml)
+        _ <- writeUnder(outDir, cssPath, rendered.css)
       yield htmlPath
 
     private def writeDocsIndex(model: SiteModel, outDir: JPath): Task[JPath] =
@@ -106,8 +127,8 @@ object SiteBuilder:
         rendered <- ssr.renderPage(docUi)
         htmlPath = outDir.resolve("index.html")
         cssPath  = outDir.resolve("assets/index.css")
-        _ <- writer.writeText(htmlPath, s"<!DOCTYPE html>\n${rendered.html}")
-        _ <- writer.writeText(cssPath, rendered.css)
+        _ <- writeUnder(outDir, htmlPath, s"<!DOCTYPE html>\n${rendered.html}")
+        _ <- writeUnder(outDir, cssPath, rendered.css)
       yield htmlPath
     end writeDocsIndex
 
@@ -117,13 +138,13 @@ object SiteBuilder:
         rendered <- ssr.renderPage(docUi)
         htmlPath = outDir.resolve("index.html")
         cssPath  = outDir.resolve("assets/index.css")
-        _ <- writer.writeText(htmlPath, s"<!DOCTYPE html>\n${rendered.html}")
-        _ <- writer.writeText(cssPath, rendered.css)
+        _ <- writeUnder(outDir, htmlPath, s"<!DOCTYPE html>\n${rendered.html}")
+        _ <- writeUnder(outDir, cssPath, rendered.css)
       yield htmlPath
 
     private def writeMetadata(model: SiteModel, outDir: JPath): Task[JPath] =
       val path = outDir.resolve("metadata.json")
-      writer.writeText(path, model.publishedMeta.toJson + "\n").as(path)
+      writeUnder(outDir, path, model.publishedMeta.toJson + "\n").as(path)
 
     private def renderNodes(nodes: Vector[DocNode]): Task[UI[Any]] =
       ZIO.foreach(nodes)(renderNode).map {

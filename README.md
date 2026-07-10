@@ -34,7 +34,7 @@ object GettingStarted extends DocSpec:
           E.button(Events.onClick(_ => count.update(_ + 1)), "+"),
           E.span(count.map(_.toString)),
         )
-      }.interactive,
+      }.interactive.assert(_ => assertTrue(true)),
     ),
   )
 ```
@@ -70,9 +70,9 @@ tags via sbt-dynver (`v0.1.0` → `0.1.0`).
 
 ```scala
 libraryDependencies ++= Seq(
-  "rocks.earlyeffect" %% "specular-core"     % "<version>", // Doc AST + builders
-  "rocks.earlyeffect" %% "specular-zio-test" % "<version>", // DocSpec ↔ zio-test
-  "rocks.earlyeffect" %% "specular-site"     % "<version>", // static site builder (JVM)
+  "rocks.earlyeffect" %% "specular-core"     % "<version>", // Doc AST + builders (also pulls zio-test)
+  "rocks.earlyeffect" %% "specular-zio-test" % "<version>", // DocSpec ↔ zio-test interpreter
+  "rocks.earlyeffect" %% "specular-site"     % "<version>", // static site builder (JVM; pulls commonmark, zio-http, scalafmt-core)
 )
 
 // sbt plugin (optional): injects project meta and runs specularSite
@@ -80,6 +80,13 @@ addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "<version>")
 ```
 
 `specular-core` is also available for Scala.js (`%%%`) when your docs client needs the AST.
+
+With `sbt-specular`, set your builder main explicitly (there is no default):
+
+```scala
+enablePlugins(SpecularPlugin)
+specularBuildMain := "com.example.BuildDocs"
+```
 
 ---
 
@@ -118,6 +125,7 @@ Themes: `Theme.default`, `Theme.earlyEffect`, or `Theme.fromTokens(...)`.
 
 Every site build writes **`metadata.json`** next to `index.html` (name, org, version, pages, …)
 so hubs can fetch published manifests instead of hardcoding library cards.
+`ProjectCatalog.fromMetadataUrls` only accepts `http(s)` URLs (trusted allowlist — not an open proxy).
 
 ---
 
@@ -125,7 +133,7 @@ so hubs can fetch published manifests instead of hardcoding library cards.
 
 | Module | Artifact | Role |
 |--------|----------|------|
-| `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section` |
+| `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section` (depends on `zio-test` for `.assert`) |
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
 | `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json` |
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
@@ -138,7 +146,7 @@ so hubs can fetch published manifests instead of hardcoding library cards.
 ```bash
 sbt test                 # unit + DocSpec tests
 sbt docs/specularSite    # link JS client + write target/site (incl. metadata.json)
-sbt docs/run             # preview server (sbt-reload) on the built site
+sbt docs/run             # preview server via sbt-reload (`docs/runReload`)
 ```
 
 Requires a JDK that can run Scala 3.8 / sbt 2 (CI uses Temurin 25). Interactive examples need

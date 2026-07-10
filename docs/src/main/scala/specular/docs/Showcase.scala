@@ -134,7 +134,7 @@ Raw HTML in markdown is dropped (no XSS footgun):
             on.map(v => if v then "Turn off" else "Turn on"),
           ),
         )
-      }.interactive,
+      }.interactive.assert(_ => assertTrue(true)),
     ),
   )
 end Showcase

@@ -53,6 +53,28 @@ object SiteServerSpec extends ZIOSpecDefault:
           resp <- SiteServer.routes(tmp).runZIO(Request.get(URL.root / "missing.html"))
         yield assertTrue(!resp.status.isSuccess)
       },
+      test("rejects path traversal") {
+        for
+          tmp  <- tempSite("index.html" -> "<html>ok</html>")
+          resp <- SiteServer.routes(tmp).runZIO(Request.get(URL.root / ".." / "etc" / "passwd"))
+        yield assertTrue(!resp.status.isSuccess)
+      },
+      test("sibling prefix of site root is not served") {
+        // /tmp/site vs /tmp/site-evil style: string startsWith would wrongly allow.
+        for
+          parent <- ZIO.attempt(Files.createTempDirectory("specular-parent"))
+          site = parent.resolve("site")
+          evil = parent.resolve("site-evil")
+          _ <- ZIO.attempt {
+            Files.createDirectories(site)
+            Files.createDirectories(evil)
+            Files.writeString(site.resolve("index.html"), "<html>site</html>", StandardCharsets.UTF_8)
+            Files.writeString(evil.resolve("secret.html"), "<html>secret</html>", StandardCharsets.UTF_8)
+          }
+          // Request a path that canonicalizes toward the sibling if jail is broken.
+          resp <- SiteServer.routes(site).runZIO(Request.get(URL.root / ".." / "site-evil" / "secret.html"))
+        yield assertTrue(!resp.status.isSuccess)
+      },
     ),
     suite("live server")(
       test("Client can fetch a page from an installed server") {
