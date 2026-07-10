@@ -49,12 +49,13 @@ object SiteServer:
                 case None       => Handler.notFound
             }
             .catchAll {
-              case _: java.io.FileNotFoundException => Handler.notFound
+              case _: java.io.FileNotFoundException       => Handler.notFound
               case _: java.nio.file.AccessDeniedException =>
                 Handler.status(Status.Forbidden)
               case _ => Handler.notFound
             }
       )
+    end routes
 
     def serve(root: JPath, port: Int): UIO[Nothing] =
       val dir = root.toAbsolutePath.normalize.toFile
@@ -81,5 +82,6 @@ object SiteServer:
           if canonical.isDirectory then new File(canonical, "index.html")
           else canonical
         Option.when(file.isFile && file.canRead && isUnderRoot(rootCanon, file))(file)
+    end resolveFile
   end Live
 end SiteServer

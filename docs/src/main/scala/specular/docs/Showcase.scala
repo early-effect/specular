@@ -101,7 +101,7 @@ Emphasis with *italics*, **bold**, and `inline code`. Link out to [ascent](https
 ---
 
 Raw HTML in markdown is dropped (no XSS footgun):
-""",
+"""
     ),
     section("CSS-in-Scala layouts")(
       md"Examples are real ascent trees — apply `CssClass`es the same way you would in an app:",

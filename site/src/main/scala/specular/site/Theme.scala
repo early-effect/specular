@@ -261,7 +261,12 @@ object Theme:
         Selector(" h3", Declaration("margin", "0 0 0.25rem"), Declaration("font-size", "1.15rem")),
         Selector(" h3 a", Declaration("color", "var(--specular-text)")),
         Selector(" h3 a:hover", Declaration("color", "var(--specular-accent)"), Declaration("text-decoration", "none")),
-        Selector(" p", Declaration("margin", "0"), Declaration("color", "var(--specular-muted)"), Declaration("font-size", "0.95rem")),
+        Selector(
+          " p",
+          Declaration("margin", "0"),
+          Declaration("color", "var(--specular-muted)"),
+          Declaration("font-size", "0.95rem"),
+        ),
         Selector(
           " .specular-card-meta",
           Declaration("display", "flex"),

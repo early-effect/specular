@@ -9,17 +9,15 @@ import scala.util.Try
 
 /** Pretty-print captured `example` / `exampleIO` source for the site.
   *
-  * Uses scalafmt's in-process API (`Scalafmt.format(String, …)`). Snippets are
-  * expressions, not compilation units, so we wrap them in a synthetic block,
-  * format, then unwrap.
+  * Uses scalafmt's in-process API (`Scalafmt.format(String, …)`). Snippets are expressions, not compilation units, so
+  * we wrap them in a synthetic block, format, then unwrap.
   */
 object SourceFormatter:
 
   def format(source: String): String =
     val trimmed = source.trim
     if trimmed.isEmpty then trimmed
-    else
-      formatWrapped(trimmed).getOrElse(trimmed)
+    else formatWrapped(trimmed).getOrElse(trimmed)
 
   private def formatWrapped(snippet: String): Option[String] =
     val wrapped =
@@ -28,11 +26,11 @@ object SourceFormatter:
          |${indent(snippet, 4)}
          |  }
          |""".stripMargin
-    Try(Scalafmt.format(wrapped, config).get)
-      .toOption
+    Try(Scalafmt.format(wrapped, config).get).toOption
       .flatMap(unwrap)
       .map(_.trim)
       .filter(_.nonEmpty)
+  end formatWrapped
 
   private def unwrap(formatted: String): Option[String] =
     val lines = formatted.linesIterator.toVector

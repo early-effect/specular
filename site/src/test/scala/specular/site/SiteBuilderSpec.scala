@@ -99,7 +99,13 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       val model = SiteModel(
         title = "Early Effect",
         description = Some("functional Scala libraries"),
-        brand = Some(Brand("Early Effect", Some("Open-source Scala & ZIO"), Vector(BrandLink("GitHub", "https://github.com/early-effect")))),
+        brand = Some(
+          Brand(
+            "Early Effect",
+            Some("Open-source Scala & ZIO"),
+            Vector(BrandLink("GitHub", "https://github.com/early-effect")),
+          )
+        ),
         home = Some(
           HomePage(
             hero = Some(Hero("Early Effect", Some("Open-source Scala & ZIO"))),

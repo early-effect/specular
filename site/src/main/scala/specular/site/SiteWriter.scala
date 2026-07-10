@@ -31,6 +31,7 @@ object SiteWriter:
         Option(path.getParent).foreach(JFiles.createDirectories(_))
         JFiles.write(path, bytes)
         ()
+  end Unconfined
 
   private final case class Confined(root: JPath) extends SiteWriter:
     def writeText(path: JPath, content: String): Task[Unit] =
@@ -47,4 +48,5 @@ object SiteWriter:
         Option(abs.getParent).foreach(JFiles.createDirectories(_))
         JFiles.write(abs, bytes)
         ()
+  end Confined
 end SiteWriter

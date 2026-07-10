@@ -60,6 +60,8 @@ object SiteBuilder:
           else writeDocsIndex(model, root)
         metaPath <- writeMetadata(model, root)
       yield SiteOutput(root, paths :+ index :+ metaPath)
+      end for
+    end buildSite
 
     private def validatePages(pages: Vector[DocPage]): Task[Unit] =
       val empty = pages.filter(_.slug.isEmpty).map(_.title)
@@ -73,6 +75,7 @@ object SiteBuilder:
       else if dupes.nonEmpty then
         ZIO.fail(new IllegalArgumentException(s"Duplicate DocPage slug(s): ${dupes.mkString("; ")}"))
       else ZIO.unit
+    end validatePages
 
     private def writeUnder(root: JPath, path: JPath, content: String): Task[Unit] =
       val abs = path.toAbsolutePath.normalize

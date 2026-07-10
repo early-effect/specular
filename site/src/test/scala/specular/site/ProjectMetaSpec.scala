@@ -18,7 +18,7 @@ object ProjectMetaSpec extends ZIOSpecDefault:
         docsUrl = Some("https://early-effect.github.io/ascent/"),
         pages = Vector(MetaPage("Getting started", "getting-started")),
       )
-      val json  = meta.toJson
+      val json   = meta.toJson
       val parsed = ProjectMeta.parseJson(json)
       assertTrue(
         parsed.isRight,

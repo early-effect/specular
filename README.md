@@ -147,6 +147,7 @@ so hubs can fetch published manifests instead of hardcoding library cards.
 sbt test                 # unit + DocSpec tests
 sbt docs/specularSite    # link JS client + write target/site (incl. metadata.json)
 sbt docs/run             # preview server via sbt-reload (`docs/runReload`)
+./scripts/install-git-hooks   # once per clone: pre-commit runs scalafmtCheckAll
 ```
 
 Requires a JDK that can run Scala 3.8 / sbt 2 (CI uses Temurin 25). Interactive examples need

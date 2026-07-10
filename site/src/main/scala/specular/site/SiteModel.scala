@@ -41,6 +41,7 @@ final case class SiteModel(
         if base.pages.nonEmpty then base.pages
         else pages.map(p => MetaPage(p.title, p.slug)),
     )
+  end publishedMeta
 
   private def slugify(s: String): String =
     s.toLowerCase

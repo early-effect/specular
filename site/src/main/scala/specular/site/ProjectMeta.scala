@@ -56,6 +56,8 @@ object ProjectMeta:
       homepage = prop("homepage"),
       docsUrl = prop("docsUrl"),
     )
+    end for
+  end fromSystemProperties
 
   def toJson(meta: ProjectMeta): String =
     val pagesJson =
@@ -79,6 +81,7 @@ object ProjectMeta:
       pagesJson
 
     fields.mkString("{\n  ", ",\n  ", "\n}")
+  end toJson
 
   private def optField(key: String, value: Option[String]): Vector[String] =
     value.toVector.map(v => s""""$key": ${jsonString(v)}""")
@@ -105,6 +108,8 @@ object ProjectMeta:
       docsUrl = field("docsUrl").flatMap(SafeHref.sanitize),
       pages = parsePages(raw),
     )
+    end for
+  end parseJson
 
   /** Only http(s) URLs are accepted for hub composition (trusted catalog entries). */
   def isAllowedMetaUrl(url: String): Boolean =
@@ -118,8 +123,8 @@ object ProjectMeta:
 
   /** Fetch published micro-site manifests (org hub composition).
     *
-    * URLs must be http(s). Callers should pass an explicit allowlist of known micro-site
-    * manifests — this is not a general-purpose open proxy.
+    * URLs must be http(s). Callers should pass an explicit allowlist of known micro-site manifests — this is not a
+    * general-purpose open proxy.
     */
   def fetchAll(urls: Vector[String]): RIO[Client, Vector[ProjectMeta]] =
     ZIO.foreach(urls)(fetchOne)
@@ -132,9 +137,9 @@ object ProjectMeta:
       response <- ZClient
         .batched(Request.get(url))
         .timeoutFail(new RuntimeException(s"Timed out fetching $url"))(FetchTimeout)
-      _ <- ZIO.fail(new RuntimeException(s"GET $url → ${response.status}")).when(!response.status.isSuccess)
+      _     <- ZIO.fail(new RuntimeException(s"GET $url → ${response.status}")).when(!response.status.isSuccess)
       chunk <- response.body.asChunk
-      _ <- ZIO
+      _     <- ZIO
         .fail(new RuntimeException(s"$url: body exceeds $MaxBodyBytes bytes"))
         .when(chunk.size > MaxBodyBytes)
       body <- ZIO.attempt(new String(chunk.toArray, java.nio.charset.StandardCharsets.UTF_8))
@@ -159,22 +164,24 @@ object ProjectMeta:
           val slug  = """"slug"\s*:\s*"((?:\\.|[^"\\])*)"""".r.findFirstMatchIn(obj).map(m => unescape(m.group(1).nn))
           for t <- title; s <- slug yield MetaPage(t, s)
         }
+    end if
+  end parsePages
 
   private def jsonString(s: String): String =
     "\"" + escape(s) + "\""
 
   private def escape(s: String): String =
     s.flatMap {
-      case '\\'                  => "\\\\"
-      case '"'                   => "\\\""
-      case '\n'                  => "\\n"
-      case '\r'                  => "\\r"
-      case '\t'                  => "\\t"
-      case '\b'                  => "\\b"
-      case '\f'                  => "\\f"
-      case c if c < ' '          => f"\\u${c.toInt}%04x"
+      case '\\'                                             => "\\\\"
+      case '"'                                              => "\\\""
+      case '\n'                                             => "\\n"
+      case '\r'                                             => "\\r"
+      case '\t'                                             => "\\t"
+      case '\b'                                             => "\\b"
+      case '\f'                                             => "\\f"
+      case c if c < ' '                                     => f"\\u${c.toInt}%04x"
       case c if c.toInt > 0x7e && Character.isISOControl(c) => f"\\u${c.toInt}%04x"
-      case c                     => c.toString
+      case c                                                => c.toString
     }
 
   private def unescape(s: String): String =
@@ -183,13 +190,13 @@ object ProjectMeta:
     while i < s.length do
       if s.charAt(i) == '\\' && i + 1 < s.length then
         s.charAt(i + 1) match
-          case '\\' => sb.append('\\'); i += 2
-          case '"'  => sb.append('"'); i += 2
-          case 'n'  => sb.append('\n'); i += 2
-          case 'r'  => sb.append('\r'); i += 2
-          case 't'  => sb.append('\t'); i += 2
-          case 'b'  => sb.append('\b'); i += 2
-          case 'f'  => sb.append('\f'); i += 2
+          case '\\'                    => sb.append('\\'); i += 2
+          case '"'                     => sb.append('"'); i += 2
+          case 'n'                     => sb.append('\n'); i += 2
+          case 'r'                     => sb.append('\r'); i += 2
+          case 't'                     => sb.append('\t'); i += 2
+          case 'b'                     => sb.append('\b'); i += 2
+          case 'f'                     => sb.append('\f'); i += 2
           case 'u' if i + 5 < s.length =>
             val hex = s.substring(i + 2, i + 6)
             sb.append(Integer.parseInt(hex, 16).toChar)
@@ -198,5 +205,7 @@ object ProjectMeta:
       else
         sb.append(s.charAt(i))
         i += 1
+    end while
     sb.toString
+  end unescape
 end ProjectMeta

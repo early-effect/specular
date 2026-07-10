@@ -27,10 +27,13 @@ object LandingTemplate:
         classes  <- theme.classNames
         sections <- ZIO.foreach(home.sections)(renderSection(_, classes))
         readme   <- home.readmeMarkdown match
-          case Some(text) => md.toUi(text).map(ui => Vector(el("section", Vector(ui), Vector(attr("class", classes.content)))))
-          case None       => ZIO.succeed(Vector.empty)
-        heroUi = renderHero(home.hero, brand, classes)
-        footerText = model.meta.fold("Built with specular")(m => s"${m.displayTitle} · v${m.version} · Built with specular")
+          case Some(text) =>
+            md.toUi(text).map(ui => Vector(el("section", Vector(ui), Vector(attr("class", classes.content)))))
+          case None => ZIO.succeed(Vector.empty)
+        heroUi     = renderHero(home.hero, brand, classes)
+        footerText = model.meta.fold("Built with specular")(m =>
+          s"${m.displayTitle} · v${m.version} · Built with specular"
+        )
       yield el(
         "html",
         Vector(
@@ -65,6 +68,8 @@ object LandingTemplate:
           ),
         ),
       )
+      end for
+    end wrap
 
     private def renderHero(
         hero: Option[Hero],
@@ -102,15 +107,16 @@ object LandingTemplate:
         ) ++ linkEls,
         Vector(attr("class", classes.hero)),
       )
+    end renderHero
 
     private def renderSection(section: HomeSection, classes: ThemeClasses): UIO[UI[Any]] =
       section match
         case ProjectCatalog(projects) =>
           ZIO.succeed:
             val cards = projects.map { p =>
-              val rawHref = p.docsUrl.orElse(p.homepage).getOrElse("#")
+              val rawHref   = p.docsUrl.orElse(p.homepage).getOrElse("#")
               val linkAttrs = SafeHref.anchorAttrs(rawHref).map { case (k, v) => attr(k, v) }
-              val badges =
+              val badges    =
                 Vector(s"v${p.version}") ++ p.language.toVector
               el(
                 "article",

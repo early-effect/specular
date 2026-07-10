@@ -10,7 +10,7 @@ import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 object BuildSite extends ZIOAppDefault:
 
   def run =
-    val out = repoRoot.resolve("target/site")
+    val out  = repoRoot.resolve("target/site")
     val meta = ProjectMeta.fromSystemProperties.orElse(
       Some(
         ProjectMeta(
@@ -49,11 +49,12 @@ object BuildSite extends ZIOAppDefault:
         LandingTemplate.live,
         SiteBuilder.live,
       )
+  end run
 
   private def copyClientBundle(out: Path): Task[Unit] =
     ZIO.attempt {
       val dest = out.resolve("assets/client.js")
-      val src = findClientJs.getOrElse {
+      val src  = findClientJs.getOrElse {
         throw new RuntimeException(
           "JS client not linked — run docs/specularSite (or docsJS/fastLinkJS) first"
         )
@@ -70,12 +71,16 @@ object BuildSite extends ZIOAppDefault:
     else
       val stream = Files.walk(outRoot)
       try
-        val found = stream.filter { p =>
-          val s = p.toString.replace('\\', '/')
-          s.endsWith("specular-docs-fastopt/main.js")
-        }.findFirst()
+        val found = stream
+          .filter { p =>
+            val s = p.toString.replace('\\', '/')
+            s.endsWith("specular-docs-fastopt/main.js")
+          }
+          .findFirst()
         if found.isPresent then Some(found.get.nn) else None
       finally stream.close()
+    end if
+  end findClientJs
 
   private def repoRoot: Path =
     Iterator

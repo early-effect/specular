@@ -101,7 +101,7 @@ object MarkdownRenderer:
       case c: Code =>
         Vector(el("code", Vector(UI.Text(c.getLiteral))))
       case l: Link =>
-        val raw  = Option(l.getDestination).getOrElse("#")
+        val raw   = Option(l.getDestination).getOrElse("#")
         val attrs = SafeHref.anchorAttrs(raw).map { case (k, v) => attr(k, v) }
         Vector(el("a", inlineChildren(l), attrs))
       case _: HtmlInline =>
