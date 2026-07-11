@@ -78,7 +78,9 @@ In this dogfood site, `ExampleRegistry.fromPages(…)` collects interactive bodi
     section("SiteModel and ProjectMeta")(
       md"""
 `SiteModel` is the site-level config: title, `basePath`, pages, optional `clientScript`,
-theme hooks, and `meta`.
+theme hooks, `meta`, and optional `logo` (header mark beside the project name).
+
+The header brand (logo + title) and the sidebar project name both link to `index.html`.
 
 `ProjectMeta` is what hubs care about: name, organization, version, Scala version, title,
 description, docs URL, page list. Prefer `ProjectMeta.fromSystemProperties` so
@@ -99,7 +101,8 @@ proxy.
 Docs-only mode is enough for a library micro-site: `SiteModel(title, pages)` plus meta.
 
 Full project / org sites add `brand` and `home` (hero, `ProjectCatalog`, …). Themes ship
-as `Theme.default`, `Theme.earlyEffect`, or `Theme.fromTokens(...)`.
+as `Theme.default` or `Theme.fromTokens(...)`. Early Effect docs use the published
+`early-effect-docs-theme` pack (`EarlyEffectTheme.live` + logo resource).
 
 Use micro-sites for versioned library docs; use a hub site when you want one landing page
 that discovers many libraries via their published manifests.

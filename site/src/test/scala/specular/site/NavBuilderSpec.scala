@@ -18,7 +18,10 @@ object NavBuilderSpec extends ZIOSpecDefault:
         html.contains("two.html"),
         html.contains("nav-item-active"),
         html.contains("Two"),
+        html.contains("index.html"),
+        html.contains("specular-nav-home"),
       )
+      end for
     }
   ).provide(NavBuilder.live, HtmlSsr.live)
 end NavBuilderSpec

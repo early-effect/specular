@@ -14,13 +14,21 @@ final case class SiteModel(
     brand: Option[Brand] = None,
     home: Option[HomePage] = None,
     description: Option[String] = None,
+    /** Optional header mark (`src` relative to the site root, e.g. `images/logo.svg`). */
+    logo: Option[String] = None,
 ):
   def navItems: Vector[NavItem] =
     pages.map(p => NavItem(p.title, hrefFor(p)))
 
   def hrefFor(page: DocPage): String =
-    val base = if basePath.endsWith("/") then basePath else s"$basePath/"
-    s"${base}${page.slug}.html"
+    s"${normalizedBase}${page.slug}.html"
+
+  /** Docs index (and landing) href under [[basePath]]. */
+  def indexHref: String =
+    s"${normalizedBase}index.html"
+
+  private def normalizedBase: String =
+    if basePath.endsWith("/") then basePath else s"$basePath/"
 
   def isLanding: Boolean = home.isDefined
 

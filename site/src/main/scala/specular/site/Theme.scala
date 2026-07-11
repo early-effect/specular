@@ -16,7 +16,7 @@ final case class ThemeTokens(
     codeFg: String,
     fontSans: String,
     radius: String,
-    /** Optional light-scheme overrides (Early Effect style). */
+    /** Optional light-scheme overrides (e.g. prefers-color-scheme: light). */
     light: Option[ThemeTokens] = None,
 )
 
@@ -33,35 +33,6 @@ object ThemeTokens:
     codeFg = "#f5f5f5",
     fontSans = "ui-sans-serif, system-ui, sans-serif",
     radius = "6px",
-  )
-
-  val earlyEffect: ThemeTokens = ThemeTokens(
-    bg = "#0d1117",
-    surface = "#161b22",
-    text = "#e6edf3",
-    muted = "#9198a1",
-    accent = "#7ee787",
-    link = "#79c0ff",
-    border = "#30363d",
-    codeBg = "#010409",
-    codeFg = "#e6edf3",
-    fontSans = """-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif""",
-    radius = "12px",
-    light = Some(
-      ThemeTokens(
-        bg = "#ffffff",
-        surface = "#f6f8fa",
-        text = "#1f2328",
-        muted = "#59636e",
-        accent = "#1a7f37",
-        link = "#0969da",
-        border = "#d0d7de",
-        codeBg = "#161b22",
-        codeFg = "#e6edf3",
-        fontSans = """-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif""",
-        radius = "12px",
-      )
-    ),
   )
 end ThemeTokens
 
@@ -89,8 +60,7 @@ object Theme:
   def layer(tokens: ThemeTokens): ULayer[Theme] =
     ZLayer.succeed(Live(tokens))
 
-  val default: ULayer[Theme]     = layer(ThemeTokens.default)
-  val earlyEffect: ULayer[Theme] = layer(ThemeTokens.earlyEffect)
+  val default: ULayer[Theme] = layer(ThemeTokens.default)
 
   def fromTokens(tokens: ThemeTokens): ULayer[Theme] = layer(tokens)
 
@@ -114,6 +84,32 @@ object Theme:
         Declaration("background", "var(--specular-surface)"),
         Declaration("font-weight", "600"),
         Declaration("letter-spacing", "0.02em"),
+        Selector(
+          " a.specular-brand",
+          Declaration("display", "inline-flex"),
+          Declaration("align-items", "center"),
+          Declaration("gap", "0.65rem"),
+          Declaration("color", "var(--specular-text)"),
+          Declaration("text-decoration", "none"),
+        ),
+        Selector(
+          " a.specular-brand:hover",
+          Declaration("color", "var(--specular-accent)"),
+        ),
+        Selector(
+          " .specular-brand-logo",
+          Declaration("display", "block"),
+          Declaration("width", "1.75rem"),
+          Declaration("height", "1.75rem"),
+          Declaration("border-radius", "0.4rem"),
+          Declaration("object-fit", "contain"),
+          Declaration("flex-shrink", "0"),
+        ),
+        Selector(
+          " .specular-brand-title",
+          Declaration("font-weight", "600"),
+          Declaration("letter-spacing", "0.02em"),
+        ),
       )
 
   object Sidebar
@@ -138,6 +134,16 @@ object Theme:
           Declaration("list-style", "none"),
           Declaration("padding", "0"),
           Declaration("margin", "0.75rem 0 0"),
+        ),
+        Selector(
+          " a.specular-nav-home",
+          Declaration("color", "var(--specular-text)"),
+          Declaration("text-decoration", "none"),
+          Declaration("font-weight", "700"),
+        ),
+        Selector(
+          " a.specular-nav-home:hover",
+          Declaration("color", "var(--specular-accent)"),
         ),
       )
 

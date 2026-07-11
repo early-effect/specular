@@ -39,7 +39,20 @@ object NavBuilder:
           "nav",
           Vector(Attr.StaticAttr("class", AttrValue.Str("site-nav"))),
           Vector(
-            UI.Element[Any]("h2", Vector.empty, Vector(UI.Text(model.title))),
+            UI.Element[Any](
+              "h2",
+              Vector.empty,
+              Vector(
+                UI.Element[Any](
+                  "a",
+                  Vector(
+                    Attr.StaticAttr("href", AttrValue.Str(model.indexHref)),
+                    Attr.StaticAttr("class", AttrValue.Str("specular-nav-home")),
+                  ),
+                  Vector(UI.Text(model.title)),
+                )
+              ),
+            ),
             UI.Element[Any]("ul", Vector.empty, items),
           ),
         )

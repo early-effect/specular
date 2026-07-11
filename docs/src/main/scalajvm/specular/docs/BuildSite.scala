@@ -1,5 +1,6 @@
 package specular.docs
 
+import earlyeffect.docs.EarlyEffectTheme
 import specular.*
 import specular.site.*
 import zio.*
@@ -44,11 +45,13 @@ object BuildSite extends ZIOAppDefault:
       clientScript = Some("assets/client.js"),
       meta = meta,
       description = meta.flatMap(_.description),
+      logo = Some(EarlyEffectTheme.logoHref),
     )
     ZIO
       .serviceWithZIO[SiteBuilder](_.buildSite(model, out))
       .flatMap { result =>
-        copyClientBundle(out) *>
+        EarlyEffectTheme.writeLogo(out) *>
+          copyClientBundle(out) *>
           Console.printLine(s"Wrote ${result.pages.mkString(", ")}")
       }
       .provide(
@@ -57,7 +60,7 @@ object BuildSite extends ZIOAppDefault:
         HtmlSsr.live,
         SiteWriter.live,
         NavBuilder.live,
-        Theme.default,
+        EarlyEffectTheme.live,
         PageTemplate.live,
         LandingTemplate.live,
         SiteBuilder.live,

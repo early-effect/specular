@@ -127,7 +127,18 @@ ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, outDir))
 | **Docs-only** | `SiteModel(title, pages)` (+ optional theme / meta) | Sidebar docs + index + `metadata.json` |
 | **Full site** | `brand`, `home` (hero, `ProjectCatalog`, …) | Landing page + optional deep links to micro-sites |
 
-Themes: `Theme.default`, `Theme.earlyEffect`, or `Theme.fromTokens(...)`.
+Themes: `Theme.default` or `Theme.fromTokens(...)`. Early Effect projects should depend on
+`early-effect-docs-theme` for hub-matched tokens and the logo resource:
+
+```scala
+libraryDependencies += "rocks.earlyeffect" %% "early-effect-docs-theme" % "<version>"
+// SiteModel(..., logo = Some(EarlyEffectTheme.logoHref))
+// .provide(..., EarlyEffectTheme.live, ...)
+// EarlyEffectTheme.writeLogo(outDir)
+```
+
+Set `SiteModel.logo` for a small header mark beside the project name; the brand link goes to
+`index.html`.
 
 Every site build writes **`metadata.json`** next to `index.html` (name, org, version, pages, …)
 so hubs can fetch published manifests instead of hardcoding library cards.
@@ -142,6 +153,7 @@ so hubs can fetch published manifests instead of hardcoding library cards.
 | `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section` (depends on `zio-test` for `.assert`) |
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
 | `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json` |
+| `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
 | `docs` | (unpublished) | Dogfood site for specular itself |
 
