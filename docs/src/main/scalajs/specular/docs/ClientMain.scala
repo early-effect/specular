@@ -8,13 +8,20 @@ import zio.*
 object ClientMain extends ZIOAppDefault:
 
   def run =
-    val examples = ExampleRegistry.fromPages(GettingStarted.doc, Concepts.doc, Showcase.doc)
+    val examples = ExampleRegistry.fromPages(
+      WhySpecular.doc,
+      GettingStarted.doc,
+      Concepts.doc,
+      LibraryAuthors.doc,
+      Showcase.doc,
+    )
     for
       _ <- ZIO.foreachDiscard(examples.toList) { case (id, body) =>
         mountExample(id, body)
       }
       _ <- ZIO.never
     yield ()
+  end run
 
   private def mountExample(id: String, body: URIO[Scope, ascent.ast.UI[Any]]): UIO[Unit] =
     val el = Dom.document.getElementById(id)

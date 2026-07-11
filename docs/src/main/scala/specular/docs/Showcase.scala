@@ -66,8 +66,9 @@ object Showcase extends DocSpec:
     md"""
 Specular authors mix **markdown prose** with **ascent UI** in the same `DocSpec`.
 
-This page is the power-user tour: headings, lists, quotes, tables, links, and CSS-in-Scala layouts —
-all from one source that also runs as tests.
+This page is the power-user tour: headings, lists, quotes, tables, links, and CSS-in-Scala
+layouts, all from one source that also runs as tests. For the adoption story and wiring,
+start at [Why Specular](why-specular.html) and [Getting started](getting-started.html).
 """,
     section("Markdown palette")(
       md"""
@@ -87,7 +88,7 @@ Emphasis with *italics*, **bold**, and `inline code`. Link out to [ascent](https
 
 ### Quote
 
-> Same AST, two interpreters — tests keep docs honest; the site shows them.
+> Same AST, two interpreters: tests keep docs honest; the site shows them.
 
 ### Table
 
@@ -104,25 +105,25 @@ Raw HTML in markdown is dropped (no XSS footgun):
 """
     ),
     section("CSS-in-Scala layouts")(
-      md"Examples are real ascent trees — apply `CssClass`es the same way you would in an app:",
+      md"Examples are real ascent trees: apply `CssClass`es the same way you would in an app:",
       example {
         E.div(
           Callout,
           E.span(Badge, "tip"),
-          E.p("Callouts, badges, and cards are ordinary ", E.code("CssClass"), " values — not a separate docs DSL."),
+          E.p("Callouts, badges, and cards are ordinary ", E.code("CssClass"), " values, not a separate docs DSL."),
         )
       }.assert(_ => assertTrue(true)),
       example {
         E.div(
           Row,
           E.div(Card, E.h3("Tests"), E.p("Every ", E.code(".assert"), " example fails CI when it drifts.")),
-          E.div(Card, E.h3("Site"), E.p("SSR via ascent-html — same Mount engine as the browser.")),
+          E.div(Card, E.h3("Site"), E.p("SSR via ascent-html: same Mount engine as the browser.")),
           E.div(Card, E.h3("Live"), E.p("Interactive examples remount into ", E.code("#ex-*"), " wrappers.")),
         )
       },
     ),
     section("Interactive + styled")(
-      md"Combine `CssClass` with `sq` state — still one `exampleIO` block:",
+      md"Combine `CssClass` with `sq` state: still one `exampleIO` block:",
       exampleIO {
         for on <- sq(false)
         yield E.div(

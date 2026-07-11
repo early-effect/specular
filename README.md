@@ -61,6 +61,12 @@ project catalog, themes). Each published micro-site emits a `metadata.json` so a
 (like [earlyeffect.rocks](https://www.earlyeffect.rocks)) can compose library cards from live
 version metadata.
 
+The dogfood site expands this story for adopters:
+[Why Specular](https://early-effect.github.io/specular/why-specular.html),
+[Getting started](https://early-effect.github.io/specular/getting-started.html),
+[Concepts](https://early-effect.github.io/specular/concepts.html), and
+[Library authors](https://early-effect.github.io/specular/library-authors.html).
+
 ---
 
 ## Installation
