@@ -168,12 +168,20 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           run / javaOptions ++= {
             def opt(key: String, value: String): Seq[String] =
               if (value == null || value.isBlank) then Nil else Seq(s"-Dspecular.meta.$key=$value")
+            val siteDir  = (ThisBuild / baseDirectory).value / "target" / "site"
+            val basePath = sys.env.getOrElse("SPECULAR_BASE_PATH", ".")
+            val docsUrl  = sys.env.getOrElse("SPECULAR_DOCS_URL", "")
             opt("name", "specular") ++
               opt("organization", organization.value) ++
               opt("version", version.value) ++
               opt("scalaVersion", scalaVersion.value) ++
               opt("title", "Specular") ++
-              opt("description", description.value)
+              opt("description", description.value) ++
+              opt("docsUrl", docsUrl) ++
+              Seq(
+                s"-Dspecular.site.dir=${siteDir.getAbsolutePath}",
+                s"-Dspecular.site.basePath=$basePath",
+              )
           },
           // One-shot site build: link JS client, then run BuildSite (copies client.js itself).
           // Use LocalProject — do NOT call docs.js(...) here (deadlocks lazy val init).
