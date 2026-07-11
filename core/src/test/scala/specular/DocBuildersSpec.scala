@@ -31,6 +31,28 @@ object DocBuildersSpec extends ZIOSpecDefault:
           ex.assertion.isEmpty,
         )
       },
+      test("captures local definitions before the result expression") {
+        val ex = example {
+          val label = "tip"
+          E.span(label)
+        }
+        assertTrue(
+          ex.source.contains("val label"),
+          ex.source.contains("E.span"),
+        )
+      },
+      test("exampleIO captures locals before the for-comprehension") {
+        val ex = exampleIO {
+          val start = false
+          for on <- sq(start)
+          yield E.p(on.map(_.toString))
+        }
+        assertTrue(
+          ex.source.contains("val start"),
+          ex.source.contains("for on"),
+          ex.source.contains("sq"),
+        )
+      },
       test("fluent .interactive marks the example") {
         val ex = example {
           E.span("x")

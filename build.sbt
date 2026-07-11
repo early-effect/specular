@@ -100,7 +100,6 @@ lazy val core = (projectMatrix in file("core"))
       "dev.zio"           %% "zio-test"    % zioVersion,
       "rocks.earlyeffect" %% "ascent-core" % ascentVersion,
       "rocks.earlyeffect" %% "ascent-css"  % ascentVersion,
-      "com.lihaoyi"       %% "sourcecode"  % "0.4.2",
     ),
     zioTestSettings,
   )
