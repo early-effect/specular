@@ -105,7 +105,10 @@ If your org (or you) keeps a hub:
 3. Rebuild the hub site and confirm the card appears
 
 Hubs usually rebuild on demand rather than on every library tag, so catalog edits stay
-intentional. Specular's own dogfood hub is one example of this pattern.
+intentional.
+
+Early Effect's hub at [earlyeffect.rocks](https://www.earlyeffect.rocks) uses this
+approach: published library `metadata.json` URLs feed a Specular catalog site.
 """
     ),
     section("Migration from markdown docs")(
