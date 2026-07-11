@@ -1,7 +1,6 @@
 package specular.docs
 
 import ascent.*
-import ascent.css.{CssClass, Declaration, Selector}
 import ascent.dsl.*
 import specular.*
 import zio.test.*
@@ -9,57 +8,66 @@ import zio.test.*
 /** Dogfood page: markdown constructs + CSS-in-Scala layouts in one DocSpec. */
 object Showcase extends DocSpec:
 
+  private val ink         = Color.hex("#1a1a1a")
+  private val accent      = Color.hex("#0b5fff")
+  private val accentHover = Color.hex("#094acc")
+  private val calloutBg   = Color.hex("#eef4ff")
+  private val badgeBg     = Color.hex("#e8f0ff")
+  private val cardBorder  = Color.hex("#e2e2e2")
+
   object Callout
       extends CssClass(
-        Declaration("padding", "1rem 1.25rem"),
-        Declaration("border-left", "4px solid #0b5fff"),
-        Declaration("background", "#eef4ff"),
-        Declaration("border-radius", "0 8px 8px 0"),
-        Declaration("margin", "0.75rem 0"),
+        S.padding(1.rem, 1.25.rem),
+        S.borderLeft(Border.solid(4.px, accent)),
+        S.background(calloutBg),
+        S.color(ink),
+        S.borderRadius(0.px, 8.px, 8.px, 0.px),
+        S.margin(0.75.rem, 0.px),
       )
 
   object Card
       extends CssClass(
-        Declaration("display", "grid"),
-        Declaration("gap", "0.5rem"),
-        Declaration("padding", "1.25rem"),
-        Declaration("background", "#fff"),
-        Declaration("border", "1px solid #e2e2e2"),
-        Declaration("border-radius", "10px"),
-        Declaration("box-shadow", "0 1px 2px rgba(0,0,0,0.04)"),
+        S.display.grid,
+        S.gap(0.5.rem),
+        S.padding(1.25.rem),
+        S.background(Color.hex("#ffffff")),
+        S.color(ink),
+        S.border(Border.solid(1.px, cardBorder)),
+        S.borderRadius.px(10),
+        S.boxShadow(Shadow(0.px, 1.px, 2.px, Color.rgba(0, 0, 0, 0.04))),
       )
 
   object Badge
       extends CssClass(
-        Declaration("display", "inline-block"),
-        Declaration("padding", "0.15rem 0.55rem"),
-        Declaration("font-size", "0.75rem"),
-        Declaration("font-weight", "600"),
-        Declaration("letter-spacing", "0.04em"),
-        Declaration("text-transform", "uppercase"),
-        Declaration("color", "#0b5fff"),
-        Declaration("background", "#e8f0ff"),
-        Declaration("border-radius", "999px"),
+        S.display.inlineBlock,
+        S.padding(0.15.rem, 0.55.rem),
+        S.fontSize(0.75.rem),
+        S.fontWeight(600),
+        S.letterSpacing(0.04.em),
+        S.textTransform.uppercase,
+        S.color(accent),
+        S.background(badgeBg),
+        S.borderRadius.px(999),
       )
 
   object Row
       extends CssClass(
-        Declaration("display", "flex"),
-        Declaration("gap", "1rem"),
-        Declaration("flex-wrap", "wrap"),
-        Declaration("align-items", "stretch"),
+        S.display.flex,
+        S.gap(1.rem),
+        S.flexWrap.wrap,
+        S.alignItems.stretch,
       )
 
   object AccentButton
       extends CssClass(
-        Declaration("padding", "0.45rem 0.9rem"),
-        Declaration("border", "none"),
-        Declaration("border-radius", "6px"),
-        Declaration("background", "#0b5fff"),
-        Declaration("color", "#fff"),
-        Declaration("font-weight", "600"),
-        Declaration("cursor", "pointer"),
-        Selector(":hover", Declaration("background", "#094acc")),
+        S.padding(0.45.rem, 0.9.rem),
+        S.border.none,
+        S.borderRadius.px(6),
+        S.background(accent),
+        S.color(Color.hex("#ffffff")),
+        S.fontWeight(600),
+        S.cursor.pointer,
+        Selector(PseudoClass.hover, S.background(accentHover)),
       )
 
   def doc = page("Showcase")(

@@ -1,6 +1,7 @@
 package specular.site
 
-import ascent.css.{CssClass, Declaration, Selector}
+import ascent.*
+import ascent.css.Styles.*
 import zio.*
 
 /** Design tokens for a specular theme. */
@@ -64,247 +65,260 @@ object Theme:
 
   def fromTokens(tokens: ThemeTokens): ULayer[Theme] = layer(tokens)
 
+  // CSS custom-property references used by the chrome classes below.
+  private val vBg      = Color.keyword("var(--specular-bg)")
+  private val vSurface = Color.keyword("var(--specular-surface)")
+  private val vText    = Color.keyword("var(--specular-text)")
+  private val vMuted   = Color.keyword("var(--specular-muted)")
+  private val vAccent  = Color.keyword("var(--specular-accent)")
+  private val vLink    = Color.keyword("var(--specular-link)")
+  private val vBorder  = Color.keyword("var(--specular-border)")
+  private val vCodeBg  = Color.keyword("var(--specular-code-bg)")
+  private val vCodeFg  = Color.keyword("var(--specular-code-fg)")
+  private val vRadius  = "var(--specular-radius)"
+  private val vFont    = "var(--specular-font-sans)"
+
   /** Docs layout + chrome, driven by CSS variables from tokens. */
   object Layout
       extends CssClass(
-        Declaration("display", "grid"),
-        Declaration("grid-template-columns", "240px 1fr"),
-        Declaration("grid-template-rows", "auto 1fr auto"),
-        Declaration("min-height", "100vh"),
-        Declaration("font-family", "var(--specular-font-sans)"),
-        Declaration("color", "var(--specular-text)"),
-        Declaration("background", "var(--specular-bg)"),
+        display.grid,
+        gridTemplateColumns(GridTrack.list(GridTrack.of(240.px), GridTrack.fr(1))),
+        gridTemplateRows(GridTrack.list(GridTrack.auto, GridTrack.fr(1), GridTrack.auto)),
+        minHeight.vh(100),
+        fontFamily(vFont),
+        color(vText),
+        background(vBg),
       )
 
   object Header
       extends CssClass(
-        Declaration("grid-column", "1 / -1"),
-        Declaration("padding", "1rem 1.5rem"),
-        Declaration("border-bottom", "1px solid var(--specular-border)"),
-        Declaration("background", "var(--specular-surface)"),
-        Declaration("font-weight", "600"),
-        Declaration("letter-spacing", "0.02em"),
+        gridColumn("1 / -1"),
+        padding(1.rem, 1.5.rem),
+        borderBottom(Border.solid(1.px, vBorder)),
+        background(vSurface),
+        fontWeight(600),
+        letterSpacing(0.02.em),
         Selector(
           " .specular-brand",
-          Declaration("display", "inline-flex"),
-          Declaration("align-items", "center"),
-          Declaration("gap", "0.65rem"),
+          display.inlineFlex,
+          alignItems.center,
+          gap(0.65.rem),
         ),
         Selector(
           " a.specular-brand-logo-link, a.specular-brand-title-link",
-          Declaration("color", "var(--specular-text)"),
-          Declaration("text-decoration", "none"),
+          color(vText),
+          textDecoration.none,
         ),
         Selector(
           " a.specular-brand-logo-link:hover, a.specular-brand-title-link:hover",
-          Declaration("color", "var(--specular-accent)"),
+          color(vAccent),
         ),
         Selector(
           " a.specular-brand-logo-link",
-          Declaration("display", "inline-flex"),
-          Declaration("line-height", "0"),
+          display.inlineFlex,
+          lineHeight(0),
         ),
         Selector(
           " .specular-brand-logo",
-          Declaration("display", "block"),
-          Declaration("width", "1.75rem"),
-          Declaration("height", "1.75rem"),
-          Declaration("border-radius", "0.4rem"),
-          Declaration("object-fit", "contain"),
-          Declaration("flex-shrink", "0"),
+          display.block,
+          width(1.75.rem),
+          height(1.75.rem),
+          borderRadius(0.4.rem),
+          objectFit.contain,
+          flexShrink(0),
         ),
         Selector(
           " .specular-brand-title",
-          Declaration("font-weight", "600"),
-          Declaration("letter-spacing", "0.02em"),
+          fontWeight(600),
+          letterSpacing(0.02.em),
         ),
       )
 
   object Sidebar
       extends CssClass(
-        Declaration("padding", "1.25rem"),
-        Declaration("border-right", "1px solid var(--specular-border)"),
-        Declaration("background", "var(--specular-surface)"),
+        padding(1.25.rem),
+        borderRight(Border.solid(1.px, vBorder)),
+        background(vSurface),
         Selector(
           " a",
-          Declaration("display", "block"),
-          Declaration("padding", "0.35rem 0"),
-          Declaration("color", "var(--specular-text)"),
-          Declaration("text-decoration", "none"),
+          display.block,
+          padding(0.35.rem, 0.px),
+          color(vText),
+          textDecoration.none,
         ),
         Selector(
           " a.nav-item-active",
-          Declaration("font-weight", "700"),
-          Declaration("color", "var(--specular-accent)"),
+          fontWeight(700),
+          color(vAccent),
         ),
         Selector(
           " ul",
-          Declaration("list-style", "none"),
-          Declaration("padding", "0"),
-          Declaration("margin", "0.75rem 0 0"),
+          listStyle.none,
+          padding(0.px),
+          margin(0.75.rem, 0.px, 0.px, 0.px),
         ),
         Selector(
           " a.specular-nav-home",
-          Declaration("color", "var(--specular-text)"),
-          Declaration("text-decoration", "none"),
-          Declaration("font-weight", "700"),
+          color(vText),
+          textDecoration.none,
+          fontWeight(700),
         ),
         Selector(
           " a.specular-nav-home:hover",
-          Declaration("color", "var(--specular-accent)"),
+          color(vAccent),
         ),
       )
 
   object Content
       extends CssClass(
-        Declaration("padding", "1.5rem 2rem"),
-        Declaration("max-width", "52rem"),
-        Declaration("line-height", "1.55"),
+        padding(1.5.rem, 2.rem),
+        maxWidth(52.rem),
+        lineHeight(1.55),
         Selector(
           " pre.specular-source",
-          Declaration("background", "var(--specular-code-bg)"),
-          Declaration("color", "var(--specular-code-fg)"),
-          Declaration("padding", "1rem"),
-          Declaration("overflow", "auto"),
-          Declaration("border-radius", "var(--specular-radius)"),
+          background(vCodeBg),
+          color(vCodeFg),
+          padding(1.rem),
+          overflow.auto,
+          borderRadius(vRadius),
         ),
-        Selector(" figure.specular-example", Declaration("margin", "1.25rem 0"), Declaration("padding", "0")),
+        Selector(" figure.specular-example", margin(1.25.rem, 0.px), padding(0.px)),
         Selector(
           " .specular-snapshot",
-          Declaration("margin-top", "0.75rem"),
-          Declaration("padding", "1rem"),
-          Declaration("background", "var(--specular-surface)"),
-          Declaration("border", "1px solid var(--specular-border)"),
-          Declaration("border-radius", "var(--specular-radius)"),
+          marginTop(0.75.rem),
+          padding(1.rem),
+          background(vSurface),
+          border(Border.solid(1.px, vBorder)),
+          borderRadius(vRadius),
         ),
-        Selector(" a", Declaration("color", "var(--specular-link)")),
+        Selector(" a", color(vLink)),
       )
 
   object Footer
       extends CssClass(
-        Declaration("grid-column", "1 / -1"),
-        Declaration("padding", "0.75rem 1.5rem"),
-        Declaration("border-top", "1px solid var(--specular-border)"),
-        Declaration("font-size", "0.85rem"),
-        Declaration("color", "var(--specular-muted)"),
-        Declaration("background", "var(--specular-surface)"),
+        gridColumn("1 / -1"),
+        padding(0.75.rem, 1.5.rem),
+        borderTop(Border.solid(1.px, vBorder)),
+        fontSize(0.85.rem),
+        color(vMuted),
+        background(vSurface),
       )
 
   object Landing
       extends CssClass(
-        Declaration("min-height", "100vh"),
-        Declaration("font-family", "var(--specular-font-sans)"),
-        Declaration("color", "var(--specular-text)"),
-        Declaration("background", "var(--specular-bg)"),
-        Declaration("line-height", "1.6"),
-        Selector(" a", Declaration("color", "var(--specular-link)"), Declaration("text-decoration", "none")),
-        Selector(" a:hover", Declaration("text-decoration", "underline")),
+        minHeight.vh(100),
+        fontFamily(vFont),
+        color(vText),
+        background(vBg),
+        lineHeight(1.6),
+        Selector(" a", color(vLink), textDecoration.none),
+        Selector(" a:hover", textDecoration.underline),
       )
 
   object Hero
       extends CssClass(
-        Declaration("padding", "4.5rem 1.5rem 2.5rem"),
-        Declaration("text-align", "center"),
-        Declaration("border-bottom", "1px solid var(--specular-border)"),
+        padding(4.5.rem, 1.5.rem, 2.5.rem, 1.5.rem),
+        textAlign.center,
+        borderBottom(Border.solid(1.px, vBorder)),
         Selector(
           " .specular-hero-image",
-          Declaration("display", "block"),
-          Declaration("width", "10rem"),
-          Declaration("height", "10rem"),
-          Declaration("margin", "0 auto 1.25rem"),
-          Declaration("object-fit", "contain"),
-          Declaration("border-radius", "1.25rem"),
+          display.block,
+          width(10.rem),
+          height(10.rem),
+          margin(0.px, Length.auto, 1.25.rem, Length.auto),
+          objectFit.contain,
+          borderRadius(1.25.rem),
         ),
         Selector(
           " .specular-hero-title",
-          Declaration("font-size", "3rem"),
-          Declaration("font-weight", "800"),
-          Declaration("letter-spacing", "-0.02em"),
-          Declaration("margin", "0"),
+          fontSize(3.rem),
+          fontWeight(800),
+          letterSpacing((-0.02).em),
+          margin(0.px),
         ),
-        Selector(" .specular-hero-accent", Declaration("color", "var(--specular-accent)")),
+        Selector(" .specular-hero-accent", color(vAccent)),
         Selector(
           " .specular-hero-subtitle",
-          Declaration("color", "var(--specular-muted)"),
-          Declaration("font-size", "1.15rem"),
-          Declaration("margin", "0.75rem 0 0"),
+          color(vMuted),
+          fontSize(1.15.rem),
+          margin(0.75.rem, 0.px, 0.px, 0.px),
         ),
         Selector(
           " .specular-hero-links",
-          Declaration("margin-top", "1.5rem"),
-          Declaration("display", "flex"),
-          Declaration("gap", "1rem"),
-          Declaration("justify-content", "center"),
-          Declaration("flex-wrap", "wrap"),
+          marginTop(1.5.rem),
+          display.flex,
+          gap(1.rem),
+          justifyContent.center,
+          flexWrap.wrap,
         ),
         Selector(
           " .specular-hero-links a",
-          Declaration("display", "inline-block"),
-          Declaration("padding", "0.5rem 1.125rem"),
-          Declaration("border", "1px solid var(--specular-border)"),
-          Declaration("border-radius", "var(--specular-radius)"),
-          Declaration("color", "var(--specular-text)"),
-          Declaration("font-weight", "600"),
+          display.inlineBlock,
+          padding(0.5.rem, 1.125.rem),
+          border(Border.solid(1.px, vBorder)),
+          borderRadius(vRadius),
+          color(vText),
+          fontWeight(600),
         ),
         Selector(
           " .specular-hero-links a:hover",
-          Declaration("border-color", "var(--specular-accent)"),
-          Declaration("text-decoration", "none"),
+          borderColor(vAccent),
+          textDecoration.none,
         ),
       )
 
   object Catalog
       extends CssClass(
-        Declaration("max-width", "960px"),
-        Declaration("margin", "0 auto"),
-        Declaration("padding", "3rem 1.5rem"),
+        maxWidth.px(960),
+        margin(0.px, Length.auto),
+        padding(3.rem, 1.5.rem),
         Selector(
           " .specular-catalog-heading",
-          Declaration("font-size", "0.9rem"),
-          Declaration("text-transform", "uppercase"),
-          Declaration("letter-spacing", "0.08em"),
-          Declaration("color", "var(--specular-muted)"),
-          Declaration("margin", "0 0 1.5rem"),
-          Declaration("font-weight", "700"),
+          fontSize(0.9.rem),
+          textTransform.uppercase,
+          letterSpacing(0.08.em),
+          color(vMuted),
+          margin(0.px, 0.px, 1.5.rem, 0.px),
+          fontWeight(700),
         ),
         Selector(
           " .specular-catalog-grid",
-          Declaration("display", "grid"),
-          Declaration("grid-template-columns", "repeat(auto-fill, minmax(280px, 1fr))"),
-          Declaration("gap", "1rem"),
+          display.grid,
+          gridTemplateColumns("repeat(auto-fill, minmax(280px, 1fr))"),
+          gap(1.rem),
         ),
       )
 
   object Card
       extends CssClass(
-        Declaration("background", "var(--specular-surface)"),
-        Declaration("border", "1px solid var(--specular-border)"),
-        Declaration("border-radius", "var(--specular-radius)"),
-        Declaration("padding", "1.25rem"),
-        Selector(" h3", Declaration("margin", "0 0 0.25rem"), Declaration("font-size", "1.15rem")),
-        Selector(" h3 a", Declaration("color", "var(--specular-text)")),
-        Selector(" h3 a:hover", Declaration("color", "var(--specular-accent)"), Declaration("text-decoration", "none")),
+        background(vSurface),
+        border(Border.solid(1.px, vBorder)),
+        borderRadius(vRadius),
+        padding(1.25.rem),
+        Selector(" h3", margin(0.px, 0.px, 0.25.rem, 0.px), fontSize(1.15.rem)),
+        Selector(" h3 a", color(vText)),
+        Selector(" h3 a:hover", color(vAccent), textDecoration.none),
         Selector(
           " p",
-          Declaration("margin", "0"),
-          Declaration("color", "var(--specular-muted)"),
-          Declaration("font-size", "0.95rem"),
+          margin(0.px),
+          color(vMuted),
+          fontSize(0.95.rem),
         ),
         Selector(
           " .specular-card-meta",
-          Declaration("display", "flex"),
-          Declaration("gap", "0.5rem"),
-          Declaration("flex-wrap", "wrap"),
-          Declaration("margin-top", "0.75rem"),
+          display.flex,
+          gap(0.5.rem),
+          flexWrap.wrap,
+          marginTop(0.75.rem),
         ),
         Selector(
           " .specular-card-badge",
-          Declaration("display", "inline-block"),
-          Declaration("font-size", "0.75rem"),
-          Declaration("color", "var(--specular-muted)"),
-          Declaration("border", "1px solid var(--specular-border)"),
-          Declaration("border-radius", "999px"),
-          Declaration("padding", "0.125rem 0.625rem"),
+          display.inlineBlock,
+          fontSize(0.75.rem),
+          color(vMuted),
+          border(Border.solid(1.px, vBorder)),
+          borderRadius.px(999),
+          padding(0.125.rem, 0.625.rem),
         ),
       )
 
