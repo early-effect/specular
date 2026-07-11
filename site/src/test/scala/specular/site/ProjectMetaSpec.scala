@@ -36,6 +36,15 @@ object ProjectMetaSpec extends ZIOSpecDefault:
           """libraryDependencies += "rocks.earlyeffect" %% "saferis" % "1.2.3""""
       )
     },
+    test("sbtPlugin formats coords") {
+      val meta = ProjectMeta("specular", "rocks.earlyeffect", "0.2.0", "3.8.4")
+      assertTrue(
+        meta.sbtPlugin() ==
+          """addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "0.2.0")""",
+        meta.sbtPlugin("sbt-specular") ==
+          """addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "0.2.0")""",
+      )
+    },
     test("fromSystemProperties reads -Dspecular.meta.*") {
       val keys = Vector("name", "organization", "version", "scalaVersion", "title")
       keys.foreach(k => java.lang.System.clearProperty(s"specular.meta.$k"))

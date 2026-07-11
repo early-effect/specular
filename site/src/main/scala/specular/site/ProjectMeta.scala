@@ -23,6 +23,9 @@ final case class ProjectMeta(
   def sbtDependency(artifact: String = name): String =
     s"""libraryDependencies += "$organization" %% "$artifact" % "$version""""
 
+  def sbtPlugin(artifact: String = s"sbt-$name"): String =
+    s"""addSbtPlugin("$organization" % "$artifact" % "$version")"""
+
   def toJson: String =
     ProjectMeta.toJson(this)
 end ProjectMeta

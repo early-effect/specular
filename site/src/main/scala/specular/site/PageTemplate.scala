@@ -40,7 +40,7 @@ object PageTemplate:
           case Some(m) => s"v${m.version} · Built with specular"
           case None    => "Built with specular"
         logoEls = model.logo.toVector.map { src =>
-          el(
+          val img = el(
             "img",
             Vector.empty,
             Vector(
@@ -51,11 +51,28 @@ object PageTemplate:
               attr("height", "28"),
             ),
           )
+          val href = model.logoLink.getOrElse(model.indexHref)
+          el(
+            "a",
+            Vector(img),
+            SafeHref.anchorAttrs(href).map { case (k, v) => attr(k, v) } ++ Vector(
+              attr("class", "specular-brand-logo-link"),
+              attr(
+                "aria-label",
+                if model.logoLink.isDefined then "Organization hub" else s"${model.title} home",
+              ),
+            ),
+          )
         }
-        brand = el(
+        titleLink = el(
           "a",
-          logoEls ++ Vector(el("span", Vector(UI.Text(headerLabel)), Vector(attr("class", "specular-brand-title")))),
-          Vector(attr("href", model.indexHref), attr("class", "specular-brand")),
+          Vector(el("span", Vector(UI.Text(headerLabel)), Vector(attr("class", "specular-brand-title")))),
+          Vector(attr("href", model.indexHref), attr("class", "specular-brand-title-link")),
+        )
+        brand = el(
+          "div",
+          logoEls :+ titleLink,
+          Vector(attr("class", "specular-brand")),
         )
       yield el(
         "html",
