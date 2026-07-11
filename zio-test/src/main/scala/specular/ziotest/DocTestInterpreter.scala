@@ -34,6 +34,15 @@ object DocTestInterpreter:
             yield assertFn(ui)
           }
         )
+      case ve: ValueExample[?] if ve.assertion.isDefined =>
+        val erased   = ve.asInstanceOf[ValueExample[Any]]
+        val assertFn = erased.assertion.get
+        Vector(
+          test(s"example ${erased.id}") {
+            for value <- ZIO.scoped(erased.body)
+            yield assertFn(value)
+          }
+        )
       case _ =>
         Vector.empty
     })

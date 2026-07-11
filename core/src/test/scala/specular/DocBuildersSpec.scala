@@ -59,6 +59,28 @@ object DocBuildersSpec extends ZIOSpecDefault:
         }.interactive
         assertTrue(ex.isInteractive)
       },
+      test("exampleValue captures locals and lifts the result") {
+        val ex = exampleValue {
+          val xs = List(1, 2)
+          xs.sum
+        }
+        assertTrue(
+          ex.source.contains("val xs"),
+          ex.source.contains("xs.sum"),
+          ex.assertion.isEmpty,
+        )
+      },
+      test("exampleZIO captures effect source on the same ValueExample node") {
+        val ex = exampleZIO {
+          val n = 21
+          ZIO.succeed(n * 2)
+        }
+        assertTrue(
+          ex.source.contains("val n"),
+          ex.source.contains("ZIO.succeed"),
+          ex.assertion.isEmpty,
+        )
+      },
       test("fluent .assert attaches an assertion") {
         val ex = example {
           E.span("x")
@@ -72,9 +94,9 @@ object DocBuildersSpec extends ZIOSpecDefault:
           md"intro",
           section("One")(
             example { E.div("a") },
-            example { E.div("b") },
+            exampleValue { 1 + 1 },
           ),
-          example { E.div("c") },
+          exampleZIO { ZIO.succeed("c") },
         )
         val ids = collectExampleIds(p.children)
         assertTrue(
@@ -96,8 +118,9 @@ object DocBuildersSpec extends ZIOSpecDefault:
 
   private def collectExampleIds(nodes: Vector[DocNode]): Vector[String] =
     nodes.flatMap {
-      case e: Example[?]    => Vector(e.id)
-      case Section(_, kids) => collectExampleIds(kids)
-      case _                => Vector.empty
+      case e: Example[?]      => Vector(e.id)
+      case v: ValueExample[?] => Vector(v.id)
+      case Section(_, kids)   => collectExampleIds(kids)
+      case _                  => Vector.empty
     }
 end DocBuildersSpec
