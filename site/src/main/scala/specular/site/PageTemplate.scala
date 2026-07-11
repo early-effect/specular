@@ -39,6 +39,24 @@ object PageTemplate:
         footerLabel = model.meta match
           case Some(m) => s"v${m.version} · Built with specular"
           case None    => "Built with specular"
+        logoEls = model.logo.toVector.map { src =>
+          el(
+            "img",
+            Vector.empty,
+            Vector(
+              attr("class", "specular-brand-logo"),
+              attr("src", src),
+              attr("alt", ""),
+              attr("width", "28"),
+              attr("height", "28"),
+            ),
+          )
+        }
+        brand = el(
+          "a",
+          logoEls ++ Vector(el("span", Vector(UI.Text(headerLabel)), Vector(attr("class", "specular-brand-title")))),
+          Vector(attr("href", model.indexHref), attr("class", "specular-brand")),
+        )
       yield el(
         "html",
         Vector(
@@ -62,7 +80,7 @@ object PageTemplate:
               el(
                 "div",
                 Vector(
-                  el("header", Vector(UI.Text(headerLabel)), Vector(attr("class", classes.header))),
+                  el("header", Vector(brand), Vector(attr("class", classes.header))),
                   el("aside", Vector(sidebar), Vector(attr("class", classes.sidebar))),
                   el(
                     "main",

@@ -72,8 +72,12 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         alpha.contains("nav-item"),
         alpha.contains("beta.html") || alpha.contains("Beta"),
         alpha.contains("nav-item-active"),
+        alpha.contains("specular-brand"),
+        alpha.contains("index.html"),
+        alpha.contains("specular-nav-home"),
         theme.nonEmpty,
         theme.contains("--specular-bg"),
+        theme.contains("specular-brand-logo"),
         Files.exists(tmp.resolve("assets/theme.css")),
         Files.exists(tmp.resolve("metadata.json")),
         meta.contains("\"name\""),
@@ -139,6 +143,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         title = "Saferis",
         pages = Vector(page("Intro")(md"hi")),
         meta = Some(ProjectMeta("saferis", "rocks.earlyeffect", "2.0.0", "3.8.4")),
+        logo = Some("images/logo.svg"),
       )
       for
         tmp   <- ZIO.attempt(Files.createTempDirectory("specular-install"))
@@ -150,6 +155,10 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         index.contains("saferis"),
         index.contains("2.0.0"),
         page.contains("v2.0.0"),
+        page.contains("class=\"specular-brand\""),
+        page.contains("href=\"./index.html\""),
+        page.contains("images/logo.svg"),
+        page.contains("specular-brand-logo"),
       )
       end for
     },

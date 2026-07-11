@@ -27,6 +27,9 @@ Keep docs next to the library, not in a separate repo:
 
 Depend the docs JVM project on `specular-core`, `specular-zio-test`, and `specular-site`,
 plus your library modules so examples import the real public API, not a copy.
+
+Early Effect libraries should also take `early-effect-docs-theme` for hub-matched colors
+and the shared logo (`EarlyEffectTheme.live`, `logoHref`, `writeLogo`).
 """,
       example {
         E.ol(

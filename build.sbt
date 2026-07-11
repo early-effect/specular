@@ -82,8 +82,8 @@ addCommandAlias("release", "; publishSigned; sonaRelease")
 
 lazy val root = (project in file("."))
   .aggregate(
-    (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++ docs.projectRefs ++
-      Seq[ProjectReference](plugin)) *
+    (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++ eeDocsTheme.projectRefs ++
+      docs.projectRefs ++ Seq[ProjectReference](plugin)) *
   )
   .settings(
     name           := "specular",
@@ -137,6 +137,15 @@ lazy val site = (projectMatrix in file("site"))
   )
   .jvmPlatform(scalaVersions = scalaVersions)
 
+/** Early Effect org brand pack (theme tokens + logo). Published; Specular core stays brand-agnostic. */
+lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
+  .dependsOn(site)
+  .settings(
+    name := "early-effect-docs-theme",
+    scalacOptions ++= commonScalacOptions,
+  )
+  .jvmPlatform(scalaVersions = scalaVersions)
+
 // Dogfood alias — defined here so docs JVM settings can assign it.
 lazy val specularSite = taskKey[Unit]("Link docs JS + build static site")
 
@@ -150,7 +159,12 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
     scalaVersions,
     Nil,
     (p: Project) =>
-      p.dependsOn(core.jvm(scala3Version), zioTest.jvm(scala3Version), site.jvm(scala3Version))
+      p.dependsOn(
+          core.jvm(scala3Version),
+          zioTest.jvm(scala3Version),
+          site.jvm(scala3Version),
+          eeDocsTheme.jvm(scala3Version),
+        )
         .settings(
           libraryDependencies ++= Seq(
             "dev.zio" %% "zio-test"     % zioVersion,
