@@ -2,7 +2,6 @@ package specular.site
 
 import ascent.*
 import ascent.dsl.*
-import ascent.css.{CssClass, Declaration}
 import specular.*
 import zio.*
 import zio.test.*
@@ -11,8 +10,8 @@ import java.nio.file.Files
 
 object SiteBuilderSpec extends ZIOSpecDefault:
 
-  object OnlyA extends CssClass(Declaration("color", "red"))
-  object OnlyB extends CssClass(Declaration("color", "blue"))
+  object OnlyA extends CssClass(S.color("red"))
+  object OnlyB extends CssClass(S.color("blue"))
 
   def spec = suite("SiteBuilder")(
     test("emits HTML with source and example wrapper id") {
