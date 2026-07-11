@@ -4,7 +4,7 @@ import ascent.ast.UI
 import specular.*
 import zio.*
 
-/** Collects interactive example bodies keyed by stable SSR ids (`ex-N`). */
+/** Collects interactive example bodies keyed by stable SSR ids (`<page-slug>-ex-N`). */
 object ExampleRegistry:
 
   def fromPages(pages: DocPage*): Map[String, URIO[Scope, UI[Any]]] =

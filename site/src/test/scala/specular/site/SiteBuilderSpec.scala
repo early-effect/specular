@@ -27,7 +27,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.startsWith("<!DOCTYPE html>"),
         html.contains("Welcome"),
         html.contains("specular"),
-        html.contains("id=\"ex-1\""),
+        html.contains("id=\"hello-ex-1\""),
         html.contains("E.div") || html.contains("demo"),
         html.contains("hi"),
         html.contains("type=\"module\""),

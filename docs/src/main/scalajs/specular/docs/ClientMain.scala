@@ -4,7 +4,7 @@ import ascent.*
 import ascent.dom
 import zio.*
 
-/** Browser entry: mount each interactive example into its SSR `#ex-$id` wrapper. */
+/** Browser entry: mount each interactive example into its SSR `#<page-slug>-ex-N` wrapper. */
 object ClientMain extends ZIOAppDefault:
 
   def run =

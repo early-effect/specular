@@ -18,8 +18,8 @@ object ExampleRegistrySpec extends ZIOSpecDefault:
       )
       val reg = ExampleRegistry.fromPages(doc)
       assertTrue(
-        reg.keySet == Set("ex-2", "ex-3"),
-        !reg.contains("ex-1"),
+        reg.keySet == Set("x-ex-2", "x-ex-3"),
+        !reg.contains("x-ex-1"),
       )
     }
   )
