@@ -6,11 +6,16 @@ import zio.*
 
 import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 
-/** Builds the dogfood site into `<repo>/target/site`, then copies the JS client if linked. */
+/** Builds the dogfood site into `<repo>/target/site`, then copies the JS client if linked.
+  *
+  * Honors `-Dspecular.site.dir`, `-Dspecular.site.basePath`, and `-Dspecular.meta.*` from sbt-specular / the
+  * early-effect docs deploy workflow.
+  */
 object BuildSite extends ZIOAppDefault:
 
   def run =
-    val out  = repoRoot.resolve("target/site")
+    val out  = SitePaths.outDir(repoRoot.resolve("target/site"))
+    val base = SitePaths.basePath(".")
     val meta = ProjectMeta.fromSystemProperties.orElse(
       Some(
         ProjectMeta(
@@ -26,7 +31,7 @@ object BuildSite extends ZIOAppDefault:
     )
     val model = SiteModel(
       title = "Specular",
-      basePath = ".",
+      basePath = base,
       pages = Vector(GettingStarted.doc, Concepts.doc, Showcase.doc),
       clientScript = Some("assets/client.js"),
       meta = meta,

@@ -8,8 +8,11 @@ import sbt.Keys.*
   * Wire `specularJsLink` to `(jsProj / Compile / fastLinkJS)` when you have a Scala.js client. Set `specularBuildMain`
   * to your site-builder main class. Preview via sbt-reload (`runReload`) — never block the sbt server.
   *
-  * Passes `-Dspecular.meta.*` from sbt keys (`version` is dynver/tags when configured) into the forked builder so the
-  * site can bake version into HTML and `metadata.json`.
+  * Passes into the forked builder:
+  *   - `-Dspecular.meta.*` from sbt keys (`version` is dynver/tags when configured)
+  *   - `-Dspecular.site.dir` from `specularSiteDirectory`
+  *   - `-Dspecular.site.basePath` from `specularBasePath` (or `SPECULAR_BASE_PATH`)
+  *   - `-Dspecular.meta.docsUrl` from `specularDocsUrl` (or `SPECULAR_DOCS_URL`)
   *
   * Note: we fork the builder via `Fork.java` instead of `runMain.toTask` so the main-class setting can be a dynamic
   * string (sbt's `toTask` macro rejects local vals).
@@ -23,12 +26,18 @@ object SpecularPlugin extends AutoPlugin:
       settingKey[Int]("Suggested preview port (default 8765)")
     val specularBuildMain =
       settingKey[String]("Fully-qualified main that builds the site")
+    val specularBasePath =
+      settingKey[String](
+        "Site base path passed as -Dspecular.site.basePath (default \".\"; use /<repo> for GH Pages)"
+      )
+    val specularDocsUrl =
+      settingKey[String]("Canonical docs URL written to metadata.json as -Dspecular.meta.docsUrl")
     val specularJsLink =
       taskKey[Unit]("Optional Scala.js link before site build (no-op by default)")
     val specularSite =
       taskKey[Unit]("Link JS (if wired), then run specularBuildMain")
     val specularMetaProps =
-      taskKey[Seq[String]]("JVM -Dspecular.meta.* props from sbt project keys")
+      taskKey[Seq[String]]("JVM -Dspecular.meta.* and -Dspecular.site.* props from sbt keys")
   end autoImport
 
   import autoImport.*
@@ -49,6 +58,9 @@ object SpecularPlugin extends AutoPlugin:
     specularPort          := 8765,
     // Consumers must set this — there is no default main (avoids this repo's BuildSite).
     specularBuildMain := "",
+    // CI / early-effect/.github specular-docs workflow sets these via env when deploying to Pages.
+    specularBasePath  := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
+    specularDocsUrl   := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
     specularJsLink    := {},
     specularMetaProps := Def.uncached {
       def opt(key: String, value: String): Seq[String] =
@@ -56,13 +68,20 @@ object SpecularPlugin extends AutoPlugin:
 
       val home = homepage.value.map(_.toString).getOrElse("")
       val desc = description.value
+      val dir  = specularSiteDirectory.value.getAbsolutePath
+      val base = specularBasePath.value
       opt("name", name.value) ++
         opt("organization", organization.value) ++
         opt("version", version.value) ++
         opt("scalaVersion", scalaVersion.value) ++
         opt("title", name.value) ++
         opt("description", desc) ++
-        opt("homepage", home)
+        opt("homepage", home) ++
+        opt("docsUrl", specularDocsUrl.value) ++
+        Seq(
+          s"-Dspecular.site.dir=$dir",
+          s"-Dspecular.site.basePath=$base",
+        )
     },
     specularSite := Def.uncached {
       val log       = streams.value.log

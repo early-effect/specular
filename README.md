@@ -153,6 +153,24 @@ sbt docs/run             # preview server via sbt-reload (`docs/runReload`)
 Requires a JDK that can run Scala 3.8 / sbt 2 (CI uses Temurin 25). Interactive examples need
 the docs JS link (`docsJS/fastLinkJS`), which `docs/specularSite` runs for you.
 
+### Publishing docs (GitHub Pages)
+
+On each `v*` tag (or **Actions → Docs → Run workflow**), [`.github/workflows/docs.yml`](.github/workflows/docs.yml) calls the org reusable
+workflow [`early-effect/.github` → `specular-docs.yml`](https://github.com/early-effect/.github/blob/main/.github/workflows/specular-docs.yml).
+That builds `docs/specularSite` and deploys to **GitHub Pages** at
+`https://early-effect.github.io/specular/`.
+
+CI sets `SPECULAR_BASE_PATH=/specular` and `SPECULAR_DOCS_URL=https://early-effect.github.io/specular/`
+so nav links and `metadata.json` match the project-site URL. Local preview keeps `basePath = "."`.
+
+Enable **Settings → Pages → Source: GitHub Actions** on this repo before the first deploy.
+Use the manual run when you need to regenerate docs without cutting a new tag.
+
+The org hub ([earlyeffect.rocks](https://www.earlyeffect.rocks)) composes library cards from published
+`metadata.json` URLs. After docs are live, add/refresh the catalog in
+[`early-effect.github.io`](https://github.com/early-effect/early-effect.github.io) and run its
+**Hub site** workflow.
+
 ---
 
 ## Status
