@@ -108,7 +108,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         ),
         home = Some(
           HomePage(
-            hero = Some(Hero("Early Effect", Some("Open-source Scala & ZIO"))),
+            hero = Some(Hero("Early Effect", Some("Open-source Scala & ZIO"), image = Some("images/logo.png"))),
             sections = Vector(catalog),
           )
         ),
@@ -126,6 +126,8 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         index.contains("Ascent"),
         index.contains("UI for Scala"),
         index.contains("v0.1.0"),
+        index.contains("images/logo.png"),
+        index.contains("specular-hero-image"),
         !index.contains("nav-item"),
         meta.contains("early-effect"),
         meta.contains("1.0.0"),

@@ -24,7 +24,9 @@ object BuildSite extends ZIOAppDefault:
           version = "0.1.0-SNAPSHOT",
           scalaVersion = "3.8.4",
           title = Some("Specular"),
-          description = Some("Code-first tests-as-docs site generator for Scala."),
+          description = Some(
+            "Tests-as-docs for Scala 3: DocSpecs that assert under zio-test and SSR into honest static sites."
+          ),
           language = Some("Scala"),
         )
       )
@@ -32,7 +34,13 @@ object BuildSite extends ZIOAppDefault:
     val model = SiteModel(
       title = "Specular",
       basePath = base,
-      pages = Vector(GettingStarted.doc, Concepts.doc, Showcase.doc),
+      pages = Vector(
+        WhySpecular.doc,
+        GettingStarted.doc,
+        Concepts.doc,
+        LibraryAuthors.doc,
+        Showcase.doc,
+      ),
       clientScript = Some("assets/client.js"),
       meta = meta,
       description = meta.flatMap(_.description),

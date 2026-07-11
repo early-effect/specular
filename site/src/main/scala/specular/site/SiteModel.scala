@@ -71,6 +71,8 @@ final case class Hero(
     title: String,
     subtitle: Option[String] = None,
     links: Vector[BrandLink] = Vector.empty,
+    /** Optional hero logo / mark (`src` relative to the site root, e.g. `images/logo.png`). */
+    image: Option[String] = None,
 )
 
 sealed trait HomeSection
