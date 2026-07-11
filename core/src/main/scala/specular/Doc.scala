@@ -49,26 +49,15 @@ def section(title: String)(nodes: DocNode*): Section =
 
 /** Capture a static UI example's source and value.
   *
-  * Specialized to `UI[Any]` so contravariant `UI[-R]` does not infer `R = Nothing`.
+  * Specialized to `UI[Any]` so contravariant `UI[-R]` does not infer `R = Nothing`. The full argument span is recorded
+  * (local `val`s, `CssClass` objects, …), not only the last expression.
   */
-def example(body: sourcecode.Text[ascent.ast.UI[Any]]): Example[Any] =
-  Example(
-    id = "",
-    source = DocInternal.trimSource(body.source),
-    body = ZIO.succeed(body.value),
-    isInteractive = false,
-    assertion = None,
-  )
+inline def example(inline body: ascent.ast.UI[Any]): Example[Any] =
+  ${ ExampleMacros.exampleImpl('body) }
 
 /** Capture an effectful UI-building example (e.g. allocating a Source via `sq`). */
-def exampleIO(body: sourcecode.Text[URIO[Scope, ascent.ast.UI[Any]]]): Example[Any] =
-  Example(
-    id = "",
-    source = DocInternal.trimSource(body.source),
-    body = body.value,
-    isInteractive = false,
-    assertion = None,
-  )
+inline def exampleIO(inline body: URIO[Scope, ascent.ast.UI[Any]]): Example[Any] =
+  ${ ExampleMacros.exampleIOImpl('body) }
 
 private[specular] object DocInternal:
   def trimSource(src: String): String =

@@ -50,7 +50,7 @@ Most doc tools are markdown-first: you write prose, embed code fences, and hope 
 pipeline keeps them honest. specular flips that:
 
 - **Code-first** — the page *is* Scala. Prose is embedded with `md"""…"""`; examples are real
-  `ascent.UI` values captured with [`sourcecode`](https://github.com/com-lihaoyi/sourcecode).
+  `ascent.UI` values with full-span source capture for the site code panel.
 - **One AST, two interpreters** — fold the same `DocPage` into zio-test assertions *and* a
   multi-page static site (nav, theme, SSR snapshots).
 - **ascent-native** — examples SSR through `ascent-html` and can remount live in the reader’s
