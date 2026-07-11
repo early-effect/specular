@@ -41,7 +41,8 @@ extension (sc: StringContext)
     Prose(sc.s(args*))
 
 def page(title: String)(nodes: DocNode*): DocPage =
-  DocPage(title, DocInternal.assignIds(nodes.toVector))
+  val draft = DocPage(title, nodes.toVector)
+  DocPage(title, DocInternal.assignIds(draft.children, draft.slug))
 
 def section(title: String)(nodes: DocNode*): Section =
   Section(title, nodes.toVector)
@@ -72,13 +73,13 @@ private[specular] object DocInternal:
       lines.map(l => if l.length >= indent then l.drop(indent) else l).mkString("\n").trim
   end trimSource
 
-  def assignIds(nodes: Vector[DocNode]): Vector[DocNode] =
+  def assignIds(nodes: Vector[DocNode], pageSlug: String): Vector[DocNode] =
     var n                                        = 0
     def go(ns: Vector[DocNode]): Vector[DocNode] =
       ns.map {
         case e: Example[?] =>
           n += 1
-          e.copy(id = s"ex-$n")
+          e.copy(id = s"$pageSlug-ex-$n")
         case Section(title, kids) =>
           Section(title, go(kids))
         case other => other

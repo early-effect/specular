@@ -68,7 +68,7 @@ static tree. You will need:
 
 1. Scala.js docs project depending on `specular-core` (and ascent-js as needed)
 2. `ExampleRegistry.fromPages(…)` listing the same pages as `SiteModel`
-3. A `ClientMain` that mounts into `#ex-N`
+3. A `ClientMain` that mounts into `#<page-slug>-ex-N`
 4. `specularSite` (or equivalent) linking `main.js` into `assets/client.js`
 
 If your library is JVM-only and examples are pure values, skip the JS client entirely.

@@ -27,8 +27,8 @@ Examples carry optional flags:
 - `.assert(ui => …)`: zio-test `TestResult` (gates CI)
 - `.interactive`: register for client remount after SSR
 
-Ids (`ex-1`, `ex-2`, …) are assigned when you call `page`, so SSR wrappers and the JS
-registry stay aligned.
+Ids (`<page-slug>-ex-1`, …) are assigned when you call `page`, so SSR wrappers and the JS
+registry stay aligned across pages without colliding.
 """,
       example {
         E.p(A.className("note"), "captured source + live UI")
@@ -60,7 +60,7 @@ One authoring surface; two consumers. That is the product.
     ),
     section("Interactive examples")(
       md"""
-SSR gives readers a first paint. `.interactive` examples then remount into `#ex-N`
+SSR gives readers a first paint. `.interactive` examples then remount into `#<slug>-ex-N`
 wrappers via a Scala.js client that shares the DocSpec sources (cross-compiled or
 duplicated page list).
 

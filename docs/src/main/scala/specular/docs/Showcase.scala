@@ -112,7 +112,7 @@ Raw HTML in markdown is dropped (no XSS footgun):
           Row,
           E.div(Card, E.h3("Tests"), E.p("Every ", E.code(".assert"), " example fails CI when it drifts.")),
           E.div(Card, E.h3("Site"), E.p("SSR via ascent-html: same Mount engine as the browser.")),
-          E.div(Card, E.h3("Live"), E.p("Interactive examples remount into ", E.code("#ex-*"), " wrappers.")),
+          E.div(Card, E.h3("Live"), E.p("Interactive examples remount into ", E.code("#<slug>-ex-*"), " wrappers.")),
         )
       },
     ),
