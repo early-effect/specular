@@ -79,7 +79,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
         val ids = collectExampleIds(p.children)
         assertTrue(
           p.title == "Getting started",
-          ids == Vector("ex-1", "ex-2", "ex-3"),
+          ids == Vector("getting-started-ex-1", "getting-started-ex-2", "getting-started-ex-3"),
           ids.distinct.length == 3,
         )
       },
