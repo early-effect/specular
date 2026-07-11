@@ -85,16 +85,24 @@ object Theme:
         Declaration("font-weight", "600"),
         Declaration("letter-spacing", "0.02em"),
         Selector(
-          " a.specular-brand",
+          " .specular-brand",
           Declaration("display", "inline-flex"),
           Declaration("align-items", "center"),
           Declaration("gap", "0.65rem"),
+        ),
+        Selector(
+          " a.specular-brand-logo-link, a.specular-brand-title-link",
           Declaration("color", "var(--specular-text)"),
           Declaration("text-decoration", "none"),
         ),
         Selector(
-          " a.specular-brand:hover",
+          " a.specular-brand-logo-link:hover, a.specular-brand-title-link:hover",
           Declaration("color", "var(--specular-accent)"),
+        ),
+        Selector(
+          " a.specular-brand-logo-link",
+          Declaration("display", "inline-flex"),
+          Declaration("line-height", "0"),
         ),
         Selector(
           " .specular-brand-logo",

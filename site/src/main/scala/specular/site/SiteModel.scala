@@ -16,6 +16,12 @@ final case class SiteModel(
     description: Option[String] = None,
     /** Optional header mark (`src` relative to the site root, e.g. `images/logo.svg`). */
     logo: Option[String] = None,
+    /** When set, the header logo links here (e.g. org hub). Title still links to [[indexHref]]. */
+    logoLink: Option[String] = None,
+    /** README-style markdown rendered at the top of the docs index. */
+    summaryMarkdown: Option[String] = None,
+    /** Install / usage snippets on the docs index (plugin-first sites set these explicitly). */
+    installSnippets: Vector[CodeSnippet] = Vector.empty,
 ):
   def navItems: Vector[NavItem] =
     pages.map(p => NavItem(p.title, hrefFor(p)))
@@ -60,6 +66,9 @@ final case class SiteModel(
 end SiteModel
 
 final case class NavItem(title: String, href: String)
+
+/** A fenced code sample on the docs index (heading + body). */
+final case class CodeSnippet(heading: String, code: String)
 
 final case class Brand(
     name: String,

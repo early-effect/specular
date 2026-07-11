@@ -162,6 +162,38 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("docs index uses summary, plugin snippets, and logo hub link") {
+      val model = SiteModel(
+        title = "Specular",
+        pages = Vector(page("Intro")(md"hi")),
+        meta = Some(ProjectMeta("specular", "rocks.earlyeffect", "0.2.0", "3.8.4")),
+        logo = Some("images/logo.svg"),
+        logoLink = Some("https://www.earlyeffect.rocks/"),
+        summaryMarkdown = Some("**Specular** is an sbt plugin for tests-as-docs."),
+        installSnippets = Vector(
+          CodeSnippet("sbt plugin (typical)", """addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "0.2.0")"""),
+          CodeSnippet(
+            "Libraries (optional)",
+            """libraryDependencies += "rocks.earlyeffect" %% "specular-core" % "0.2.0"""",
+          ),
+        ),
+      )
+      for
+        tmp   <- ZIO.attempt(Files.createTempDirectory("specular-index"))
+        _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
+        page  <- ZIO.attempt(Files.readString(tmp.resolve("intro.html")))
+      yield assertTrue(
+        index.contains("sbt plugin"),
+        index.contains("sbt-specular"),
+        index.contains("tests-as-docs"),
+        index.contains("Libraries (optional)"),
+        page.contains("https://www.earlyeffect.rocks/"),
+        page.contains("specular-brand-logo-link"),
+        page.contains("href=\"./index.html\""),
+      )
+      end for
+    },
     test("duplicate slugs fail the build") {
       val model = SiteModel(
         title = "Docs",

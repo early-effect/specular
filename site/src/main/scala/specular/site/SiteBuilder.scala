@@ -104,28 +104,45 @@ object SiteBuilder:
           ),
         )
       }
-      val install = model.meta.toVector.map { m =>
+      val fallbackSnippets =
+        if model.installSnippets.nonEmpty then model.installSnippets
+        else
+          model.meta.toVector.map { m =>
+            CodeSnippet("Install", m.sbtDependency())
+          }
+      val installSections = fallbackSnippets.map { snip =>
         el(
           "section",
           Vector(
-            el("h2", Vector(UI.Text("Install"))),
+            el("h2", Vector(UI.Text(snip.heading))),
             el(
               "pre",
-              Vector(el("code", Vector(UI.Text(m.sbtDependency())))),
+              Vector(el("code", Vector(UI.Text(snip.code)))),
               Vector(attr("class", "specular-source")),
             ),
           ),
         )
       }
-      val body = el(
+      val pagesSection = el(
         "section",
-        install ++ Vector(
-          el("p", Vector(UI.Text("Documentation pages:"))),
+        Vector(
+          el("h2", Vector(UI.Text("Documentation"))),
+          el("p", Vector(UI.Text("Continue with:"))),
           el("ul", links),
         ),
       )
       val indexPage = DocPage("Index", Vector.empty)
       for
+        summaryUi <- model.summaryMarkdown match
+          case Some(mdText) => md.toUi(mdText)
+          case None         =>
+            model.description match
+              case Some(d) => ZIO.succeed(el("p", Vector(UI.Text(d))))
+              case None    => ZIO.succeed(UI.Empty)
+        body = el(
+          "section",
+          Vector(summaryUi) ++ installSections :+ pagesSection,
+        )
         docUi    <- template.wrap(model, indexPage, body)
         rendered <- ssr.renderPage(docUi)
         htmlPath = outDir.resolve("index.html")
@@ -133,6 +150,7 @@ object SiteBuilder:
         _ <- writeUnder(outDir, htmlPath, s"<!DOCTYPE html>\n${rendered.html}")
         _ <- writeUnder(outDir, cssPath, rendered.css)
       yield htmlPath
+      end for
     end writeDocsIndex
 
     private def writeLandingIndex(model: SiteModel, outDir: JPath): Task[JPath] =

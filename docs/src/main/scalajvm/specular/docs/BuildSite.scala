@@ -32,7 +32,9 @@ object BuildSite extends ZIOAppDefault:
         )
       )
     )
-    val model = SiteModel(
+    val version = meta.map(_.version).getOrElse("0.2.0")
+    val org     = meta.map(_.organization).getOrElse("rocks.earlyeffect")
+    val model   = SiteModel(
       title = "Specular",
       basePath = base,
       pages = Vector(
@@ -46,6 +48,38 @@ object BuildSite extends ZIOAppDefault:
       meta = meta,
       description = meta.flatMap(_.description),
       logo = Some(EarlyEffectTheme.logoHref),
+      logoLink = Some("https://www.earlyeffect.rocks/"),
+      summaryMarkdown = Some(
+        s"""**Specular** is tests-as-docs for Scala 3: author pages as `DocSpec` programs that assert
+under **zio-test** and SSR into a static site through [ascent](https://github.com/early-effect/ascent).
+
+Most teams adopt it as the **`sbt-specular` plugin**, which wires project meta and runs
+`specularSite`. The libraries (`specular-core`, `specular-zio-test`, `specular-site`) are
+available when you want to compose sites by hand.
+"""
+      ),
+      installSnippets = Vector(
+        CodeSnippet(
+          "sbt plugin (typical)",
+          s"""// project/plugins.sbt
+addSbtPlugin("$org" % "sbt-specular" % "$version")
+
+// build.sbt
+enablePlugins(SpecularPlugin)
+specularBuildMain := "com.example.docs.BuildSite"
+
+// then
+sbt docs/specularSite""",
+        ),
+        CodeSnippet(
+          "Libraries (optional)",
+          s"""libraryDependencies ++= Seq(
+  "$org" %% "specular-core"     % "$version",
+  "$org" %% "specular-zio-test" % "$version",
+  "$org" %% "specular-site"     % "$version", // JVM
+)""",
+        ),
+      ),
     )
     ZIO
       .serviceWithZIO[SiteBuilder](_.buildSite(model, out))
