@@ -193,6 +193,15 @@ object Theme:
         Declaration("text-align", "center"),
         Declaration("border-bottom", "1px solid var(--specular-border)"),
         Selector(
+          " .specular-hero-image",
+          Declaration("display", "block"),
+          Declaration("width", "10rem"),
+          Declaration("height", "10rem"),
+          Declaration("margin", "0 auto 1.25rem"),
+          Declaration("object-fit", "contain"),
+          Declaration("border-radius", "1.25rem"),
+        ),
+        Selector(
           " .specular-hero-title",
           Declaration("font-size", "3rem"),
           Declaration("font-weight", "800"),

@@ -82,6 +82,21 @@ object LandingTemplate:
         hero.flatMap(_.subtitle).orElse(brand.flatMap(_.tagline))
       val links =
         hero.map(_.links).filter(_.nonEmpty).getOrElse(brand.map(_.links).getOrElse(Vector.empty))
+      val image    = hero.flatMap(_.image)
+      val imageEls =
+        image.toVector.map { src =>
+          el(
+            "img",
+            Vector.empty,
+            Vector(
+              attr("class", "specular-hero-image"),
+              attr("src", src),
+              attr("alt", title),
+              attr("width", "160"),
+              attr("height", "160"),
+            ),
+          )
+        }
       val linkEls =
         if links.isEmpty then Vector.empty
         else
@@ -96,7 +111,7 @@ object LandingTemplate:
           )
       el(
         "header",
-        Vector(
+        imageEls ++ Vector(
           el(
             "h1",
             Vector(UI.Text(title)),
