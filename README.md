@@ -170,6 +170,7 @@ The org hub ([earlyeffect.rocks](https://www.earlyeffect.rocks)) composes librar
 `metadata.json` URLs. After docs are live, add/refresh the catalog in
 [`early-effect.github.io`](https://github.com/early-effect/early-effect.github.io) and run its
 **Hub site** workflow.
+
 ---
 
 ## Status
