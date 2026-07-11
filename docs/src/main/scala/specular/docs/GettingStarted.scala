@@ -46,7 +46,8 @@ specularBuildMain := "com.example.docs.BuildSite"
     section("2. Author a DocSpec")(
       md"""
 A page is `page` / `section` / `md` / `example`. Prose is markdown; examples are real
-ascent `UI` values with source capture via `sourcecode.Text`.
+ascent `UI` values whose full source span (including local `CssClass` definitions) is
+captured for the site panel.
 """,
       example {
         E.ul(E.li("a"), E.li("b"), E.li("c"))
