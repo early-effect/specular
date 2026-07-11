@@ -21,11 +21,12 @@ that fold it into tests or HTML. Everything else (themes, hubs, sbt wiring) hang
 | `Section` | `section(title)(…)` | Nested heading + children |
 | `Prose` | `md"…"` | Markdown → ascent `UI` at build time |
 | `Example` | `example` / `exampleIO` | Source string + UI effect |
+| `ValueExample` | `exampleValue` / `exampleZIO` | Source string + plain value or effect |
 
 Examples carry optional flags:
 
-- `.assert(ui => …)`: zio-test `TestResult` (gates CI)
-- `.interactive`: register for client remount after SSR
+- `.assert(…)`: zio-test `TestResult` (gates CI); UI examples assert on the tree, value examples on `A`
+- `.interactive`: UI examples only; register for client remount after SSR
 
 Ids (`<page-slug>-ex-1`, …) are assigned when you call `page`, so SSR wrappers and the JS
 registry stay aligned across pages without colliding.
@@ -38,15 +39,17 @@ registry stay aligned across pages without colliding.
       md"""
 **DocTestInterpreter** (`specular-zio-test`) walks the tree, runs each asserted example's
 `body`, and turns `.assert` into a named test. Prose and unasserted examples are skipped
-in the suite.
+in the suite. UI examples go through `ExampleRunner`; value examples run their `URIO` under
+`Scope` directly.
 
 **SiteBuilder** (`specular-site`) walks the same tree for HTML:
 
 1. Markdown → UI via commonmark
-2. Examples → source panel + SSR snapshot (`ascent-html`)
-3. Page template + sidebar nav + theme CSS
-4. Optional landing / catalog when `SiteModel.home` is set
-5. Write `metadata.json` for hub consumption
+2. UI examples → source panel + SSR snapshot (`ascent-html`)
+3. Value examples → source panel + printed result
+4. Page template + sidebar nav + theme CSS
+5. Optional landing / catalog when `SiteModel.home` is set
+6. Write `metadata.json` for hub consumption
 
 One authoring surface; two consumers. That is the product.
 """,

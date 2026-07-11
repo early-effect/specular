@@ -35,6 +35,31 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("value examples render source and result panels") {
+      val doc = page("Values")(
+        exampleValue {
+          val n = 21
+          n * 2
+        },
+        exampleZIO {
+          ZIO.succeed("ok")
+        },
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-site-values"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield assertTrue(
+        html.contains("id=\"values-ex-1\""),
+        html.contains("id=\"values-ex-2\""),
+        html.contains("specular-result"),
+        html.contains("val n"),
+        html.contains("42"),
+        html.contains("ZIO.succeed"),
+        html.contains(">ok<") || html.contains("ok"),
+      )
+      end for
+    },
     test("two pages do not share CSS across renders") {
       val pageA = page("Page A")(example { E.div(OnlyA, "a") })
       val pageB = page("Page B")(example { E.div(OnlyB, "b") })

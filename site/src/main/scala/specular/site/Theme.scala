@@ -191,6 +191,15 @@ object Theme:
           border(Border.solid(1.px, vBorder)),
           borderRadius(vRadius),
         ),
+        Selector(
+          " .specular-result pre",
+          margin(0.px),
+          background(vCodeBg),
+          color(vCodeFg),
+          padding(1.rem),
+          overflow.auto,
+          borderRadius(vRadius),
+        ),
         Selector(" a", color(vLink)),
       )
 

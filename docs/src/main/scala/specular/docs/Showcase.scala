@@ -3,18 +3,20 @@ package specular.docs
 import ascent.*
 import ascent.dsl.*
 import specular.*
+import zio.*
 import zio.test.*
 
-/** Dogfood page: markdown constructs + CSS-in-Scala layouts in one DocSpec. */
+/** Dogfood page: markdown, plain Scala/ZIO values, and CSS-in-Scala layouts in one DocSpec. */
 object Showcase extends DocSpec:
 
   def doc = page("Showcase")(
     md"""
-Specular authors mix **markdown prose** with **ascent UI** in the same `DocSpec`.
+Specular authors mix **markdown prose**, **plain Scala / ZIO values**, and **ascent UI** in the
+same `DocSpec`.
 
-This page is the power-user tour: headings, lists, quotes, tables, links, and CSS-in-Scala
-layouts, all from one source that also runs as tests. For the adoption story and wiring,
-start at [Why Specular](why-specular.html) and [Getting started](getting-started.html).
+This page is the power-user tour: headings, lists, quotes, tables, value examples, and
+CSS-in-Scala layouts, all from one source that also runs as tests. For the adoption story and
+wiring, start at [Why Specular](why-specular.html) and [Getting started](getting-started.html).
 """,
     section("Markdown palette")(
       md"""
@@ -25,7 +27,8 @@ Emphasis with *italics*, **bold**, and `inline code`. Link out to [ascent](https
 ### Lists
 
 - Prose via `md"..."` → commonmark → ascent `UI`
-- Examples via `example` / `exampleIO` with source capture
+- UI examples via `example` / `exampleIO` with source capture
+- Values and effects via `exampleValue` / `exampleZIO` (same `ValueExample` node)
 - Interactive mounts via `.interactive`
 
 1. Write a `DocSpec`
@@ -38,17 +41,40 @@ Emphasis with *italics*, **bold**, and `inline code`. Link out to [ascent](https
 
 ### Table
 
-| Construct   | Where it lives        | Output        |
-| ----------- | --------------------- | ------------- |
-| `md"..."`   | `Prose`               | SSR HTML      |
-| `example`   | `Example`             | source + snap |
-| `.assert`   | zio-test bridge       | CI green/red  |
-| `.interactive` | client registry    | live mount    |
+| Construct   | Where it lives        | Output           |
+| ----------- | --------------------- | ---------------- |
+| `md"..."`   | `Prose`               | SSR HTML         |
+| `example`   | `Example`             | source + UI snap |
+| `exampleValue` / `exampleZIO` | `ValueExample` | source + result |
+| `.assert`   | zio-test bridge       | CI green/red     |
+| `.interactive` | client registry    | live mount       |
 
 ---
 
 Raw HTML in markdown is dropped (no XSS footgun):
 """
+    ),
+    section("Plain Scala")(
+      md"""
+Not every docs example is a UI. `exampleValue` captures a plain expression: source panel plus
+the printed result. Assert the value the same way you would in zio-test.
+""",
+      exampleValue {
+        val xs = List(1, 2, 3, 4)
+        xs.filter(_ % 2 == 0).sum
+      }.assert(n => assertTrue(n == 6)),
+    ),
+    section("Plain ZIO")(
+      md"""
+Effects use the same `ValueExample` node: `exampleZIO` stores a success-typed `URIO`. Site and
+tests run the body under `Scope` and print / assert the result.
+""",
+      exampleZIO {
+        for
+          a <- ZIO.succeed(21)
+          b <- ZIO.succeed(2)
+        yield a * b
+      }.assert(n => assertTrue(n == 42)),
     ),
     section("CSS-in-Scala layouts")(
       md"Examples are real ascent trees: define `CssClass`es with the typed `S` catalog, then apply them like any other attr:",

@@ -195,5 +195,24 @@ object SiteBuilder:
           ),
           Vector(attr("class", "specular-example")),
         )
+      case ve: ValueExample[?] =>
+        val erased = ve.asInstanceOf[ValueExample[Any]]
+        for value <- ZIO.scoped(erased.body)
+        yield el(
+          "figure",
+          Vector(
+            el(
+              "pre",
+              Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
+              Vector(attr("class", "specular-source")),
+            ),
+            el(
+              "div",
+              Vector(el("pre", Vector(el("code", Vector(UI.Text(erased.show(value))))))),
+              Vector(attr("id", erased.id), attr("class", "specular-snapshot specular-result")),
+            ),
+          ),
+          Vector(attr("class", "specular-example")),
+        )
   end Live
 end SiteBuilder

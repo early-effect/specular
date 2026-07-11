@@ -45,9 +45,9 @@ specularBuildMain := "com.example.docs.BuildSite"
     ),
     section("2. Author a DocSpec")(
       md"""
-A page is `page` / `section` / `md` / `example`. Prose is markdown; examples are real
-ascent `UI` values whose full source span (including local `CssClass` definitions) is
-captured for the site panel.
+A page is `page` / `section` / `md` / `example`. Prose is markdown; UI examples are ascent
+`UI` values whose full source span is captured for the site panel. Plain Scala and ZIO use
+`exampleValue` / `exampleZIO` (same `ValueExample` node: source + printed result).
 """,
       example {
         E.ul(E.li("a"), E.li("b"), E.li("c"))
@@ -63,6 +63,12 @@ Scala.js client remounts them in the browser after SSR.
           E.span(" count: ", count.map(_.toString)),
         )
       }.interactive.assert(_ => assertTrue(true)),
+      md"""
+For non-UI libraries, assert a value or effect outcome directly:
+""",
+      exampleValue {
+        "specular".length
+      }.assert(n => assertTrue(n == 8)),
     ),
     section("3. Run examples as tests")(
       md"""

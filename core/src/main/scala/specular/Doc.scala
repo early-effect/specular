@@ -22,7 +22,7 @@ final case class Prose(markdown: String) extends DocNode
 
 final case class Section(title: String, children: Vector[DocNode]) extends DocNode
 
-/** An executable example. `R` is the ZIO environment needed to build the UI (usually `Any`). */
+/** An executable UI example. `R` is the ZIO environment needed to build the UI (usually `Any`). */
 final case class Example[R](
     id: String,
     source: String,
@@ -35,6 +35,24 @@ final case class Example[R](
 
   def assert(f: ascent.ast.UI[R] => TestResult): Example[R] = copy(assertion = Some(f))
 end Example
+
+/** A plain Scala / ZIO value example: source + computed result (not an ascent UI tree).
+  *
+  * Plain values and effects share this node (zio-test style): [[exampleValue]] lifts `A` with `ZIO.succeed`, and
+  * [[exampleZIO]] stores the `URIO` as-is. Same `.assert` and site result panel either way.
+  */
+final case class ValueExample[A](
+    id: String,
+    source: String,
+    body: URIO[Scope, A],
+    assertion: Option[A => TestResult],
+    show: A => String = (a: A) => a.toString,
+) extends DocNode:
+
+  def assert(f: A => TestResult): ValueExample[A] = copy(assertion = Some(f))
+
+  def withShow(f: A => String): ValueExample[A] = copy(show = f)
+end ValueExample
 
 extension (sc: StringContext)
   def md(args: Any*): Prose =
@@ -59,6 +77,14 @@ inline def example(inline body: ascent.ast.UI[Any]): Example[Any] =
 inline def exampleIO(inline body: URIO[Scope, ascent.ast.UI[Any]]): Example[Any] =
   ${ ExampleMacros.exampleIOImpl('body) }
 
+/** Capture a plain Scala value: source panel + printed result. Same [[ValueExample]] as effects. */
+inline def exampleValue[A](inline body: A): ValueExample[A] =
+  ${ ExampleMacros.exampleValueImpl('body) }
+
+/** Capture a success-typed ZIO effect as a [[ValueExample]] (same node and `.assert` as plain values). */
+inline def exampleZIO[A](inline body: URIO[Scope, A]): ValueExample[A] =
+  ${ ExampleMacros.exampleZIOImpl('body) }
+
 private[specular] object DocInternal:
   def trimSource(src: String): String =
     val lines = src.split('\n').toVector
@@ -80,6 +106,9 @@ private[specular] object DocInternal:
         case e: Example[?] =>
           n += 1
           e.copy(id = s"$pageSlug-ex-$n")
+        case v: ValueExample[?] =>
+          n += 1
+          v.copy(id = s"$pageSlug-ex-$n")
         case Section(title, kids) =>
           Section(title, go(kids))
         case other => other
