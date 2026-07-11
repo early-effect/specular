@@ -2,7 +2,6 @@ package specular
 
 import zio.Scope
 import zio.URIO
-import zio.ZIO
 import zio.test.TestResult
 
 /** A documentation page authored as a value. Interpreters fold the same AST into tests or a site. */
