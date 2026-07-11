@@ -79,11 +79,11 @@ Ship docs on the **same `v*` tag** as the Maven release when you can. That keeps
 Checklist:
 
 1. `sbt test` green (includes DocSpecs)
-2. Tag `vX.Y.Z` → Central publish **and** Docs workflow
-3. Confirm `https://early-effect.github.io/<repo>/` and `…/metadata.json`
-4. Manual **Docs → Run workflow** when you need a regen without a new tag
+2. Tag `vX.Y.Z` → Central publish **and** docs deploy
+3. Confirm your published docs URL and `…/metadata.json` load
+4. Use a manual docs workflow run when you need a regen without a new tag
 
-Enable GitHub Pages (Actions source) before the first tag deploy.
+Enable GitHub Pages (Actions source) before the first tag deploy if that is your host.
 """,
       example {
         E.ul(
@@ -93,17 +93,19 @@ Enable GitHub Pages (Actions source) before the first tag deploy.
         )
       }.assert(_ => assertTrue(true)),
     ),
-    section("Join the org hub")(
+    section("Optional: compose into a hub")(
       md"""
-After the micro-site is live:
+A hub is just another Specular site that builds a `ProjectCatalog` from published
+`metadata.json` URLs. Your library does not need one; the micro-site stands alone.
 
-1. Append the HTTPS `metadata.json` URL to
-   [`early-effect.github.io` → `catalog-urls.txt`](https://github.com/early-effect/early-effect.github.io)
-2. Run the hub repo's **Hub site** workflow (`workflow_dispatch`)
-3. Confirm the card on [earlyeffect.rocks](https://www.earlyeffect.rocks)
+If your org (or you) keeps a hub:
 
-The hub does not auto-refresh on every library tag in v1; that keeps catalog edits
-intentional.
+1. Publish the library docs so `metadata.json` is reachable over HTTPS
+2. Add that URL to the hub's catalog source (often a plain text list of URLs)
+3. Rebuild the hub site and confirm the card appears
+
+Hubs usually rebuild on demand rather than on every library tag, so catalog edits stay
+intentional. Specular's own dogfood hub is one example of this pattern.
 """
     ),
     section("Migration from markdown docs")(

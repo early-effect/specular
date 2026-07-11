@@ -120,9 +120,11 @@ sbt docs/run          # preview (sbt-reload)
     ),
     section("5. Publish on GitHub Pages")(
       md"""
-early-effect libraries call the org reusable workflow on `v*` tags (and optional
-`workflow_dispatch`). Enable **Settings → Pages → Source: GitHub Actions**, then add a
-thin caller:
+Any static host works; GitHub Pages is the common path. Enable **Settings → Pages →
+Source: GitHub Actions**, then deploy `specularSite` output on `v*` tags (and optional
+`workflow_dispatch`).
+
+One reusable-workflow example (copy and point `sbt-project` at your docs module):
 
 ```yaml
 # .github/workflows/docs.yml
@@ -142,8 +144,8 @@ jobs:
       sbt-project: docs
 ```
 
-CI sets `SPECULAR_BASE_PATH` and `SPECULAR_DOCS_URL` so nav and `metadata.json` match the
-project site URL (for this repo: `https://early-effect.github.io/specular/`).
+Set `SPECULAR_BASE_PATH` and `SPECULAR_DOCS_URL` in CI so nav and `metadata.json` match
+the published project-site URL (for example `/my-lib` under `*.github.io`).
 
 Next: [Concepts](concepts.html) for the AST and interpreters, or
 [Library authors](library-authors.html) for a full cookbook.
