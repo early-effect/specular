@@ -32,7 +32,13 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
     )
   end SampleDoc
 
+  object SuiteDoc extends DocSpecSuite:
+    def doc = page("Suite")(
+      exampleValue(1 + 1).assert(n => assertTrue(n == 2))
+    )
+
   def spec = suite("DocTestInterpreter")(
-    DocTestInterpreter.specOf(SampleDoc)
+    DocTestInterpreter.specOf(SampleDoc),
+    DocTestInterpreter.specOf(SuiteDoc),
   ).provide(ExampleRunner.live)
 end DocTestInterpreterSpec

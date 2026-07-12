@@ -4,17 +4,23 @@ import ascent.*
 import ascent.dom
 import zio.*
 
-/** Browser entry: mount each interactive example into its SSR `#<page-slug>-ex-N` wrapper. */
+/** Browser entry: mount each interactive example into its SSR `#<page-slug>-ex-N` wrapper.
+  *
+  * Only mounts nodes present on the current page (other pages' ids are absent by design). Registry ↔ site-map drift is
+  * guarded by [[InteractiveContractSpec]] on the JVM.
+  */
 object ClientMain extends ZIOAppDefault:
 
+  private val pages = Vector(
+    WhySpecular.doc,
+    GettingStarted.doc,
+    Concepts.doc,
+    LibraryAuthors.doc,
+    Showcase.doc,
+  )
+
   def run =
-    val examples = ExampleRegistry.fromPages(
-      WhySpecular.doc,
-      GettingStarted.doc,
-      Concepts.doc,
-      LibraryAuthors.doc,
-      Showcase.doc,
-    )
+    val examples = ExampleRegistry.fromPages(pages*)
     for
       _ <- ZIO.foreachDiscard(examples.toList) { case (id, body) =>
         mountExample(id, body)
@@ -28,7 +34,6 @@ object ClientMain extends ZIOAppDefault:
     if el == null then ZIO.unit
     else
       for
-        // Mount appends; clear the SSR snapshot so only the live tree remains.
         _  <- ZIO.succeed(clearChildren(el))
         ui <- ZIO.scoped(body)
         _  <- AscentApp.mount(ui, el)
@@ -36,6 +41,5 @@ object ClientMain extends ZIOAppDefault:
   end mountExample
 
   private def clearChildren(el: dom.Element): Unit =
-    // Facade's replaceChildren requires a nodes arg; empty string clears via innerHTML.
     el.innerHTML = ""
 end ClientMain

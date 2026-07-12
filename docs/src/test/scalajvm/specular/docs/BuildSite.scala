@@ -7,46 +7,23 @@ import zio.*
 
 import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 
-/** Builds the dogfood site into `<repo>/target/site`, then copies the JS client if linked.
-  *
-  * Honors `-Dspecular.site.dir`, `-Dspecular.site.basePath`, and `-Dspecular.meta.*` from sbt-specular / the
-  * early-effect docs deploy workflow.
-  */
-object BuildSite extends ZIOAppDefault:
+/** Dogfood DocsSite: Test classpath main invoked by `docs/specularSite`. */
+object BuildSite extends DocsSite:
 
-  def run =
-    val out  = SitePaths.outDir(repoRoot.resolve("target/site"))
-    val base = SitePaths.basePath(".")
-    val meta = ProjectMeta.fromSystemProperties.orElse(
-      Some(
-        ProjectMeta(
-          name = "specular",
-          organization = "rocks.earlyeffect",
-          version = "0.1.0-SNAPSHOT",
-          scalaVersion = "3.8.4",
-          title = Some("Specular"),
-          description = Some(
-            "Tests-as-docs for Scala 3: DocSpecs that assert under zio-test and SSR into honest static sites."
-          ),
-          language = Some("Scala"),
-        )
-      )
-    )
-    val version = meta.map(_.version).getOrElse("0.2.0")
-    val org     = meta.map(_.organization).getOrElse("rocks.earlyeffect")
-    val model   = SiteModel(
-      title = "Specular",
-      basePath = base,
-      pages = Vector(
-        WhySpecular.doc,
-        GettingStarted.doc,
-        Concepts.doc,
-        LibraryAuthors.doc,
-        Showcase.doc,
-      ),
+  def pages = Vector(
+    WhySpecular.doc,
+    GettingStarted.doc,
+    Concepts.doc,
+    LibraryAuthors.doc,
+    Showcase.doc,
+  )
+
+  override def site: SiteModel =
+    val m       = meta
+    val version = m.version
+    val org     = m.organization
+    super.site.copy(
       clientScript = Some("assets/client.js"),
-      meta = meta,
-      description = meta.flatMap(_.description),
       logo = Some(EarlyEffectTheme.logoHref),
       logoLink = Some("https://www.earlyeffect.rocks/"),
       summaryMarkdown = Some(
@@ -67,6 +44,7 @@ addSbtPlugin("$org" % "sbt-specular" % "$version")
 // build.sbt
 enablePlugins(SpecularPlugin)
 specularBuildMain := "com.example.docs.BuildSite"
+specularMetaProject := Some(LocalProject("root"))
 
 // then
 sbt docs/specularSite""",
@@ -81,25 +59,23 @@ sbt docs/specularSite""",
         ),
       ),
     )
-    ZIO
-      .serviceWithZIO[SiteBuilder](_.buildSite(model, out))
-      .flatMap { result =>
-        EarlyEffectTheme.writeLogo(out) *>
-          copyClientBundle(out) *>
-          Console.printLine(s"Wrote ${result.pages.mkString(", ")}")
-      }
-      .provide(
-        MarkdownRenderer.live,
-        ExampleRunner.live,
-        HtmlSsr.live,
-        SiteWriter.live,
-        NavBuilder.live,
-        EarlyEffectTheme.live,
-        PageTemplate.live,
-        LandingTemplate.live,
-        SiteBuilder.live,
-      )
-  end run
+  end site
+
+  override def layers: ZLayer[Any, Nothing, SiteBuilder] =
+    ZLayer.make[SiteBuilder](
+      MarkdownRenderer.live,
+      ExampleRunner.live,
+      HtmlSsr.live,
+      SiteWriter.live,
+      NavBuilder.live,
+      EarlyEffectTheme.live,
+      PageTemplate.live,
+      LandingTemplate.live,
+      SiteBuilder.live,
+    )
+
+  override def afterBuild(out: Path, result: SiteOutput): Task[Unit] =
+    EarlyEffectTheme.writeLogo(out) *> copyClientBundle(out)
 
   private def copyClientBundle(out: Path): Task[Unit] =
     ZIO.attempt {
@@ -115,11 +91,9 @@ sbt docs/specularSite""",
       ()
     }
 
-  /** Path written by the `docs/specularSite` sbt task after `fastLinkJS`. */
   private def clientJsMarker: Path =
     repoRoot.resolve("target/specular-client-js.path")
 
-  /** Prefer the sbt-written marker, then fall back to walking `target/out`. */
   private def findClientJs: Option[Path] =
     readMarker.orElse(walkTargetOut)
 

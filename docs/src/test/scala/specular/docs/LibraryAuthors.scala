@@ -15,27 +15,32 @@ interactive optional extras, release cadence, and hub registration.
 """,
     section("Recommended module layout")(
       md"""
-Keep docs next to the library, not in a separate repo:
+Keep docs next to the library, not in a separate repo. **Docs-as-tests** means DocSpecs and
+`DocsSite` live under Test; `sbt docs/specularSite` builds from the Test classpath.
 
 | Piece | Typical location |
 | ----- | ---------------- |
-| Shared `DocSpec`s | `docs/src/main/scala/…` (cross JVM/JS if interactives) |
-| `BuildSite` / `ServeSite` | `docs/src/main/scalajvm/…` |
-| `ClientMain` | `docs/src/main/scalajs/…` |
-| Page specs | `docs/src/test/scalajvm/…` |
+| `DocSpec` / `DocSpecSuite` | `docs/src/test/scala/…` |
+| `DocsSite` (`BuildSite`) | `docs/src/test/scalajvm/…` (or `src/test/scala`) |
+| `ClientMain` (optional) | `docs/src/main/scalajs/…` (linker-only JS project) |
+| Shared DocSpecs for JS | same `src/test/scala` added to JS `Compile` sources |
 | Caller workflow | `.github/workflows/docs.yml` |
 
-Depend the docs JVM project on `specular-core`, `specular-zio-test`, and `specular-site`,
-plus your library modules so examples import the real public API, not a copy.
+Without interactives, extend `DocSpecSuite` once per page (page = suite). With interactives,
+keep shared pages as `DocSpec` and add thin JVM `DocSpecSuite` wrappers so the JS client does
+not pull zio-test into the browser bundle.
+
+Depend the docs project on `specular-core`, `specular-zio-test`, and `specular-site` (**Test**
+scope), plus your library modules so examples import the real public API.
 
 Early Effect libraries should also take `early-effect-docs-theme` for hub-matched colors
-and the shared logo (`EarlyEffectTheme.live`, `logoHref`, `writeLogo`).
+and the shared logo (`EarlyEffectTheme.live` via `DocsSite.layers`, `writeLogo` in `afterBuild`).
 """,
       example {
         E.ol(
-          E.li("docs JVM builds HTML"),
-          E.li("docs JS mounts interactives"),
-          E.li("library modules stay publishable jars"),
+          E.li("docs Test asserts DocSpecs"),
+          E.li("docs/specularSite SSR from Test CP"),
+          E.li("docs JS (optional) links client.js"),
         )
       }.assert(_ => assertTrue(true)),
     ),

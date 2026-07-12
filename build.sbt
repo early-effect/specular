@@ -145,8 +145,8 @@ lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
   )
   .jvmPlatform(scalaVersions = scalaVersions)
 
-// Dogfood alias — defined here so docs JVM settings can assign it.
-lazy val specularSite = taskKey[Unit]("Link docs JS + build static site")
+// Dogfood site task (mirrors sbt-specular: Test CP + meta props). Same-repo cannot load the plugin on itself.
+lazy val specularSite = taskKey[Unit]("Link docs JS + build static site from Test classpath")
 
 lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
   .settings(
@@ -170,37 +170,26 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
             "dev.zio" %% "zio-test-sbt" % zioVersion,
           ),
           zioTestSettings,
-          // ServeSite is the default `run` entry; BuildSite is invoked via runMain / specularSite.
-          Compile / mainClass := Some("specular.docs.ServeSite"),
-          run / mainClass     := Some("specular.docs.ServeSite"),
-          runReloadArgs       := {
+          testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+          // Preview: specular.site.DocsServe on Test CP after docs/specularSite.
+          Test / mainClass := Some("specular.site.DocsServe"),
+          run / fork       := true,
+          run / javaOptions ++= Seq(
+            "--sun-misc-unsafe-memory-access=allow",
+            "--enable-native-access=ALL-UNNAMED",
+          ),
+          runReloadArgs := {
             val siteDir = (ThisBuild / baseDirectory).value / "target" / "site"
             Seq("8765", siteDir.getAbsolutePath)
           },
-          // Bake project meta into the forked BuildSite JVM (same contract as sbt-specular).
-          run / javaOptions ++= {
-            def opt(key: String, value: String): Seq[String] =
-              if (value == null || value.isBlank) then Nil else Seq(s"-Dspecular.meta.$key=$value")
-            val siteDir  = (ThisBuild / baseDirectory).value / "target" / "site"
-            val basePath = sys.env.getOrElse("SPECULAR_BASE_PATH", ".")
-            val docsUrl  = sys.env.getOrElse("SPECULAR_DOCS_URL", "")
-            opt("name", "specular") ++
-              opt("organization", organization.value) ++
-              opt("version", version.value) ++
-              opt("scalaVersion", scalaVersion.value) ++
-              opt("title", "Specular") ++
-              opt("description", description.value) ++
-              opt("docsUrl", docsUrl) ++
-              Seq(
-                s"-Dspecular.site.dir=${siteDir.getAbsolutePath}",
-                s"-Dspecular.site.basePath=$basePath",
-              )
-          },
-          // One-shot site build: link JS client, then run BuildSite (copies client.js itself).
-          // Use LocalProject — do NOT call docs.js(...) here (deadlocks lazy val init).
-          // Write the absolute main.js path for BuildSite — walking target/out is brittle in CI
-          // (fork cwd / incremental linker edge cases).
+          // Link JS client, then fork BuildSite on Test classpath (docs-as-tests convention).
           specularSite := Def.uncached {
+            val log       = streams.value.log
+            val converter = fileConverter.value
+            val siteDir   = (ThisBuild / baseDirectory).value / "target" / "site"
+            val basePath  = sys.env.getOrElse("SPECULAR_BASE_PATH", ".")
+            val docsUrl   = sys.env.getOrElse("SPECULAR_DOCS_URL", "")
+
             (LocalProject("docsJS") / Compile / fastLinkJS).value
             val outDir = (LocalProject("docsJS") / Compile / fastLinkJSOutput).value
             val mainJs = outDir / "main.js"
@@ -211,7 +200,38 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
               )
             val marker = (ThisBuild / baseDirectory).value / "target" / "specular-client-js.path"
             IO.write(marker, mainJs.getAbsolutePath)
-            (Compile / runMain).toTask(" specular.docs.BuildSite").value
+
+            (Test / compile).value
+            def opt(key: String, value: String): Seq[String] =
+              if value == null || value.isBlank then Nil else Seq(s"-Dspecular.meta.$key=$value")
+            val metaProps =
+              opt("name", "specular") ++
+                opt("organization", organization.value) ++
+                opt("version", version.value) ++
+                opt("scalaVersion", scalaVersion.value) ++
+                opt("title", "Specular") ++
+                opt("description", description.value) ++
+                opt("docsUrl", docsUrl) ++
+                opt("artifactKind", "plugin") ++
+                Seq(
+                  s"-Dspecular.site.dir=${siteDir.getAbsolutePath}",
+                  s"-Dspecular.site.basePath=$basePath",
+                )
+            val jars =
+              (Test / fullClasspath).value
+                .map(af => converter.toPath(af.data).toFile.getAbsolutePath)
+            val jvmOpts = (run / javaOptions).value.toVector ++ metaProps
+            val mainClass = "specular.docs.BuildSite"
+            log.info(s"specularSite: running $mainClass → $siteDir (Test classpath)")
+            val code = Fork.java(
+              ForkOptions()
+                .withOutputStrategy(Some(LoggedOutput(log)))
+                .withRunJVMOptions(jvmOpts),
+              Seq("-cp", jars.mkString(java.io.File.pathSeparator), mainClass),
+            )
+            if code != 0 then sys.error(s"$mainClass failed with exit code $code")
+            if !siteDir.exists then sys.error(s"Site directory was not created: $siteDir")
+            log.info(s"specularSite: ready at $siteDir")
           },
         ),
   )
@@ -227,6 +247,9 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
             "rocks.earlyeffect" %% "ascent-css" % ascentVersion,
             "dev.zio"           %% "zio-test"   % zioVersion,
           ),
+          // Linker-only: share DocSpec sources from Test so ClientMain can register interactives.
+          Compile / unmanagedSourceDirectories +=
+            (ThisBuild / baseDirectory).value / "docs" / "src" / "test" / "scala",
           scalaJSUseMainModuleInitializer := true,
           scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule)),
           Compile / mainClass := Some("specular.docs.ClientMain"),

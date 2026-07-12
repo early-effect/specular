@@ -14,10 +14,11 @@ behavior: a red example fails CI.
 
 ```scala
 import specular.*
+import specular.ziotest.DocSpecSuite
 import ascent.*, ascent.dsl.*
 import zio.test.*
 
-object GettingStarted extends DocSpec:
+object GettingStarted extends DocSpecSuite:
   def doc = page("Getting started")(
     md"""Ascent renders **directly to the DOM**. No virtual DOM, no diffing.""",
 
@@ -39,8 +40,9 @@ object GettingStarted extends DocSpec:
   )
 ```
 
-The same `DocSpec` runs as a test suite and builds HTML. Interactive examples mount in the
-browser via a Scala.js client bundle.
+Put DocSpecs under `src/test`. The same page is a zio-test suite (`DocSpecSuite`) and feeds
+the static site via `DocsSite`. Interactive examples mount in the browser via a Scala.js
+client bundle (optional).
 
 ---
 
@@ -76,22 +78,28 @@ tags via sbt-dynver (`v0.1.0` → `0.1.0`).
 
 ```scala
 libraryDependencies ++= Seq(
-  "rocks.earlyeffect" %% "specular-core"     % "<version>", // Doc AST + builders (also pulls zio-test)
-  "rocks.earlyeffect" %% "specular-zio-test" % "<version>", // DocSpec ↔ zio-test interpreter
-  "rocks.earlyeffect" %% "specular-site"     % "<version>", // static site builder (JVM; pulls commonmark, zio-http, scalafmt-core)
+  "rocks.earlyeffect" %% "specular-core"     % "<version>" % Test,
+  "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
+  "rocks.earlyeffect" %% "specular-site"     % "<version>" % Test,
 )
 
-// sbt plugin (optional): injects project meta and runs specularSite
+// sbt plugin: injects product meta and runs specularSite from the Test classpath
 addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "<version>")
 ```
 
 `specular-core` is also available for Scala.js (`%%%`) when your docs client needs the AST.
 
-With `sbt-specular`, set your builder main explicitly (there is no default):
-
 ```scala
 enablePlugins(SpecularPlugin)
-specularBuildMain := "com.example.BuildDocs"
+specularBuildMain    := "com.example.docs.BuildSite"
+specularMetaProject  := Some(LocalProject("root")) // published module identity
+specularArtifactKind := "library" // or "plugin"
+```
+
+```scala
+// docs/src/test/scala/.../BuildSite.scala
+object BuildSite extends specular.site.DocsSite:
+  def pages = Vector(GettingStarted.doc, Concepts.doc)
 ```
 
 ---
@@ -108,17 +116,18 @@ example.interactive                                           // also mount clie
 example.assert(ui => assertTrue(…))                           // zio-test assertion
 ```
 
-Wire the page into zio-test with `specular-zio-test`, and into a site with `SiteBuilder`:
+Wire the page with `DocSpecSuite` (tests) and `DocsSite` (site map):
 
 ```scala
-val model = SiteModel(
-  title = "My Library",
-  pages = Vector(GettingStarted.doc, Concepts.doc),
-  meta = ProjectMeta.fromSystemProperties, // filled by sbt-specular / -Dspecular.meta.*
-)
+object GettingStarted extends DocSpecSuite:
+  def doc = page("Getting started")(…)
 
-ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, outDir))
+object BuildSite extends DocsSite:
+  def pages = Vector(GettingStarted.doc, Concepts.doc)
 ```
+
+`sbt test` discovers DocSpecSuites; `sbt docs/specularSite` forks `BuildSite` on the Test
+classpath with `-Dspecular.meta.*` from `specularMetaProject`.
 
 ### Docs micro-site vs full site
 

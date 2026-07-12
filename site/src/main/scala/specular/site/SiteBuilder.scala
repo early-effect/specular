@@ -106,10 +106,7 @@ object SiteBuilder:
       }
       val fallbackSnippets =
         if model.installSnippets.nonEmpty then model.installSnippets
-        else
-          model.meta.toVector.map { m =>
-            CodeSnippet("Install", m.sbtDependency())
-          }
+        else model.meta.toVector.map(m => ArtifactKind.defaultInstall(m))
       val installSections = fallbackSnippets.map { snip =>
         el(
           "section",
