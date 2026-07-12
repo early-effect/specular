@@ -17,27 +17,22 @@ library.
     section("1. Add the artifacts")(
       md"""
 Publish line is Maven Central under `rocks.earlyeffect` (see the README badge for the
-current version). In your docs module:
-
-```scala
-libraryDependencies ++= Seq(
-  "rocks.earlyeffect" %% "specular-core"     % "<version>",
-  "rocks.earlyeffect" %% "specular-zio-test" % "<version>",
-  "rocks.earlyeffect" %% "specular-site"     % "<version>", // JVM site builder
-)
-```
-
-Optional sbt plugin (injects `-Dspecular.meta.*` and provides `specularSite`):
+current version). Docs live on the **Test** classpath by convention:
 
 ```scala
 // project/plugins.sbt
 addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "<version>")
-```
 
-```scala
-// build.sbt
+// build.sbt (docs project)
 enablePlugins(SpecularPlugin)
-specularBuildMain := "com.example.docs.BuildSite"
+libraryDependencies ++= Seq(
+  "rocks.earlyeffect" %% "specular-core"     % "<version>" % Test,
+  "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
+  "rocks.earlyeffect" %% "specular-site"     % "<version>" % Test,
+)
+specularBuildMain   := "com.example.docs.BuildSite"
+specularMetaProject := Some(LocalProject("root")) // product identity, not the docs module
+specularArtifactKind := "library" // or "plugin"
 ```
 
 `specular-core` is also available for Scala.js (`%%%`) when you ship interactive examples.
@@ -72,19 +67,25 @@ For non-UI libraries, assert a value or effect outcome directly:
     ),
     section("3. Run examples as tests")(
       md"""
-Only examples with `.assert` become zio-test cases. Wire each page once:
+Only examples with `.assert` become zio-test cases. Prefer `DocSpecSuite` so the page **is**
+the suite (no separate `*Spec.scala`):
 
 ```scala
-import specular.ziotest.DocTestInterpreter
+import specular.*
+import specular.ziotest.DocSpecSuite
 import zio.test.*
 
-object GettingStartedSpec extends ZIOSpecDefault:
-  def spec =
-    DocTestInterpreter.specOf(GettingStarted).provideLayer(ExampleRunner.live)
+object GettingStarted extends DocSpecSuite:
+  def doc = page("Getting started")(
+    exampleValue(1 + 1).assert(n => assertTrue(n == 2)),
+  )
 ```
 
-`sbt test` now fails when an example assertion fails: the same signal as any other suite.
+Put that under `docs/src/test/scala`. `sbt test` discovers it like any other zio-test suite.
 Unasserted snapshots still render on the site; they just do not gate CI.
+
+If you also need a Scala.js client for `.interactive` examples, keep shared pages as
+`DocSpec` and add thin `DocSpecSuite` wrappers on the JVM only (see Library authors).
 """,
       example {
         E.ul(
@@ -96,29 +97,25 @@ Unasserted snapshots still render on the site; they just do not gate CI.
     ),
     section("4. Build the site")(
       md"""
-On the JVM, fold pages into a `SiteModel` and call `SiteBuilder`:
+Extend `DocsSite` with an ordered page list (your site map / nav order):
 
 ```scala
-val model = SiteModel(
-  title = "My Library",
-  basePath = SitePaths.basePath("."),
-  pages = Vector(GettingStarted.doc, Concepts.doc),
-  clientScript = Some("assets/client.js"), // if you have interactives
-  meta = ProjectMeta.fromSystemProperties,
-)
+import specular.site.*
 
-ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, SitePaths.outDir(out)))
+object BuildSite extends DocsSite:
+  def pages = Vector(GettingStarted.doc, Concepts.doc)
+  // optional: override site / layers / afterBuild
 ```
 
-With the plugin: `sbt docs/specularSite` forks your `specularBuildMain`, links the JS
-client when configured, and writes HTML plus `metadata.json`.
+Also under `src/test`. `sbt docs/specularSite` compiles Test, forks that main with product
+meta from `specularMetaProject`, and writes HTML plus `metadata.json`.
 
-Local loop for this repo:
+Local loop:
 
 ```bash
 sbt test
 sbt docs/specularSite
-sbt docs/run          # preview (sbt-reload)
+sbt docs/specularServe   # preview
 ```
 """,
       example {
