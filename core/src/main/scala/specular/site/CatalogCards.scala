@@ -43,7 +43,11 @@ object CatalogCards:
   def cards(projects: Vector[ProjectMeta], cardClass: String): Vector[UI[Any]] =
     projects.map(card(_, cardClass))
 
-  /** Catalog grid filled with cards (mount target for live catalogs). */
+  /** Card children only (no wrapping grid). Use when remounting into an existing grid root. */
+  def cardFragment(projects: Vector[ProjectMeta], cardClass: String): UI[Any] =
+    UI.Fragment(cards(projects, cardClass))
+
+  /** Catalog grid filled with cards (SSR mount target for live catalogs). */
   def grid(
       projects: Vector[ProjectMeta],
       cardClass: String,
