@@ -34,6 +34,11 @@ object LandingTemplate:
         footerText = model.meta.fold("Built with specular")(m =>
           s"${m.displayTitle} · v${m.version} · Built with specular"
         )
+        scriptTags = model.clientScript.toVector.flatMap { src =>
+          SafeHref.sanitizeClientScript(src).toVector.map { safe =>
+            el("script", Vector.empty, Vector(attr("type", "module"), attr("src", safe)))
+          }
+        }
       yield el(
         "html",
         Vector(
@@ -52,7 +57,7 @@ object LandingTemplate:
             } ++ Vector(
               el("link", Vector.empty, Vector(attr("rel", "stylesheet"), attr("href", "assets/theme.css"))),
               el("link", Vector.empty, Vector(attr("rel", "stylesheet"), attr("href", "assets/index.css"))),
-            ),
+            ) ++ scriptTags,
           ),
           el(
             "body",
@@ -126,39 +131,45 @@ object LandingTemplate:
 
     private def renderSection(section: HomeSection, classes: ThemeClasses): UIO[UI[Any]] =
       section match
-        case ProjectCatalog(projects) =>
-          ZIO.succeed:
-            val cards = projects.map { p =>
-              val rawHref   = p.docsUrl.orElse(p.homepage).getOrElse("#")
-              val linkAttrs = SafeHref.anchorAttrs(rawHref).map { case (k, v) => attr(k, v) }
-              val badges    =
-                Vector(s"v${p.version}") ++ p.language.toVector
-              el(
-                "article",
-                Vector(
-                  el(
-                    "h3",
-                    Vector(el("a", Vector(UI.Text(p.displayTitle)), linkAttrs)),
-                  )
-                ) ++ p.description.toVector.map(d => el("p", Vector(UI.Text(d)))) ++ Vector(
-                  el(
-                    "div",
-                    badges.map(b => el("span", Vector(UI.Text(b)), Vector(attr("class", "specular-card-badge")))),
-                    Vector(attr("class", "specular-card-meta")),
-                  )
-                ),
-                Vector(attr("class", classes.card)),
-              )
-            }
-            el(
-              "section",
-              Vector(
-                el("h2", Vector(UI.Text("Libraries")), Vector(attr("class", "specular-catalog-heading"))),
-                el("div", cards, Vector(attr("class", "specular-catalog-grid"))),
-              ),
-              Vector(attr("class", classes.catalog)),
-            )
+        case catalog: ProjectCatalog =>
+          ZIO.succeed(renderCatalog(catalog, classes))
         case ProseSection(markdown) =>
           md.toUi(markdown).map(ui => el("section", Vector(ui), Vector(attr("class", classes.content))))
+    end renderSection
+
+    private def renderCatalog(catalog: ProjectCatalog, classes: ThemeClasses): UI[Any] =
+      val safeUrls = catalog.metadataUrls.filter(ProjectMeta.isAllowedMetaUrl)
+      val grid     =
+        if catalog.isLive then
+          CatalogCards.grid(
+            catalog.projects,
+            classes.card,
+            gridId = Some(LiveCatalogIds.MountId),
+            live = true,
+          )
+        else CatalogCards.grid(catalog.projects, classes.card)
+
+      // Prefer <link rel> over JSON-in-script so SSR text escaping cannot corrupt URLs (&, etc.).
+      val urlLinks =
+        safeUrls.map { url =>
+          el(
+            "link",
+            Vector.empty,
+            Vector(
+              attr("rel", LiveCatalogIds.MetaLinkRel),
+              attr("href", url),
+            ),
+          )
+        }
+
+      el(
+        "section",
+        Vector(
+          el("h2", Vector(UI.Text("Libraries")), Vector(attr("class", "specular-catalog-heading"))),
+          grid,
+        ) ++ urlLinks,
+        Vector(attr("class", classes.catalog)),
+      )
+    end renderCatalog
   end Live
 end LandingTemplate

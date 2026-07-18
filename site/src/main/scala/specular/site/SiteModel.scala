@@ -94,11 +94,24 @@ final case class Hero(
 
 sealed trait HomeSection
 
-final case class ProjectCatalog(projects: Vector[ProjectMeta]) extends HomeSection
+final case class ProjectCatalog(
+    projects: Vector[ProjectMeta] = Vector.empty,
+    /** When non-empty, landing SSR emits a live mount shell; the Ascent client refreshes from these URLs. */
+    metadataUrls: Vector[String] = Vector.empty,
+) extends HomeSection:
+  def isLive: Boolean = metadataUrls.nonEmpty
 
 object ProjectCatalog:
-  /** Build a catalog by fetching each micro-site's published `metadata.json`. */
+  /** Live catalog: browser fetches allowlisted manifests (optional SSR fallback cards). */
+  def live(urls: Vector[String], fallback: Vector[ProjectMeta] = Vector.empty): ProjectCatalog =
+    ProjectCatalog(
+      projects = fallback,
+      metadataUrls = urls.filter(ProjectMeta.isAllowedMetaUrl),
+    )
+
+  /** Build a catalog by fetching each micro-site's published `metadata.json` (SSR / build-time). */
   def fromMetadataUrls(urls: Vector[String]): RIO[Client, ProjectCatalog] =
-    ProjectMeta.fetchAll(urls).map(ProjectCatalog(_))
+    ProjectMetaHttp.fetchAll(urls).map(ps => ProjectCatalog(projects = ps))
+end ProjectCatalog
 
 final case class ProseSection(markdown: String) extends HomeSection

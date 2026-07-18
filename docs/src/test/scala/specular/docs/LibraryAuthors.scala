@@ -103,20 +103,25 @@ Enable GitHub Pages (Actions source) before the first tag deploy if that is your
     ),
     section("Optional: compose into a hub")(
       md"""
-A hub is just another Specular site that builds a `ProjectCatalog` from published
+A hub is just another Specular site that composes a `ProjectCatalog` from published
 `metadata.json` URLs. Your library does not need one; the micro-site stands alone.
 
 If your org (or you) keeps a hub:
 
 1. Publish the library docs so `metadata.json` is reachable over HTTPS
-2. Add that URL to the hub's catalog source (often a plain text list of URLs)
-3. Rebuild the hub site and confirm the card appears
+2. Add that URL to the hub's catalog allowlist (often a plain text list of URLs)
+3. Rebuild the hub once so the allowlist (and optional Scala.js client) is deployed
 
-Hubs usually rebuild on demand rather than on every library tag, so catalog edits stay
-intentional.
+For a **live** hub, use `ProjectCatalog.live(urls)` (optionally with SSR fallback cards) and
+ship a small Ascent `ClientMain` that calls `LiveCatalog.bootstrap`. The browser re-fetches
+allowlisted manifests on each visit, so library version bumps show up on refresh. Rebuild the
+hub when the **URL allowlist** changes, not on every library tag.
 
-Early Effect's hub at [earlyeffect.rocks](https://www.earlyeffect.rocks) uses this
-approach: published library `metadata.json` URLs feed a Specular catalog site.
+Cards render remote strings as text nodes and links through `SafeHref` (no `javascript:` /
+`data:` hrefs).
+
+Early Effect's hub at [earlyeffect.rocks](https://www.earlyeffect.rocks) is built this way:
+published library `metadata.json` URLs feed a Specular catalog site.
 """
     ),
     section("Migration from markdown docs")(

@@ -30,8 +30,10 @@ object PageTemplate:
       for
         classes <- theme.classNames
         sidebar <- nav.sidebar(model, page)
-        scriptTags = model.clientScript.toVector.map { src =>
-          el("script", Vector.empty, Vector(attr("type", "module"), attr("src", src)))
+        scriptTags = model.clientScript.toVector.flatMap { src =>
+          SafeHref.sanitizeClientScript(src).toVector.map { safe =>
+            el("script", Vector.empty, Vector(attr("type", "module"), attr("src", safe)))
+          }
         }
         headerLabel = model.meta match
           case Some(m) => s"${model.title} · v${m.version}"

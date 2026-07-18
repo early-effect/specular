@@ -1,8 +1,5 @@
 package specular.site
 
-import zio.*
-import zio.http.*
-
 import java.net.URI
 
 /** Published project facts for micro-sites and org hubs. */
@@ -28,15 +25,23 @@ final case class ProjectMeta(
 
   def toJson: String =
     ProjectMeta.toJson(this)
+
+  /** Re-apply [[SafeHref]] to link fields (defense in depth after parse or fetch). */
+  def withSanitizedLinks: ProjectMeta =
+    copy(
+      homepage = homepage.flatMap(SafeHref.sanitize),
+      docsUrl = docsUrl.flatMap(SafeHref.sanitize),
+    )
 end ProjectMeta
 
 final case class MetaPage(title: String, slug: String)
 
 object ProjectMeta:
 
-  private val PropPrefix   = "specular.meta."
-  private val MaxBodyBytes = 256 * 1024
-  private val FetchTimeout = 15.seconds
+  private val PropPrefix = "specular.meta."
+
+  /** Max bytes accepted for a remote `metadata.json` body (JVM fetch and live catalog). */
+  val MaxBodyBytes: Int = 256 * 1024
 
   /** Load meta passed by sbt-specular via `-Dspecular.meta.*`. */
   def fromSystemProperties: Option[ProjectMeta] =
@@ -67,15 +72,15 @@ object ProjectMeta:
       if meta.pages.isEmpty then Vector.empty
       else
         val items = meta.pages
-          .map(p => s"""{"title":${jsonString(p.title)},"slug":${jsonString(p.slug)}}""")
+          .map(p => s"""{"title":${quoteJsonString(p.title)},"slug":${quoteJsonString(p.slug)}}""")
           .mkString(",")
         Vector(s""""pages":[$items]""")
 
     val fields = Vector(
-      s""""name": ${jsonString(meta.name)}""",
-      s""""organization": ${jsonString(meta.organization)}""",
-      s""""version": ${jsonString(meta.version)}""",
-      s""""scalaVersion": ${jsonString(meta.scalaVersion)}""",
+      s""""name": ${quoteJsonString(meta.name)}""",
+      s""""organization": ${quoteJsonString(meta.organization)}""",
+      s""""version": ${quoteJsonString(meta.version)}""",
+      s""""scalaVersion": ${quoteJsonString(meta.scalaVersion)}""",
     ) ++ optField("title", meta.title) ++
       optField("description", meta.description) ++
       optField("language", meta.language) ++
@@ -87,7 +92,7 @@ object ProjectMeta:
   end toJson
 
   private def optField(key: String, value: Option[String]): Vector[String] =
-    value.toVector.map(v => s""""$key": ${jsonString(v)}""")
+    value.toVector.map(v => s""""$key": ${quoteJsonString(v)}""")
 
   def parseJson(raw: String): Either[String, ProjectMeta] =
     def field(key: String): Option[String] =
@@ -110,7 +115,7 @@ object ProjectMeta:
       homepage = field("homepage").flatMap(SafeHref.sanitize),
       docsUrl = field("docsUrl").flatMap(SafeHref.sanitize),
       pages = parsePages(raw),
-    )
+    ).withSanitizedLinks
     end for
   end parseJson
 
@@ -124,35 +129,9 @@ object ProjectMeta:
       uri.getHost.nn.nonEmpty
     catch case _: IllegalArgumentException => false
 
-  /** Fetch published micro-site manifests (org hub composition).
-    *
-    * URLs must be http(s). Callers should pass an explicit allowlist of known micro-site manifests — this is not a
-    * general-purpose open proxy.
-    */
-  def fetchAll(urls: Vector[String]): RIO[Client, Vector[ProjectMeta]] =
-    ZIO.foreach(urls)(fetchOne)
-
-  def fetchOne(url: String): RIO[Client, ProjectMeta] =
-    for
-      _ <- ZIO
-        .fail(new IllegalArgumentException(s"Refusing non-http(s) metadata URL: $url"))
-        .unless(isAllowedMetaUrl(url))
-      response <- ZClient
-        .batched(Request.get(url))
-        .timeoutFail(new RuntimeException(s"Timed out fetching $url"))(FetchTimeout)
-      _     <- ZIO.fail(new RuntimeException(s"GET $url → ${response.status}")).when(!response.status.isSuccess)
-      chunk <- response.body.asChunk
-      _     <- ZIO
-        .fail(new RuntimeException(s"$url: body exceeds $MaxBodyBytes bytes"))
-        .when(chunk.size > MaxBodyBytes)
-      body <- ZIO.attempt(new String(chunk.toArray, java.nio.charset.StandardCharsets.UTF_8))
-      meta <- ZIO.fromEither(parseJson(body)).mapError(msg => new RuntimeException(s"$url: $msg"))
-      // Re-check link fields after parse (defense in depth).
-      safe = meta.copy(
-        homepage = meta.homepage.flatMap(SafeHref.sanitize),
-        docsUrl = meta.docsUrl.flatMap(SafeHref.sanitize),
-      )
-    yield safe
+  /** Quote a string as a JSON string literal. */
+  def quoteJsonString(s: String): String =
+    "\"" + escape(s) + "\""
 
   private def parsePages(raw: String): Vector[MetaPage] =
     val block =
@@ -169,9 +148,6 @@ object ProjectMeta:
         }
     end if
   end parsePages
-
-  private def jsonString(s: String): String =
-    "\"" + escape(s) + "\""
 
   private def escape(s: String): String =
     s.flatMap {

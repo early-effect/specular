@@ -104,7 +104,16 @@ lazy val core = (projectMatrix in file("core"))
     zioTestSettings,
   )
   .jvmPlatform(scalaVersions = scalaVersions)
-  .jsPlatform(scalaVersions = scalaVersions, javaTimePolyfill)
+  .jsPlatform(
+    scalaVersions,
+    Nil,
+    (p: Project) =>
+      p.settings(
+        javaTimePolyfill,
+        libraryDependencies += "rocks.earlyeffect" %% "ascent-js" % ascentVersion,
+        Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "scalajs",
+      ),
+  )
 
 lazy val zioTest = (projectMatrix in file("zio-test"))
   .dependsOn(core)

@@ -95,8 +95,9 @@ description, docs URL, page list. Prefer `ProjectMeta.fromSystemProperties` so
 - `-Dspecular.site.basePath=…`
 
 Every successful `buildSite` writes **`metadata.json`** beside `index.html`. Org hubs
-fetch allowlisted `http(s)` URLs only (`ProjectCatalog.fromMetadataUrls`); not an open
-proxy.
+compose from an allowlist of `http(s)` URLs only (`ProjectCatalog.fromMetadataUrls` at
+build time, or `ProjectCatalog.live` + `LiveCatalog.bootstrap` in the browser); not an open
+proxy. Link fields are sanitized with `SafeHref`.
 """
     ),
     section("Themes and full sites")(
@@ -108,7 +109,8 @@ as `Theme.default` or `Theme.fromTokens(...)`. Early Effect docs use the publish
 `early-effect-docs-theme` pack (`EarlyEffectTheme.live` + logo resource).
 
 Use micro-sites for versioned library docs; use a hub site when you want one landing page
-that discovers many libraries via their published manifests.
+that discovers many libraries via their published manifests. Live catalogs remount through
+Ascent so a refresh picks up new versions without rebuilding the hub.
 """
     ),
   )
