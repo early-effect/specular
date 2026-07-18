@@ -33,5 +33,14 @@ object SafeHrefSpec extends ZIOSpecDefault:
         attrs.exists(_ == "target" -> "_blank"),
       )
     },
+    test("sanitizeClientScript allows relative assets only") {
+      assertTrue(
+        SafeHref.sanitizeClientScript("assets/client.js").contains("assets/client.js"),
+        SafeHref.sanitizeClientScript("./assets/client.js").contains("./assets/client.js"),
+        SafeHref.sanitizeClientScript("https://evil.example/x.js").isEmpty,
+        SafeHref.sanitizeClientScript("//evil.example/x.js").isEmpty,
+        SafeHref.sanitizeClientScript("javascript:alert(1)").isEmpty,
+      )
+    },
   )
 end SafeHrefSpec

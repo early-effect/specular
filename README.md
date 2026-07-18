@@ -151,7 +151,9 @@ Set `SiteModel.logo` for a small header mark beside the project name; the brand 
 
 Every site build writes **`metadata.json`** next to `index.html` (name, org, version, pages, …)
 so hubs can fetch published manifests instead of hardcoding library cards.
-`ProjectCatalog.fromMetadataUrls` only accepts `http(s)` URLs (trusted allowlist — not an open proxy).
+`ProjectCatalog.fromMetadataUrls` / `ProjectCatalog.live` only accept `http(s)` URLs (trusted
+allowlist — not an open proxy). Live hubs ship an Ascent client (`LiveCatalog.bootstrap`) so
+refresh picks up new versions; rebuild the hub when the allowlist changes.
 
 ---
 
@@ -159,9 +161,9 @@ so hubs can fetch published manifests instead of hardcoding library cards.
 
 | Module | Artifact | Role |
 |--------|----------|------|
-| `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section` (depends on `zio-test` for `.assert`) |
+| `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section`, shared `ProjectMeta` / catalog cards (+ JS `LiveCatalog`) |
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
-| `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json` |
+| `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
 | `docs` | (unpublished) | Dogfood site for specular itself |

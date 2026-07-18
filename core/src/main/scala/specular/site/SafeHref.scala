@@ -35,4 +35,10 @@ object SafeHref:
     val base = Vector("href" -> safe)
     if isExternal(safe) then base :+ ("rel" -> "noopener noreferrer") :+ ("target" -> "_blank")
     else base
+
+  /** Allow only relative same-origin script paths (no schemes, no protocol-relative). */
+  def sanitizeClientScript(raw: String): Option[String] =
+    val src = raw.trim
+    if src.isEmpty || src.contains("://") || src.startsWith("//") then None
+    else sanitize(src).filter(s => !isExternal(s) && !s.startsWith("mailto:"))
 end SafeHref

@@ -87,5 +87,12 @@ object ProjectMetaSpec extends ZIOSpecDefault:
       val json = meta.toJson
       assertTrue(json.contains("\\u0001"), !json.contains("\u0001"))
     },
+    test("HtmlSafeJson embed escapes script breakout") {
+      val embedded = HtmlSafeJson.embedStringArray(Vector("https://x.example/</script>/m.json"))
+      assertTrue(
+        embedded.contains("\\u003c"),
+        !embedded.contains("</script>"),
+      )
+    },
   )
 end ProjectMetaSpec

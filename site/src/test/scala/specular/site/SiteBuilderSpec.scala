@@ -162,6 +162,78 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("live catalog emits mount shell, meta links, and client script") {
+      val catalog = ProjectCatalog.live(
+        Vector(
+          "https://www.earlyeffect.rocks/specular/metadata.json",
+          "javascript:alert(1)",
+          "file:///etc/passwd",
+        ),
+        fallback = Vector(
+          ProjectMeta(
+            name = "specular",
+            organization = "rocks.earlyeffect",
+            version = "0.1.0",
+            scalaVersion = "3.8.4",
+            title = Some("Specular"),
+            description = Some("tests-as-docs"),
+            docsUrl = Some("https://www.earlyeffect.rocks/specular/"),
+          )
+        ),
+      )
+      val model = SiteModel(
+        title = "Early Effect",
+        clientScript = Some("assets/client.js"),
+        home = Some(HomePage(sections = Vector(catalog))),
+        meta = Some(ProjectMeta("early-effect", "rocks.earlyeffect", "1.0.0", "3.8.4")),
+      )
+      for
+        tmp   <- ZIO.attempt(Files.createTempDirectory("specular-live-catalog"))
+        _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
+      yield assertTrue(
+        index.contains(s"""id="${LiveCatalogIds.MountId}""""),
+        index.contains(s"""rel="${LiveCatalogIds.MetaLinkRel}""""),
+        index.contains("https://www.earlyeffect.rocks/specular/metadata.json"),
+        !index.contains("javascript:alert"),
+        !index.contains("file:///"),
+        index.contains("type=\"module\""),
+        index.contains("assets/client.js"),
+        index.contains("data-card-class"),
+        index.contains("Specular"),
+      )
+      end for
+    },
+    test("catalog cards escape hostile text and drop javascript hrefs") {
+      val catalog = ProjectCatalog(
+        Vector(
+          ProjectMeta(
+            name = "evil",
+            organization = "o",
+            version = "1.0.0",
+            scalaVersion = "3",
+            title = Some("""<script>alert(1)</script>"""),
+            description = Some("""<img onerror="alert(1)" src=x> & more"""),
+            docsUrl = Some("javascript:alert(1)"),
+          )
+        )
+      )
+      val model = SiteModel(
+        title = "Hub",
+        home = Some(HomePage(sections = Vector(catalog))),
+      )
+      for
+        tmp   <- ZIO.attempt(Files.createTempDirectory("specular-xss-catalog"))
+        _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
+      yield assertTrue(
+        index.contains("&lt;script&gt;") || index.contains("&lt;script"),
+        index.contains("&lt;img") || index.contains("&amp;"),
+        !index.contains("javascript:alert"),
+        index.contains("href=\"#\"") || !index.contains("""href="javascript:"""),
+      )
+      end for
+    },
     test("docs index shows install snippet from meta") {
       val model = SiteModel(
         title = "Saferis",
