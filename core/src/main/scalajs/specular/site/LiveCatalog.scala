@@ -22,8 +22,11 @@ object LiveCatalog:
         urls     <- readAllowlist
         projects <- fetchProjects(urls)
         _        <- ZIO.succeed(clearChildren(root))
-        _        <- AscentApp.mount(CatalogCards.grid(projects, cardClass), root)
+        // Mount cards into the existing `#specular-live-catalog` grid. Do not wrap in
+        // another `.specular-catalog-grid` or CSS `auto-fill` collapses to one 280px column.
+        _ <- AscentApp.mount(CatalogCards.cardFragment(projects, cardClass), root)
       yield ()
+    end if
   end bootstrap
 
   private def readAllowlist: UIO[Vector[String]] =
