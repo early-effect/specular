@@ -43,6 +43,17 @@ pomIncludeRepository := { _ => false }
 // MISSING_KEY_HEX keeps local compile/test loadable; signing fails loudly off-CI.
 usePgpKeyHex(sys.env.getOrElse("PGP_KEY_HEX", "MISSING_KEY_HEX"))
 
+// zipx: Aggregate CI from the build graph (see sbt zipxWorkflowGenerate).
+zipxJavaVersion := "25"
+zipxTestTask    := "test"
+zipxWorkflowDispatch := true
+zipxCapabilities += Capability.once("fmt", "scalafmtCheckAll")
+zipxCapabilities += Capability.test.copy(needsCapabilities = List("fmt"))
+zipxCapabilities += Capability.once("docs-site", "docs/specularSite")
+  .copy(needsCapabilities = List("test"))
+zipxCapabilities += ZipxCentral.release
+zipxCapabilities += ZipxDocs.pages()
+
 semanticdbEnabled := true
 
 run / fork := true
