@@ -20,7 +20,7 @@ object BuildSite extends DocsSite:
 
   override def site: SiteModel =
     val m       = meta
-    val version = m.version
+    val version = m.docsVersion
     val org     = m.organization
     super.site.copy(
       clientScript = Some("assets/client.js"),

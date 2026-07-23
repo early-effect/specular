@@ -112,10 +112,10 @@ object PageTemplate:
           if model.copyCode then Vector(el("script", Vector(UI.Text(copyScript)), Vector.empty))
           else Vector.empty
         headerLabel = model.meta match
-          case Some(m) => s"${model.title} · v${m.version}"
+          case Some(m) => s"${model.title} · v${m.docsVersion}"
           case None    => model.title
         footerLabel = model.meta match
-          case Some(m) => s"v${m.version} · Built with specular"
+          case Some(m) => s"v${m.docsVersion} · Built with specular"
           case None    => "Built with specular"
         logoEls = model.logo.toVector.map { src =>
           val img = el(

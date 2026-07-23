@@ -32,7 +32,7 @@ object LandingTemplate:
           case None => ZIO.succeed(Vector.empty)
         heroUi     = renderHero(home.hero, brand, classes)
         footerText = model.meta.fold("Built with specular")(m =>
-          s"${m.displayTitle} · v${m.version} · Built with specular"
+          s"${m.displayTitle} · v${m.docsVersion} · Built with specular"
         )
         scriptTags = model.clientScript.toVector.flatMap { src =>
           SafeHref.sanitizeClientScript(src).toVector.map { safe =>

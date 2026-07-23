@@ -208,7 +208,8 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
             val converter = fileConverter.value
             val siteDir   = (ThisBuild / baseDirectory).value / "target" / "site"
             val basePath  = sys.env.getOrElse("SPECULAR_BASE_PATH", ".")
-            val docsUrl   = sys.env.getOrElse("SPECULAR_DOCS_URL", "")
+            val docsUrl        = sys.env.getOrElse("SPECULAR_DOCS_URL", "")
+            val displayVersion = sys.env.getOrElse("SPECULAR_DISPLAY_VERSION", "")
 
             (LocalProject("docsJS") / Compile / fastLinkJS).value
             val outDir = (LocalProject("docsJS") / Compile / fastLinkJSOutput).value
@@ -233,6 +234,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
                 opt("description", description.value) ++
                 opt("homepage", homepage.value.map(_.toString).getOrElse("")) ++
                 opt("docsUrl", docsUrl) ++
+                opt("displayVersion", displayVersion) ++
                 opt("artifactKind", "plugin") ++
                 Seq(
                   s"-Dspecular.site.dir=${siteDir.getAbsolutePath}",

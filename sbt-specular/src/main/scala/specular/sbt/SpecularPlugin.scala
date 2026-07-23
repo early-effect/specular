@@ -12,7 +12,7 @@ import sbt.Keys.*
   * identity. Wire `specularJsLink` to `(jsProj / Compile / fastLinkJS)` when you have a Scala.js client.
   *
   * Passes into the forked builder:
-  *   - `-Dspecular.meta.*` from `specularMetaProject` (+ `specularArtifactKind`)
+  *   - `-Dspecular.meta.*` from `specularMetaProject` (+ `specularArtifactKind`, optional `specularDisplayVersion`)
   *   - `-Dspecular.site.dir` from `specularSiteDirectory`
   *   - `-Dspecular.site.basePath` from `specularBasePath` (or `SPECULAR_BASE_PATH`)
   *   - `-Dspecular.meta.docsUrl` from `specularDocsUrl` (or `SPECULAR_DOCS_URL`)
@@ -34,6 +34,12 @@ object SpecularPlugin extends AutoPlugin:
       )
     val specularDocsUrl =
       settingKey[String]("Canonical docs URL written to metadata.json as -Dspecular.meta.docsUrl")
+    val specularDisplayVersion =
+      settingKey[String](
+        "Optional version for docs install snippets and chrome (empty = build version). " +
+          "Use for docs-only deploys that would otherwise advertise a dynver -ci coordinate. " +
+          "Also honored via SPECULAR_DISPLAY_VERSION."
+      )
     val specularMetaProject =
       settingKey[Option[ProjectReference]](
         "Project whose name/organization/version/description feed -Dspecular.meta.* (required for specularSite)"
@@ -71,9 +77,10 @@ object SpecularPlugin extends AutoPlugin:
     specularMetaProject   := None,
     specularArtifactKind  := "library",
     // CI / early-effect/.github specular-docs workflow sets these via env when deploying to Pages.
-    specularBasePath := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
-    specularDocsUrl  := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
-    specularJsLink   := {},
+    specularBasePath       := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
+    specularDocsUrl        := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
+    specularDisplayVersion := sys.env.getOrElse("SPECULAR_DISPLAY_VERSION", ""),
+    specularJsLink         := {},
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     specularMetaProps := Def.uncached {
       Def.taskDyn {
@@ -82,10 +89,11 @@ object SpecularPlugin extends AutoPlugin:
             "specularMetaProject is not set. Example: specularMetaProject := Some(LocalProject(\"root\"))"
           )
         }
-        val kind    = specularArtifactKind.value.trim.toLowerCase
-        val docsUrl = specularDocsUrl.value
-        val dir     = specularSiteDirectory.value.getAbsolutePath
-        val base    = specularBasePath.value
+        val kind           = specularArtifactKind.value.trim.toLowerCase
+        val docsUrl        = specularDocsUrl.value
+        val displayVersion = specularDisplayVersion.value
+        val dir            = specularSiteDirectory.value.getAbsolutePath
+        val base           = specularBasePath.value
         if kind != "library" && kind != "plugin" then
           sys.error(s"""specularArtifactKind must be "library" or "plugin", got: ${specularArtifactKind.value}""")
         Def.task {
@@ -103,6 +111,7 @@ object SpecularPlugin extends AutoPlugin:
             opt("description", desc) ++
             opt("homepage", home) ++
             opt("docsUrl", docsUrl) ++
+            opt("displayVersion", displayVersion) ++
             opt("artifactKind", kind) ++
             Seq(
               s"-Dspecular.site.dir=$dir",

@@ -84,12 +84,31 @@ If your library is JVM-only and examples are pure values, skip the JS client ent
 Ship docs on the **same `v*` tag** as the Maven release when you can. That keeps
 `metadata.json` version aligned with Central.
 
+When you need a **docs-only** Pages deploy (for example `workflow_dispatch` without a tag),
+sbt-dynver / [sbt-dynver-ci](https://github.com/early-effect/sbt-dynver-ci) may produce a
+build version like `0.0.7-ci`. That is fine for jars and cache epochs, but install snippets
+and header chrome should not advertise it as a Central coordinate.
+
+Set an override so docs show a release (or placeholder) version while the build version stays
+unchanged:
+
+```scala
+// empty = use build version (default; also SPECULAR_DISPLAY_VERSION)
+specularDisplayVersion := "0.0.6"
+// or, with dynver: previousStableVersion.value.getOrElse("<version>")
+```
+
+`ProjectMeta.displayVersion` / `docsVersion` feed `ArtifactKind.defaultInstall`, docs header
+and footer, and catalog badges. `metadata.json` still records both `version` (build) and
+optional `displayVersion`.
+
 Checklist:
 
 1. `sbt test` green (includes DocSpecs)
 2. Tag `vX.Y.Z` → Central publish **and** docs deploy
 3. Confirm your published docs URL and `…/metadata.json` load
-4. Use a manual docs workflow run when you need a regen without a new tag
+4. Use a manual docs workflow run when you need a regen without a new tag (set
+   `specularDisplayVersion` / `SPECULAR_DISPLAY_VERSION` so install copy stays honest)
 
 Enable GitHub Pages (Actions source) before the first tag deploy if that is your host.
 """,
@@ -97,6 +116,7 @@ Enable GitHub Pages (Actions source) before the first tag deploy if that is your
         E.ul(
           E.li(E.code("v*"), " tag → jars + docs"),
           E.li(E.code("workflow_dispatch"), " → docs only"),
+          E.li(E.code("specularDisplayVersion"), " → install / chrome version"),
           E.li(E.code("metadata.json"), " → hub input"),
         )
       }.assert(_ => assertTrue(true)),
