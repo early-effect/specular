@@ -64,6 +64,25 @@ object PageTemplate:
       ),
     )
 
+  /** GitHub mark for header chrome links (vendored SVG, themed via CSS mask + currentColor). */
+  private val githubIcon: UI[Any] =
+    el(
+      "span",
+      Vector.empty,
+      Vector(
+        attr("class", "specular-header-icon specular-header-icon-github"),
+        attr("aria-hidden", "true"),
+      ),
+    )
+
+  private def isGitHubLink(link: BrandLink): Boolean =
+    link.label.equalsIgnoreCase("GitHub") ||
+      SiteModel.sourceLinkLabel(link.href) == "GitHub"
+
+  private def headerLinkChildren(link: BrandLink): Vector[UI[Any]] =
+    if isGitHubLink(link) then Vector(githubIcon, UI.Text(link.label))
+    else Vector(UI.Text(link.label))
+
   /** Wrap a `pre.specular-source` block with an optional copy button. */
   def codeBlock(pre: UI[Any], copyCode: Boolean): UI[Any] =
     if !copyCode then pre
@@ -136,8 +155,13 @@ object PageTemplate:
         linkEls = model.headerLinks.map { l =>
           el(
             "a",
-            Vector(UI.Text(l.label)),
-            SafeHref.anchorAttrs(l.href).map { case (k, v) => attr(k, v) },
+            headerLinkChildren(l),
+            SafeHref.anchorAttrs(l.href).map { case (k, v) => attr(k, v) } ++ Vector(
+              attr(
+                "class",
+                if isGitHubLink(l) then "specular-header-link specular-header-link-github" else "specular-header-link",
+              )
+            ),
           )
         }
         headerChildren =

@@ -231,6 +231,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
                 opt("scalaVersion", scalaVersion.value) ++
                 opt("title", "Specular") ++
                 opt("description", description.value) ++
+                opt("homepage", homepage.value.map(_.toString).getOrElse("")) ++
                 opt("docsUrl", docsUrl) ++
                 opt("artifactKind", "plugin") ++
                 Seq(

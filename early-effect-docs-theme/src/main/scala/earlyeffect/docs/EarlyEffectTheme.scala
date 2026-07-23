@@ -14,7 +14,7 @@ import java.nio.file.{Files, Path, StandardCopyOption}
   * {{{
   * libraryDependencies += "rocks.earlyeffect" %% "early-effect-docs-theme" % "<version>"
   *
-  * // SiteModel(..., logo = Some(EarlyEffectTheme.logoHref))
+  * // SiteModel(..., logo = Some(EarlyEffectTheme.logoHref), logoLink = Some(EarlyEffectTheme.hubUrl))
   * // .provide(..., EarlyEffectTheme.live, ...)
   * // EarlyEffectTheme.writeLogo(outDir)
   * }}}
@@ -23,6 +23,9 @@ object EarlyEffectTheme:
 
   /** Default site-relative path for the header / hero mark. */
   val logoHref: String = "images/logo.svg"
+
+  /** Org hub the header logo should link to. */
+  val hubUrl: String = "https://www.earlyeffect.rocks/"
 
   /** Classpath resource for [[logoHref]]. */
   val logoResource: String = "/earlyeffect/logo.svg"
