@@ -86,11 +86,13 @@ theme hooks, `meta`, and optional `logo` (header mark beside the project name).
 The header brand (logo + title) and the sidebar project name both link to `index.html`.
 
 `ProjectMeta` is what hubs care about: name, organization, version, Scala version, title,
-description, docs URL, page list. Prefer `ProjectMeta.fromSystemProperties` so
+description, docs URL, page list, and optional `displayVersion` (install / chrome when it
+should differ from the build version). Prefer `ProjectMeta.fromSystemProperties` so
 `sbt-specular` (or CI) fills fields from sbt keys / env:
 
 - `-Dspecular.meta.name=…`
 - `-Dspecular.meta.version=…`
+- `-Dspecular.meta.displayVersion=…` (optional; `specularDisplayVersion` / `SPECULAR_DISPLAY_VERSION`)
 - `-Dspecular.site.dir=…`
 - `-Dspecular.site.basePath=…`
 

@@ -16,6 +16,7 @@ object ProjectMetaSpec extends ZIOSpecDefault:
         language = Some("Scala"),
         homepage = Some("https://github.com/early-effect/ascent"),
         docsUrl = Some("https://early-effect.github.io/ascent/"),
+        displayVersion = Some("0.1.0"),
         pages = Vector(MetaPage("Getting started", "getting-started")),
       )
       val json   = meta.toJson
@@ -24,9 +25,11 @@ object ProjectMetaSpec extends ZIOSpecDefault:
         parsed.isRight,
         parsed.toOption.get.name == "ascent",
         parsed.toOption.get.version == "0.1.0",
+        parsed.toOption.get.displayVersion.contains("0.1.0"),
         parsed.toOption.get.title.contains("Ascent"),
         parsed.toOption.get.pages == Vector(MetaPage("Getting started", "getting-started")),
         json.contains("\"pages\""),
+        json.contains("\"displayVersion\""),
       )
     },
     test("sbtDependency formats coords") {
@@ -34,6 +37,23 @@ object ProjectMetaSpec extends ZIOSpecDefault:
       assertTrue(
         meta.sbtDependency() ==
           """libraryDependencies += "rocks.earlyeffect" %% "saferis" % "1.2.3""""
+      )
+    },
+    test("docsVersion prefers displayVersion for install coords and chrome") {
+      val meta = ProjectMeta(
+        "zipx",
+        "rocks.earlyeffect",
+        "0.0.7-ci",
+        "3.8.4",
+        displayVersion = Some("0.0.6"),
+      )
+      assertTrue(
+        meta.docsVersion == "0.0.6",
+        meta.version == "0.0.7-ci",
+        meta.sbtPlugin("sbt-zipx") ==
+          """addSbtPlugin("rocks.earlyeffect" % "sbt-zipx" % "0.0.6")""",
+        meta.sbtDependency() ==
+          """libraryDependencies += "rocks.earlyeffect" %% "zipx" % "0.0.6"""",
       )
     },
     test("sbtPlugin formats coords") {
@@ -46,19 +66,22 @@ object ProjectMetaSpec extends ZIOSpecDefault:
       )
     },
     test("fromSystemProperties reads -Dspecular.meta.*") {
-      val keys = Vector("name", "organization", "version", "scalaVersion", "title")
+      val keys = Vector("name", "organization", "version", "scalaVersion", "title", "displayVersion")
       keys.foreach(k => java.lang.System.clearProperty(s"specular.meta.$k"))
       java.lang.System.setProperty("specular.meta.name", "specular")
       java.lang.System.setProperty("specular.meta.organization", "io.github.russwyte")
       java.lang.System.setProperty("specular.meta.version", "0.1.0-SNAPSHOT")
       java.lang.System.setProperty("specular.meta.scalaVersion", "3.8.4")
       java.lang.System.setProperty("specular.meta.title", "Specular")
+      java.lang.System.setProperty("specular.meta.displayVersion", "0.1.0")
       val meta = ProjectMeta.fromSystemProperties
       keys.foreach(k => java.lang.System.clearProperty(s"specular.meta.$k"))
       assertTrue(
         meta.isDefined,
         meta.get.name == "specular",
         meta.get.version == "0.1.0-SNAPSHOT",
+        meta.get.displayVersion.contains("0.1.0"),
+        meta.get.docsVersion == "0.1.0",
         meta.get.title.contains("Specular"),
       )
     },

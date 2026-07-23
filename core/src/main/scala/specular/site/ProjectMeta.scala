@@ -13,15 +13,22 @@ final case class ProjectMeta(
     language: Option[String] = None,
     homepage: Option[String] = None,
     docsUrl: Option[String] = None,
+    /** Optional version for install snippets and docs chrome when it should differ from [[version]] (e.g. docs-only
+      * deploys that would otherwise advertise a dynver `-ci` coordinate).
+      */
+    displayVersion: Option[String] = None,
     pages: Vector[MetaPage] = Vector.empty,
 ):
   def displayTitle: String = title.getOrElse(name)
 
+  /** Version shown in install snippets, header/footer chrome, and catalog badges. */
+  def docsVersion: String = displayVersion.getOrElse(version)
+
   def sbtDependency(artifact: String = name): String =
-    s"""libraryDependencies += "$organization" %% "$artifact" % "$version""""
+    s"""libraryDependencies += "$organization" %% "$artifact" % "$docsVersion""""
 
   def sbtPlugin(artifact: String = s"sbt-$name"): String =
-    s"""addSbtPlugin("$organization" % "$artifact" % "$version")"""
+    s"""addSbtPlugin("$organization" % "$artifact" % "$docsVersion")"""
 
   def toJson: String =
     ProjectMeta.toJson(this)
@@ -63,6 +70,7 @@ object ProjectMeta:
       language = prop("language"),
       homepage = prop("homepage"),
       docsUrl = prop("docsUrl"),
+      displayVersion = prop("displayVersion"),
     )
     end for
   end fromSystemProperties
@@ -86,6 +94,7 @@ object ProjectMeta:
       optField("language", meta.language) ++
       optField("homepage", meta.homepage) ++
       optField("docsUrl", meta.docsUrl) ++
+      optField("displayVersion", meta.displayVersion) ++
       pagesJson
 
     fields.mkString("{\n  ", ",\n  ", "\n}")
@@ -114,6 +123,7 @@ object ProjectMeta:
       language = field("language"),
       homepage = field("homepage").flatMap(SafeHref.sanitize),
       docsUrl = field("docsUrl").flatMap(SafeHref.sanitize),
+      displayVersion = field("displayVersion"),
       pages = parsePages(raw),
     ).withSanitizedLinks
     end for

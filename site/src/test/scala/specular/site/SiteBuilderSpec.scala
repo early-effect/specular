@@ -258,6 +258,38 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("displayVersion drives install snippet and chrome, not build version") {
+      val model = SiteModel(
+        title = "Zipx",
+        pages = Vector(page("Intro")(md"hi")),
+        meta = Some(
+          ProjectMeta(
+            "zipx",
+            "rocks.earlyeffect",
+            "0.0.7-ci",
+            "3.8.4",
+            displayVersion = Some("0.0.6"),
+          )
+        ),
+      )
+      for
+        tmp   <- ZIO.attempt(Files.createTempDirectory("specular-display-version"))
+        _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
+        page  <- ZIO.attempt(Files.readString(tmp.resolve("intro.html")))
+        meta  <- ZIO.attempt(Files.readString(tmp.resolve("metadata.json")))
+      yield assertTrue(
+        index.contains("0.0.6"),
+        !index.contains("0.0.7-ci"),
+        page.contains("v0.0.6"),
+        !page.contains("v0.0.7-ci"),
+        meta.contains("\"version\""),
+        meta.contains("0.0.7-ci"),
+        meta.contains("\"displayVersion\""),
+        meta.contains("0.0.6"),
+      )
+      end for
+    },
     test("docs index uses summary, plugin snippets, and logo hub link") {
       val model = SiteModel(
         title = "Specular",
