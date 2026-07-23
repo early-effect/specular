@@ -35,7 +35,38 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
       for
         ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi("use `x`\n\n```\nval a = 1\n```"))
         html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
-      yield assertTrue(html.contains("<code"), html.contains("val a = 1"))
+      yield assertTrue(
+        html.contains("<code"),
+        html.contains("val a = 1"),
+        html.contains("specular-source"),
+        html.contains("specular-copy"),
+      )
+    },
+    test("fenced code omits copy button when disabled") {
+      for
+        ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi("```\nval a = 1\n```", copyCode = false))
+        html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
+      yield assertTrue(html.contains("val a = 1"), !html.contains("specular-copy"))
+    },
+    test("renders GFM tables") {
+      val md =
+        """| Name | N |
+          || ---- | - |
+          || a    | 1 |
+          || b    | 2 |
+          |""".stripMargin
+      for
+        ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi(md))
+        html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
+      yield assertTrue(
+        html.contains("<table"),
+        html.contains("<thead"),
+        html.contains("<th"),
+        html.contains("<td"),
+        html.contains("Name"),
+        html.contains("a"),
+      )
+      end for
     },
     test("renders links") {
       for

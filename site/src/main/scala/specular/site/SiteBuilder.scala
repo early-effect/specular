@@ -85,7 +85,7 @@ object SiteBuilder:
 
     private def renderOne(model: SiteModel, page: DocPage, outDir: JPath): Task[JPath] =
       for
-        bodyUi   <- renderNodes(page.children)
+        bodyUi   <- renderNodes(page.children, model.copyCode)
         docUi    <- template.wrap(model, page, bodyUi)
         rendered <- ssr.renderPage(docUi)
         htmlPath = outDir.resolve(s"${page.slug}.html")
@@ -108,15 +108,16 @@ object SiteBuilder:
         if model.installSnippets.nonEmpty then model.installSnippets
         else model.meta.toVector.map(m => ArtifactKind.defaultInstall(m))
       val installSections = fallbackSnippets.map { snip =>
+        val pre = el(
+          "pre",
+          Vector(el("code", Vector(UI.Text(snip.code)))),
+          Vector(attr("class", "specular-source")),
+        )
         el(
           "section",
           Vector(
             el("h2", Vector(UI.Text(snip.heading))),
-            el(
-              "pre",
-              Vector(el("code", Vector(UI.Text(snip.code)))),
-              Vector(attr("class", "specular-source")),
-            ),
+            PageTemplate.codeBlock(pre, model.copyCode),
           ),
         )
       }
@@ -131,7 +132,7 @@ object SiteBuilder:
       val indexPage = DocPage("Index", Vector.empty)
       for
         summaryUi <- model.summaryMarkdown match
-          case Some(mdText) => md.toUi(mdText)
+          case Some(mdText) => md.toUi(mdText, model.copyCode)
           case None         =>
             model.description match
               case Some(d) => ZIO.succeed(el("p", Vector(UI.Text(d))))
@@ -164,52 +165,58 @@ object SiteBuilder:
       val path = outDir.resolve("metadata.json")
       writeUnder(outDir, path, model.publishedMeta.toJson + "\n").as(path)
 
-    private def renderNodes(nodes: Vector[DocNode]): Task[UI[Any]] =
-      ZIO.foreach(nodes)(renderNode).map {
+    private def renderNodes(nodes: Vector[DocNode], copyCode: Boolean): Task[UI[Any]] =
+      ZIO.foreach(nodes)(n => renderNode(n, copyCode)).map {
         case Vector()  => UI.Empty
         case Vector(u) => u
         case many      => UI.Fragment(many)
       }
 
-    private def renderNode(node: DocNode): Task[UI[Any]] = node match
+    private def renderNode(node: DocNode, copyCode: Boolean): Task[UI[Any]] = node match
       case Prose(markdown) =>
-        md.toUi(markdown)
+        md.toUi(markdown, copyCode)
       case Section(title, children) =>
-        for kids <- renderNodes(children)
+        for kids <- renderNodes(children, copyCode)
         yield el("section", Vector(el("h2", Vector(UI.Text(title))), kids))
       case ex: Example[?] =>
         val erased = ex.asInstanceOf[Example[Any]]
         for ui <- runner.run(erased)
-        yield el(
-          "figure",
-          Vector(
-            el(
-              "pre",
-              Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
-              Vector(attr("class", "specular-source")),
+        yield
+          val pre = el(
+            "pre",
+            Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
+            Vector(attr("class", "specular-source")),
+          )
+          el(
+            "figure",
+            Vector(
+              PageTemplate.codeBlock(pre, copyCode),
+              el("div", Vector(ui), Vector(attr("id", erased.id), attr("class", "specular-snapshot"))),
             ),
-            el("div", Vector(ui), Vector(attr("id", erased.id), attr("class", "specular-snapshot"))),
-          ),
-          Vector(attr("class", "specular-example")),
-        )
+            Vector(attr("class", "specular-example")),
+          )
+        end for
       case ve: ValueExample[?] =>
         val erased = ve.asInstanceOf[ValueExample[Any]]
         for value <- ZIO.scoped(erased.body)
-        yield el(
-          "figure",
-          Vector(
-            el(
-              "pre",
-              Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
-              Vector(attr("class", "specular-source")),
+        yield
+          val pre = el(
+            "pre",
+            Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
+            Vector(attr("class", "specular-source")),
+          )
+          el(
+            "figure",
+            Vector(
+              PageTemplate.codeBlock(pre, copyCode),
+              el(
+                "div",
+                Vector(el("pre", Vector(el("code", Vector(UI.Text(erased.show(value))))))),
+                Vector(attr("id", erased.id), attr("class", "specular-snapshot specular-result")),
+              ),
             ),
-            el(
-              "div",
-              Vector(el("pre", Vector(el("code", Vector(UI.Text(erased.show(value))))))),
-              Vector(attr("id", erased.id), attr("class", "specular-snapshot specular-result")),
-            ),
-          ),
-          Vector(attr("class", "specular-example")),
-        )
+            Vector(attr("class", "specular-example")),
+          )
+        end for
   end Live
 end SiteBuilder

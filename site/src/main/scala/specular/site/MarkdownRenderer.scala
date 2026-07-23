@@ -9,7 +9,7 @@ import zio.*
 
 /** Parses markdown prose into an ascent [[UI]] tree (never spliced HTML strings). */
 trait MarkdownRenderer:
-  def toUi(markdown: String): UIO[UI[Any]]
+  def toUi(markdown: String, copyCode: Boolean = true): UIO[UI[Any]]
 
 object MarkdownRenderer:
 
@@ -23,10 +23,10 @@ object MarkdownRenderer:
         .extensions(java.util.List.of(TablesExtension.create()))
         .build()
 
-    def toUi(markdown: String): UIO[UI[Any]] =
+    def toUi(markdown: String, copyCode: Boolean = true): UIO[UI[Any]] =
       ZIO.succeed:
         val doc = parser.parse(markdown)
-        renderChildren(doc)
+        renderChildren(doc, copyCode)
 
     private def el(tag: String, children: Vector[UI[Any]], attrs: Vector[Attr[Any]] = Vector.empty): UI[Any] =
       UI.Element(tag, attrs, children)
@@ -34,8 +34,8 @@ object MarkdownRenderer:
     private def attr(name: String, value: String): Attr[Any] =
       Attr.StaticAttr(name, AttrValue.Str(value))
 
-    private def renderChildren(parent: Node): UI[Any] =
-      val kids = collect(parent).map(renderNode)
+    private def renderChildren(parent: Node, copyCode: Boolean): UI[Any] =
+      val kids = collect(parent).map(n => renderNode(n, copyCode))
       kids match
         case Vector()  => UI.Empty
         case Vector(u) => u
@@ -47,42 +47,55 @@ object MarkdownRenderer:
         .takeWhile(_ != null)
         .toVector
 
-    private def renderNode(node: Node): UI[Any] = node match
+    private def renderNode(node: Node, copyCode: Boolean): UI[Any] = node match
       case h: Heading =>
         val tag = s"h${h.getLevel.min(6).max(1)}"
         el(tag, inlineChildren(h))
       case p: Paragraph =>
         el("p", inlineChildren(p))
       case b: BulletList =>
-        el("ul", listItems(b))
+        el("ul", listItems(b, copyCode))
       case o: OrderedList =>
-        el("ol", listItems(o))
+        el("ol", listItems(o, copyCode))
       case bq: BlockQuote =>
-        el("blockquote", Vector(renderChildren(bq)))
+        el("blockquote", Vector(renderChildren(bq, copyCode)))
       case _: ThematicBreak =>
         el("hr", Vector.empty)
       case fb: FencedCodeBlock =>
-        el("pre", Vector(el("code", Vector(UI.Text(fb.getLiteral)))))
+        sourcePre(fb.getLiteral, copyCode)
       case ib: IndentedCodeBlock =>
-        el("pre", Vector(el("code", Vector(UI.Text(ib.getLiteral)))))
+        // Indented blocks are prose-adjacent legacy markdown; copy controls are for fenced code only.
+        el(
+          "pre",
+          Vector(el("code", Vector(UI.Text(ib.getLiteral)))),
+          Vector(attr("class", "specular-source")),
+        )
       case t: org.commonmark.ext.gfm.tables.TableBlock =>
-        el("table", Vector(renderChildren(t)))
+        el("table", Vector(renderChildren(t, copyCode)))
       case th: org.commonmark.ext.gfm.tables.TableHead =>
-        el("thead", Vector(renderChildren(th)))
+        el("thead", Vector(renderChildren(th, copyCode)))
       case tb: org.commonmark.ext.gfm.tables.TableBody =>
-        el("tbody", Vector(renderChildren(tb)))
+        el("tbody", Vector(renderChildren(tb, copyCode)))
       case tr: org.commonmark.ext.gfm.tables.TableRow =>
-        el("tr", Vector(renderChildren(tr)))
+        el("tr", Vector(renderChildren(tr, copyCode)))
       case tc: org.commonmark.ext.gfm.tables.TableCell =>
         val tag = if tc.isHeader then "th" else "td"
         el(tag, inlineChildren(tc))
       case _: HtmlBlock =>
         UI.Empty
       case other =>
-        if other.getFirstChild != null then renderChildren(other) else UI.Empty
+        if other.getFirstChild != null then renderChildren(other, copyCode) else UI.Empty
 
-    private def listItems(list: ListBlock): Vector[UI[Any]] =
-      collect(list).collect { case li: ListItem => el("li", Vector(renderChildren(li))) }
+    private def sourcePre(literal: String, copyCode: Boolean): UI[Any] =
+      val pre = el(
+        "pre",
+        Vector(el("code", Vector(UI.Text(literal)))),
+        Vector(attr("class", "specular-source")),
+      )
+      PageTemplate.codeBlock(pre, copyCode)
+
+    private def listItems(list: ListBlock, copyCode: Boolean): Vector[UI[Any]] =
+      collect(list).collect { case li: ListItem => el("li", Vector(renderChildren(li, copyCode))) }
 
     private def inlineChildren(parent: Node): Vector[UI[Any]] =
       collect(parent).flatMap(inlineNode)

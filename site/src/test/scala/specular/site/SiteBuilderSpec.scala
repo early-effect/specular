@@ -290,6 +290,93 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("docs header links GitHub from meta.homepage") {
+      val model = SiteModel(
+        title = "Zipx",
+        pages = Vector(page("Intro")(md"hi")),
+        meta = Some(
+          ProjectMeta(
+            "zipx",
+            "rocks.earlyeffect",
+            "1.0.0",
+            "3.8.4",
+            homepage = Some("https://github.com/early-effect/zipx"),
+          )
+        ),
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-github-header"))
+        _    <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        page <- ZIO.attempt(Files.readString(tmp.resolve("intro.html")))
+      yield assertTrue(
+        page.contains("specular-header-links"),
+        page.contains("GitHub"),
+        page.contains("https://github.com/early-effect/zipx"),
+      )
+      end for
+    },
+    test("docs header prefers brand.links over homepage") {
+      val model = SiteModel(
+        title = "Zipx",
+        pages = Vector(page("Intro")(md"hi")),
+        brand = Some(Brand("Zipx", links = Vector(BrandLink("Source", "https://example.com/zipx")))),
+        meta = Some(
+          ProjectMeta(
+            "zipx",
+            "rocks.earlyeffect",
+            "1.0.0",
+            "3.8.4",
+            homepage = Some("https://github.com/early-effect/zipx"),
+          )
+        ),
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-brand-links"))
+        _    <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        page <- ZIO.attempt(Files.readString(tmp.resolve("intro.html")))
+      yield assertTrue(
+        page.contains("https://example.com/zipx"),
+        page.contains(">Source<") || page.contains("Source"),
+        !page.contains("https://github.com/early-effect/zipx"),
+      )
+      end for
+    },
+    test("theme.css includes GFM table styles") {
+      val model = SiteModel(title = "Docs", pages = Vector(page("Intro")(md"hi")))
+      for
+        tmp   <- ZIO.attempt(Files.createTempDirectory("specular-table-css"))
+        _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        theme <- ZIO.attempt(Files.readString(tmp.resolve("assets/theme.css")))
+      yield assertTrue(
+        theme.contains("table"),
+        theme.contains("thead"),
+        theme.contains("nth-child"),
+        theme.contains("max-width: 720"),
+      )
+      end for
+    },
+    test("copy buttons appear by default and can be disabled") {
+      val withCopy = SiteModel(
+        title = "Docs",
+        pages = Vector(page("Intro")(example { E.div("hi") })),
+      )
+      val withoutCopy = withCopy.copy(copyCode = false)
+      for
+        tmpOn   <- ZIO.attempt(Files.createTempDirectory("specular-copy-on"))
+        tmpOff  <- ZIO.attempt(Files.createTempDirectory("specular-copy-off"))
+        _       <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(withCopy, tmpOn))
+        _       <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(withoutCopy, tmpOff))
+        onHtml  <- ZIO.attempt(Files.readString(tmpOn.resolve("intro.html")))
+        offHtml <- ZIO.attempt(Files.readString(tmpOff.resolve("intro.html")))
+      yield assertTrue(
+        onHtml.contains("specular-copy"),
+        onHtml.contains("specular-code"),
+        onHtml.contains("Copy code"),
+        !offHtml.contains("specular-copy"),
+        !offHtml.contains("specular-code"),
+      )
+      end for
+    },
     test("duplicate slugs fail the build") {
       val model = SiteModel(
         title = "Docs",
