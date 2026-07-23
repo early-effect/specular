@@ -22,9 +22,20 @@ final case class SiteModel(
     summaryMarkdown: Option[String] = None,
     /** Install / usage snippets on the docs index (plugin-first sites set these explicitly). */
     installSnippets: Vector[CodeSnippet] = Vector.empty,
+    /** When true, source panels and fenced code blocks get a copy-to-clipboard control. */
+    copyCode: Boolean = true,
 ):
   def navItems: Vector[NavItem] =
     pages.map(p => NavItem(p.title, hrefFor(p)))
+
+  /** Header chrome links: explicit [[Brand.links]], else a single link from [[ProjectMeta.homepage]]. */
+  def headerLinks: Vector[BrandLink] =
+    val fromBrand = brand.toVector.flatMap(_.links)
+    if fromBrand.nonEmpty then fromBrand
+    else
+      meta.flatMap(_.homepage).toVector.map { url =>
+        BrandLink(SiteModel.sourceLinkLabel(url), url)
+      }
 
   def hrefFor(page: DocPage): String =
     s"${normalizedBase}${page.slug}.html"
@@ -63,6 +74,14 @@ final case class SiteModel(
       .replaceAll("-+", "-")
       .stripPrefix("-")
       .stripSuffix("-")
+end SiteModel
+
+object SiteModel:
+  private[site] def sourceLinkLabel(url: String): String =
+    try
+      val host = Option(java.net.URI.create(url).getHost).map(_.toLowerCase).getOrElse("")
+      if host == "github.com" || host.endsWith(".github.com") then "GitHub" else "Source"
+    catch case _: IllegalArgumentException => "Source"
 end SiteModel
 
 final case class NavItem(title: String, href: String)

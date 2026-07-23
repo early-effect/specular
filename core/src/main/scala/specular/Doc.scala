@@ -1,7 +1,6 @@
 package specular
 
-import zio.Scope
-import zio.URIO
+import zio.*
 import zio.test.TestResult
 
 /** A documentation page authored as a value. Interpreters fold the same AST into tests or a site. */
@@ -68,24 +67,62 @@ def section(title: String)(nodes: DocNode*): Section =
 /** Capture a static UI example's source and value.
   *
   * Specialized to `UI[Any]` so contravariant `UI[-R]` does not infer `R = Nothing`. The full argument span is recorded
-  * (local `val`s, `CssClass` objects, …), not only the last expression.
+  * (local `val`s, `CssClass` objects, case classes, …), not only the last expression.
   */
 inline def example(inline body: ascent.ast.UI[Any]): Example[Any] =
-  ${ ExampleMacros.exampleImpl('body) }
+  DocInternal.mkExample(capturedSource(body), body)
 
 /** Capture an effectful UI-building example (e.g. allocating a Source via `sq`). */
 inline def exampleIO(inline body: URIO[Scope, ascent.ast.UI[Any]]): Example[Any] =
-  ${ ExampleMacros.exampleIOImpl('body) }
+  DocInternal.mkExampleIO(capturedSource(body), body)
 
 /** Capture a plain Scala value: source panel + printed result. Same [[ValueExample]] as effects. */
 inline def exampleValue[A](inline body: A): ValueExample[A] =
-  ${ ExampleMacros.exampleValueImpl('body) }
+  DocInternal.mkValueExample(capturedSource(body), body)
 
 /** Capture a success-typed ZIO effect as a [[ValueExample]] (same node and `.assert` as plain values). */
 inline def exampleZIO[A](inline body: URIO[Scope, A]): ValueExample[A] =
-  ${ ExampleMacros.exampleZIOImpl('body) }
+  DocInternal.mkValueExampleZIO(capturedSource(body), body)
+
+/** Macro-only source capture; keeps the executable body out of quotes (see [[ExampleMacros]]). */
+private inline def capturedSource(inline body: Any): String =
+  ${ ExampleMacros.sourceImpl('body) }
 
 private[specular] object DocInternal:
+  def mkExample(source: String, ui: ascent.ast.UI[Any]): Example[Any] =
+    Example(
+      id = "",
+      source = source,
+      body = ZIO.succeed(ui),
+      isInteractive = false,
+      assertion = None,
+    )
+
+  def mkExampleIO(source: String, effect: URIO[Scope, ascent.ast.UI[Any]]): Example[Any] =
+    Example(
+      id = "",
+      source = source,
+      body = effect,
+      isInteractive = false,
+      assertion = None,
+    )
+
+  def mkValueExample[A](source: String, value: A): ValueExample[A] =
+    ValueExample(
+      id = "",
+      source = source,
+      body = ZIO.succeed(value),
+      assertion = None,
+    )
+
+  def mkValueExampleZIO[A](source: String, effect: URIO[Scope, A]): ValueExample[A] =
+    ValueExample(
+      id = "",
+      source = source,
+      body = effect,
+      assertion = None,
+    )
+
   def trimSource(src: String): String =
     val lines = src.split('\n').toVector
     if lines.isEmpty then src

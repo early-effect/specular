@@ -1,6 +1,6 @@
 package earlyeffect.docs
 
-import specular.site.{Theme, ThemeTokens}
+import specular.site.{BrandLink, Theme, ThemeTokens}
 import zio.*
 
 import java.io.InputStream
@@ -57,6 +57,9 @@ object EarlyEffectTheme:
   )
 
   val live: ULayer[Theme] = Theme.fromTokens(tokens)
+
+  /** Convenience [[BrandLink]] for docs chrome / landing hero. */
+  def github(url: String): BrandLink = BrandLink("GitHub", url)
 
   /** Copy the brand mark into the site output (creates parent dirs). */
   def writeLogo(siteRoot: Path, relativePath: String = logoHref): Task[Unit] =

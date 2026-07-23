@@ -87,6 +87,47 @@ object DocBuildersSpec extends ZIOSpecDefault:
         }.assert(_ => assertTrue(true))
         assertTrue(ex.assertion.isDefined)
       },
+      test("example allows a local case class with field selection") {
+        val ex = example {
+          case class P(x: Int)
+          E.span(P(1).x.toString)
+        }
+        assertTrue(
+          ex.source.contains("case class P"),
+          ex.source.contains("P(1).x"),
+        )
+      },
+      test("exampleIO allows a local case class with field selection") {
+        val ex = exampleIO {
+          case class Row(id: String, n: Int)
+          val row = Row("1", 1)
+          ZIO.succeed(E.li(row.id, ": ", row.n.toString))
+        }
+        assertTrue(
+          ex.source.contains("case class Row"),
+          ex.source.contains("row.id"),
+        )
+      },
+      test("exampleValue allows a local case class with field selection") {
+        val ex = exampleValue {
+          case class Pair(a: Int, b: Int)
+          Pair(1, 2).a + Pair(1, 2).b
+        }
+        assertTrue(
+          ex.source.contains("case class Pair"),
+          ex.source.contains("Pair(1, 2).a"),
+        )
+      },
+      test("exampleZIO allows a local case class with field selection") {
+        val ex = exampleZIO {
+          case class Pair(a: Int, b: Int)
+          ZIO.succeed(Pair(1, 2).a + Pair(1, 2).b)
+        }
+        assertTrue(
+          ex.source.contains("case class Pair"),
+          ex.source.contains("ZIO.succeed"),
+        )
+      },
     ),
     suite("page / section structure")(
       test("page assigns stable example ids in document order") {

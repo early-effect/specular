@@ -93,6 +93,9 @@ object Theme:
   object Header
       extends CssClass(
         gridColumn("1 / -1"),
+        display.flex,
+        alignItems.center,
+        gap(1.rem),
         padding(1.rem, 1.5.rem),
         borderBottom(Border.solid(1.px, vBorder)),
         background(vSurface),
@@ -131,6 +134,23 @@ object Theme:
           " .specular-brand-title",
           fontWeight(600),
           letterSpacing(0.02.em),
+        ),
+        Selector(
+          " .specular-header-links",
+          display.flex,
+          alignItems.center,
+          gap(0.75.rem),
+          marginLeft.auto,
+          fontWeight(500),
+        ),
+        Selector(
+          " .specular-header-links a",
+          color(vMuted),
+          textDecoration.none,
+        ),
+        Selector(
+          " .specular-header-links a:hover",
+          color(vAccent),
         ),
       )
 
@@ -181,6 +201,38 @@ object Theme:
           padding(1.rem),
           overflow.auto,
           borderRadius(vRadius),
+          margin(0.px),
+        ),
+        Selector(
+          " .specular-code",
+          position.relative,
+          margin(1.5.rem, 0.px),
+        ),
+        Selector(
+          " .specular-code > pre.specular-source",
+          margin(0.px),
+        ),
+        Selector(
+          " button.specular-copy",
+          position.absolute,
+          top(0.5.rem),
+          right(0.5.rem),
+          display.inlineFlex,
+          alignItems.center,
+          justifyContent.center,
+          width(2.rem),
+          height(2.rem),
+          padding(0.px),
+          border(Border.solid(1.px, vBorder)),
+          borderRadius(vRadius),
+          background(vSurface),
+          color(vMuted),
+          cursor.pointer,
+        ),
+        Selector(
+          " button.specular-copy:hover, button.specular-copy.specular-copy-done",
+          color(vAccent),
+          borderColor(vAccent),
         ),
         Selector(" figure.specular-example", margin(1.25.rem, 0.px), padding(0.px)),
         Selector(
@@ -201,6 +253,60 @@ object Theme:
           borderRadius(vRadius),
         ),
         Selector(" a", color(vLink)),
+        // GFM markdown tables (bare table/th/td from MarkdownRenderer)
+        Selector(
+          " table",
+          width.pct(100),
+          borderCollapse.separate,
+          borderSpacing(0.px),
+          margin(1.5.rem, 0.px),
+          fontSize(0.925.rem),
+          lineHeight(1.45),
+          background(vSurface),
+          border(Border.solid(1.px, vBorder)),
+          borderRadius(vRadius),
+          overflow.hidden,
+        ),
+        Selector(
+          " thead",
+          background(Color.keyword("color-mix(in srgb, var(--specular-surface) 70%, var(--specular-border))")),
+        ),
+        Selector(
+          " th",
+          textAlign.left,
+          verticalAlign.bottom,
+          fontWeight(600),
+          fontSize(0.75.rem),
+          letterSpacing(0.06.em),
+          textTransform.uppercase,
+          color(vMuted),
+          padding(0.9.rem, 1.1.rem),
+          borderBottom(Border.solid(1.px, vBorder)),
+        ),
+        Selector(
+          " td",
+          textAlign.left,
+          verticalAlign.top,
+          color(vText),
+          padding(0.85.rem, 1.1.rem),
+          borderBottom(Border.solid(1.px, vBorder)),
+        ),
+        Selector(
+          " tbody tr:nth-child(even)",
+          background(Color.keyword("color-mix(in srgb, var(--specular-bg) 55%, var(--specular-surface))")),
+        ),
+        Selector(
+          " tbody tr:last-child td",
+          borderBottom.none,
+        ),
+        Selector(
+          " th code, td code",
+          fontSize(0.85.em),
+        ),
+        MediaQuery(
+          Media.maxWidth.px(720),
+          Selector(" table", display.block, overflowX.auto),
+        ),
       )
 
   object Footer
