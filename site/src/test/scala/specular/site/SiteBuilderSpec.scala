@@ -286,6 +286,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         index.contains("Libraries (optional)"),
         page.contains("https://www.earlyeffect.rocks/"),
         page.contains("specular-brand-logo-link"),
+        page.contains("aria-label=\"Organization hub\""),
         page.contains("href=\"./index.html\""),
       )
       end for
@@ -312,6 +313,8 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         page.contains("specular-header-links"),
         page.contains("GitHub"),
         page.contains("https://github.com/early-effect/zipx"),
+        page.contains("specular-header-link-github"),
+        page.contains("specular-header-icon"),
       )
       end for
     },

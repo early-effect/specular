@@ -145,12 +145,20 @@ object Theme:
         ),
         Selector(
           " .specular-header-links a",
+          display.inlineFlex,
+          alignItems.center,
+          gap(0.4.rem),
           color(vMuted),
           textDecoration.none,
         ),
         Selector(
           " .specular-header-links a:hover",
           color(vAccent),
+        ),
+        Selector(
+          " .specular-header-icon",
+          display.block,
+          flexShrink(0),
         ),
       )
 
