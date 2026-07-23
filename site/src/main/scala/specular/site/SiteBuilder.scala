@@ -52,6 +52,7 @@ object SiteBuilder:
         _        <- validatePages(model.pages)
         themeCss <- theme.cssText
         _        <- writeUnder(root, root.resolve("assets/theme.css"), themeCss)
+        _        <- SiteAssets.writeGithubIcon(root)
         paths    <- ZIO.foreach(model.pages) { page =>
           renderOne(model, page, root)
         }

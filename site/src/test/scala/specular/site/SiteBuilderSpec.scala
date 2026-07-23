@@ -314,7 +314,8 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         page.contains("GitHub"),
         page.contains("https://github.com/early-effect/zipx"),
         page.contains("specular-header-link-github"),
-        page.contains("specular-header-icon"),
+        page.contains("specular-header-icon-github"),
+        Files.exists(tmp.resolve("images/github.svg")),
       )
       end for
     },

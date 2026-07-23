@@ -159,6 +159,14 @@ object Theme:
           " .specular-header-icon",
           display.block,
           flexShrink(0),
+          width(1.rem),
+          height(1.rem),
+        ),
+        Selector(
+          " .specular-header-icon-github",
+          backgroundColor(Color.keyword("currentColor")),
+          Declaration("-webkit-mask", "url(../images/github.svg) center / contain no-repeat"),
+          Declaration("mask", "url(../images/github.svg) center / contain no-repeat"),
         ),
       )
 
