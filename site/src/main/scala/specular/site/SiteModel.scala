@@ -14,7 +14,7 @@ final case class SiteModel(
     brand: Option[Brand] = None,
     home: Option[HomePage] = None,
     description: Option[String] = None,
-    /** Optional header mark (`src` relative to the site root, e.g. `images/logo.svg`). */
+    /** Optional header mark (`src` relative to the site root, e.g. `images/logo.png`). */
     logo: Option[String] = None,
     /** When set, the header logo links here (e.g. org hub). Title still links to [[indexHref]]. */
     logoLink: Option[String] = None,
