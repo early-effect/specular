@@ -137,16 +137,18 @@ classpath with `-Dspecular.meta.*` from `specularMetaProject`.
 | **Full site** | `brand`, `home` (hero, `ProjectCatalog`, …) | Landing page + optional deep links to micro-sites |
 
 Themes: `Theme.default` or `Theme.fromTokens(...)`. Early Effect projects should depend on
-`early-effect-docs-theme` for hub-matched tokens and the logo resource:
+`early-effect-docs-theme` for hub-matched tokens and logo PNGs:
 
 ```scala
 libraryDependencies += "rocks.earlyeffect" %% "early-effect-docs-theme" % "<version>"
 // SiteModel(..., logo = Some(EarlyEffectTheme.logoHref))
+// Hero(..., image = Some(EarlyEffectTheme.heroImageHref))
 // .provide(..., EarlyEffectTheme.live, ...)
-// EarlyEffectTheme.writeLogo(outDir)
+// EarlyEffectTheme.writeLogo(outDir)  // writes header + hero PNGs
 ```
 
-Set `SiteModel.logo` for a small header mark beside the project name; the brand link goes to
+Set `SiteModel.logo` for a small header mark beside the project name; use
+`EarlyEffectTheme.heroImageHref` on landing heroes. The brand link goes to
 `index.html`.
 
 Every site build writes **`metadata.json`** next to `index.html` (name, org, version, pages, …)
