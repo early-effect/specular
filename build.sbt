@@ -44,9 +44,10 @@ pomIncludeRepository := { _ => false }
 usePgpKeyHex(sys.env.getOrElse("PGP_KEY_HEX", "MISSING_KEY_HEX"))
 
 // zipx: Aggregate CI from the build graph (see sbt zipxWorkflowGenerate).
-zipxJavaVersion := "25"
-zipxTestTask    := "test"
+zipxJavaVersion      := "25"
+zipxTestTask         := "test"
 zipxWorkflowDispatch := true
+zipxScalaSteward     := true
 zipxCapabilities += Capability.once("fmt", "scalafmtCheckAll")
 zipxCapabilities += Capability.test.copy(needsCapabilities = List("fmt"))
 zipxCapabilities += Capability.once("docs-site", "docs/specularSite")
