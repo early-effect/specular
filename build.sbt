@@ -57,6 +57,9 @@ zipxCapabilities += ZipxDocs.pages()
 
 addCommandAlias("ci", s"; $ciVerify")
 
+/** Watch docs: rebuild site + restart DocsServe. Open http://127.0.0.1:8765 — Enter exits watch. */
+addCommandAlias("docsDev", "; ~docs/Test/runReload")
+
 semanticdbEnabled := true
 
 run / fork := true
@@ -143,7 +146,7 @@ lazy val zioTest = (projectMatrix in file("zio-test"))
   .jvmPlatform(scalaVersions = scalaVersions)
 
 lazy val site = (projectMatrix in file("site"))
-  .dependsOn(core)
+  .dependsOn(core, specularMermoid)
   .settings(
     name := "specular-site",
     scalacOptions ++= commonScalacOptions,
@@ -229,16 +232,19 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           zioTestSettings,
           testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
           // Preview: specular.site.DocsServe on Test CP after docs/specularSite.
-          Test / mainClass := Some("specular.site.DocsServe"),
-          run / fork       := true,
+          // `docsDev` → ~docs/Test/runReload (rebuild site, then restart the server).
+          Test / mainClass       := Some("specular.site.DocsServe"),
+          Test / run / mainClass := Some("specular.site.DocsServe"),
+          run / fork             := true,
           run / javaOptions ++= Seq(
             "--sun-misc-unsafe-memory-access=allow",
             "--enable-native-access=ALL-UNNAMED",
           ),
-          runReloadArgs := {
+          Test / runReloadArgs := {
             val siteDir = (ThisBuild / baseDirectory).value / "target" / "site"
             Seq("8765", siteDir.getAbsolutePath)
           },
+          Test / runReload := (Test / runReload).dependsOn(specularSite).value,
           // Link JS client, then fork BuildSite on Test classpath (docs-as-tests convention).
           specularSite := Def.uncached {
             val log       = streams.value.log

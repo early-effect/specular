@@ -6,7 +6,7 @@ import zio.*
 
 /** Landing / hub chrome: hero, catalog, no docs sidebar. */
 trait LandingTemplate:
-  def wrap(model: SiteModel): UIO[UI[Any]]
+  def wrap(model: SiteModel): Task[UI[Any]]
 
 object LandingTemplate:
 
@@ -20,7 +20,7 @@ object LandingTemplate:
     Attr.StaticAttr(name, AttrValue.Str(value))
 
   private final case class Live(theme: Theme, md: MarkdownRenderer) extends LandingTemplate:
-    def wrap(model: SiteModel): UIO[UI[Any]] =
+    def wrap(model: SiteModel): Task[UI[Any]] =
       val home  = model.home.getOrElse(HomePage())
       val brand = model.brand
       for
@@ -32,9 +32,11 @@ object LandingTemplate:
           case None => ZIO.succeed(Vector.empty)
         heroUi = renderHero(home.hero, brand, classes)
         // A hub has no artifact version to advertise, so the segment is dropped rather than faked.
-        footerText = model.meta.fold("Built with specular") { m =>
-          (Vector(m.displayTitle) ++ m.versionBadge ++ Vector("Built with specular")).mkString(" · ")
-        }
+        footerKids = model.meta match
+          case None    => BuiltWith.credit()
+          case Some(m) =>
+            val prefix = (Vector(m.displayTitle) ++ m.versionBadge).mkString(" · ")
+            BuiltWith.credit(Option.when(prefix.nonEmpty)(prefix))
         scriptTags = model.clientScript.toVector.flatMap { src =>
           SafeHref.sanitizeClientScript(src).toVector.map { safe =>
             el("script", Vector.empty, Vector(attr("type", "module"), attr("src", safe)))
@@ -55,7 +57,7 @@ object LandingTemplate:
               el("title", Vector(UI.Text(model.title))),
             ) ++ model.description.toVector.map { d =>
               el("meta", Vector.empty, Vector(attr("name", "description"), attr("content", d)))
-            } ++ Vector(
+            } ++ PageTemplate.faviconLinks(model) ++ Vector(
               el("link", Vector.empty, Vector(attr("rel", "stylesheet"), attr("href", "assets/theme.css"))),
               el("link", Vector.empty, Vector(attr("rel", "stylesheet"), attr("href", "assets/index.css"))),
             ) ++ scriptTags,
@@ -66,7 +68,7 @@ object LandingTemplate:
               el(
                 "div",
                 Vector(heroUi) ++ readme ++ sections ++ Vector(
-                  el("footer", Vector(UI.Text(footerText)), Vector(attr("class", classes.footer)))
+                  el("footer", footerKids, Vector(attr("class", classes.footer)))
                 ),
                 Vector(attr("class", classes.landing)),
               )
@@ -98,7 +100,6 @@ object LandingTemplate:
               attr("class", "specular-hero-image"),
               attr("src", src),
               attr("alt", title),
-              attr("width", "160"),
               attr("height", "160"),
             ),
           )
@@ -130,7 +131,7 @@ object LandingTemplate:
       )
     end renderHero
 
-    private def renderSection(section: HomeSection, classes: ThemeClasses): UIO[UI[Any]] =
+    private def renderSection(section: HomeSection, classes: ThemeClasses): Task[UI[Any]] =
       section match
         case catalog: ProjectCatalog =>
           ZIO.succeed(renderCatalog(catalog, classes))

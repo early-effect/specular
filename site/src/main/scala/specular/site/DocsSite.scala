@@ -82,6 +82,9 @@ object DocsSite:
     * {{{
     * override def layers = EarlyEffectTheme.live >>> DocsSite.themedStack
     * }}}
+    *
+    * Diagram styling for fenced `mermaid` comes from [[ThemeTokens.diagramConfig]] on that theme — copy the tokens (or
+    * use a brand pack) to swap palettes without touching DocSpecs.
     */
   val themedStack: ZLayer[Theme, Nothing, SiteBuilder] =
     ZLayer.makeSome[Theme, SiteBuilder](

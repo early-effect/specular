@@ -175,7 +175,13 @@ object SpecularPlugin extends AutoPlugin:
         ForkOptions()
           .withOutputStrategy(Some(LoggedOutput(log)))
           .withRunJVMOptions(jvmOpts),
-        Seq("-cp", jars.mkString(java.io.File.pathSeparator), mainClass, port.toString),
+        Seq(
+          "-cp",
+          jars.mkString(java.io.File.pathSeparator),
+          mainClass,
+          port.toString,
+          dir.getAbsolutePath,
+        ),
       )
       if code != 0 then sys.error(s"$mainClass failed with exit code $code")
     },

@@ -80,9 +80,7 @@ tags via sbt-dynver (`v0.1.0` → `0.1.0`).
 libraryDependencies ++= Seq(
   "rocks.earlyeffect" %% "specular-core"     % "<version>" % Test,
   "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
-  "rocks.earlyeffect" %% "specular-site"     % "<version>" % Test,
-  // optional: Mermaid diagrams via mermoid (JVM SSR + Scala.js remount)
-  "rocks.earlyeffect" %% "specular-mermoid"  % "<version>" % Test,
+  "rocks.earlyeffect" %% "specular-site"     % "<version>" % Test, // includes mermaid Prose fences
 )
 // docs JS client (when you remount diagrams interactively):
 // libraryDependencies += "rocks.earlyeffect" %%% "specular-mermoid" % "<version>"
@@ -176,8 +174,8 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 |--------|----------|------|
 | `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section`, shared `ProjectMeta` / catalog cards (+ JS `LiveCatalog`) |
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
-| `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
-| `mermoid` | `specular-mermoid` | Embed [mermoid](https://github.com/early-effect/mermoid) Mermaid→SVG diagrams in doc pages (`Mermoid.diagram`); JVM + Scala.js |
+| `site` | `specular-site` | Markdown → UI (incl. fenced `mermaid`), SSR, themes, templates, `metadata.json`, JVM meta fetch |
+| `mermoid` | `specular-mermoid` | [mermoid](https://github.com/early-effect/mermoid) Mermaid→SVG (`Mermoid.diagram`); pulled in by site on JVM; `%%%` for Scala.js remount |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
 | `docs` | (unpublished) | Dogfood site for specular itself |
@@ -189,9 +187,12 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 ```bash
 sbt test                 # unit + DocSpec tests
 sbt docs/specularSite    # link JS client + write target/site (incl. metadata.json)
-sbt docs/run             # preview server via sbt-reload (`docs/runReload`)
+sbt docsDev              # watch docs: rebuild site + restart preview (http://127.0.0.1:8765)
 ./scripts/install-git-hooks   # once per clone: pre-commit runs scalafmtCheckAll
 ```
+
+`docsDev` is `~docs/Test/runReload` (sbt-reload): each source change runs `docs/specularSite`, then
+restarts `DocsServe`. Press Enter to leave watch mode.
 
 Requires a JDK that can run Scala 3.8 / sbt 2 (CI uses Temurin 25). Interactive examples need
 the docs JS link (`docsJS/fastLinkJS`), which `docs/specularSite` runs for you.
