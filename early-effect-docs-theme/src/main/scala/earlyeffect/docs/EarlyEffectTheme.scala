@@ -1,6 +1,6 @@
 package earlyeffect.docs
 
-import specular.site.{BrandLink, Theme, ThemeTokens}
+import specular.site.{BrandLink, DocsSite, SiteBuilder, SiteModel, Theme, ThemeTokens}
 import zio.*
 
 import java.io.InputStream
@@ -9,14 +9,14 @@ import java.nio.file.{Files, Path, StandardCopyOption}
 /** Published Early Effect brand pack for Specular sites (hub + library docs).
   *
   * Depends on `specular-site` for [[Theme]] / [[ThemeTokens]]; keeps org branding out of Specular itself. Other EE
-  * projects:
+  * projects brand a `DocsSite` with three one-liners:
   *
   * {{{
   * libraryDependencies += "rocks.earlyeffect" %% "early-effect-docs-theme" % "<version>"
   *
-  * // SiteModel(..., logo = Some(EarlyEffectTheme.logoHref), logoLink = Some(EarlyEffectTheme.hubUrl))
-  * // .provide(..., EarlyEffectTheme.live, ...)
-  * // EarlyEffectTheme.writeLogo(outDir)
+  * override def site   = EarlyEffectTheme.brand(super.site)
+  * override def layers = EarlyEffectTheme.layers
+  * override def afterBuild(out: Path, result: SiteOutput) = EarlyEffectTheme.writeLogo(out)
   * }}}
   */
 object EarlyEffectTheme:
@@ -66,6 +66,19 @@ object EarlyEffectTheme:
   )
 
   val live: ULayer[Theme] = Theme.fromTokens(tokens)
+
+  /** Full `DocsSite` stack on the EE theme — use as `override def layers`. */
+  val layers: ZLayer[Any, Nothing, SiteBuilder] = live >>> DocsSite.themedStack
+
+  /** Apply EE header branding (logo + hub link) to a site model.
+    *
+    * Only sets fields the caller left unset, so an explicit `logo`/`logoLink` still wins.
+    */
+  def brand(site: SiteModel): SiteModel =
+    site.copy(
+      logo = site.logo.orElse(Some(logoHref)),
+      logoLink = site.logoLink.orElse(Some(hubUrl)),
+    )
 
   /** Convenience [[BrandLink]] for docs chrome / landing hero. */
   def github(url: String): BrandLink = BrandLink("GitHub", url)
