@@ -56,6 +56,23 @@ object ProjectMetaSpec extends ZIOSpecDefault:
           """libraryDependencies += "rocks.earlyeffect" %% "zipx" % "0.0.6"""",
       )
     },
+    test("versionBadge is None when there is no version to advertise") {
+      // An org hub is a site, not a published artifact. Chrome must omit the version
+      // rather than render `v` with nothing after it.
+      val hub = ProjectMeta("early-effect", "rocks.earlyeffect", "", "3.8.4")
+      assertTrue(
+        hub.versionBadge.isEmpty,
+        // Blank-but-present is the same case: whitespace is not a version.
+        ProjectMeta("hub", "org", "   ", "3.8.4").versionBadge.isEmpty,
+      )
+    },
+    test("versionBadge prefixes v and honours displayVersion") {
+      assertTrue(
+        ProjectMeta("zipx", "rocks.earlyeffect", "0.0.10", "3.8.4").versionBadge.contains("v0.0.10"),
+        ProjectMeta("zipx", "rocks.earlyeffect", "0.0.10-ci", "3.8.4", displayVersion = Some("0.0.10")).versionBadge
+          .contains("v0.0.10"),
+      )
+    },
     test("sbtPlugin formats coords") {
       val meta = ProjectMeta("specular", "rocks.earlyeffect", "0.2.0", "3.8.4")
       assertTrue(
