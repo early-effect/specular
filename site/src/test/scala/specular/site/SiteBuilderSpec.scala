@@ -162,6 +162,43 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("a versionless hub renders chrome with no version segment") {
+      // An org hub is a site, not a published artifact: no version to advertise.
+      // Regression guard — a bare `v` (or a made-up number) in the footer is the bug.
+      val model = SiteModel(
+        title = "Early Effect",
+        home = Some(HomePage(hero = Some(Hero("Early Effect")))),
+        meta = Some(
+          ProjectMeta("early-effect", "rocks.earlyeffect", "", "3.8.4", title = Some("Early Effect"))
+        ),
+      )
+      for
+        tmp   <- ZIO.attempt(Files.createTempDirectory("specular-hub-noversion"))
+        _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
+      yield assertTrue(
+        index.contains("Early Effect · Built with specular"),
+        // No dangling separator and no orphan `v`.
+        !index.contains("· v ·"),
+        !index.contains("v ·"),
+        !index.contains("· ·"),
+      )
+      end for
+    },
+    test("a versioned site still shows the version in landing chrome") {
+      val model = SiteModel(
+        title = "Specular",
+        home = Some(HomePage(hero = Some(Hero("Specular")))),
+        meta = Some(
+          ProjectMeta("specular", "rocks.earlyeffect", "0.7.2", "3.8.4", title = Some("Specular"))
+        ),
+      )
+      for
+        tmp   <- ZIO.attempt(Files.createTempDirectory("specular-versioned-landing"))
+        _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
+      yield assertTrue(index.contains("Specular · v0.7.2 · Built with specular"))
+    },
     test("live catalog emits mount shell, meta links, and client script") {
       val catalog = ProjectCatalog.live(
         Vector(
