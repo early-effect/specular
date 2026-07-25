@@ -6,6 +6,10 @@ import java.net.URI
 final case class ProjectMeta(
     name: String,
     organization: String,
+    /** Published coordinate version. Empty means "not a published artifact" (e.g. an org hub site): chrome then shows
+      * no version at all rather than inventing one. Sites built through sbt-specular always have one — see
+      * [[ProjectMeta.fromSystemProperties]], which requires it.
+      */
     version: String,
     scalaVersion: String,
     title: Option[String] = None,
@@ -23,6 +27,10 @@ final case class ProjectMeta(
 
   /** Version shown in install snippets, header/footer chrome, and catalog badges. */
   def docsVersion: String = displayVersion.getOrElse(version)
+
+  /** `Some("v1.2.3")` for chrome, or `None` when there is no version to advertise. */
+  def versionBadge: Option[String] =
+    Option(docsVersion).map(_.trim).filter(_.nonEmpty).map(v => s"v$v")
 
   def sbtDependency(artifact: String = name): String =
     s"""libraryDependencies += "$organization" %% "$artifact" % "$docsVersion""""
