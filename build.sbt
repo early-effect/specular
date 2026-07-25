@@ -1,7 +1,8 @@
-val scala3Version  = "3.8.4"
-val zioVersion     = "2.1.26"
-val ascentVersion  = "0.3.0"
-val zioHttpVersion = "3.11.3"
+val scala3Version   = "3.8.4"
+val zioVersion      = "2.1.26"
+val ascentVersion   = "0.1.0"
+val zioHttpVersion  = "3.11.3"
+val mermoidVersion  = "0.0.1"
 
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
 scalaVersion         := scala3Version
@@ -45,15 +46,16 @@ usePgpKeyHex(sys.env.getOrElse("PGP_KEY_HEX", "MISSING_KEY_HEX"))
 
 // zipx: Aggregate CI from the build graph (see sbt zipxWorkflowGenerate).
 zipxJavaVersion      := "25"
-zipxTestTask         := "test"
 zipxWorkflowDispatch := true
 zipxScalaSteward     := true
-zipxCapabilities += Capability.once("fmt", "scalafmtCheckAll")
-zipxCapabilities += Capability.test.copy(needsCapabilities = List("fmt"))
-zipxCapabilities += Capability.once("docs-site", "docs/specularSite")
-  .copy(needsCapabilities = List("test"))
+// One Verify job, one sbt session: format → tests → docs site (same as local `ci` alias).
+val ciVerify = "scalafmtCheckAll; test; docs/specularSite"
+zipxTestTask := ciVerify
+zipxCapabilities += Capability.test.copy(command = _ => ciVerify)
 zipxCapabilities += ZipxCentral.release
 zipxCapabilities += ZipxDocs.pages()
+
+addCommandAlias("ci", s"; $ciVerify")
 
 semanticdbEnabled := true
 
@@ -94,8 +96,8 @@ addCommandAlias("release", "; publishSigned; sonaRelease")
 
 lazy val root = (project in file("."))
   .aggregate(
-    (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++ eeDocsTheme.projectRefs ++
-      docs.projectRefs ++ Seq[ProjectReference](plugin)) *
+    (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++ specularMermoid.projectRefs ++
+      eeDocsTheme.projectRefs ++ docs.projectRefs ++ Seq[ProjectReference](plugin))*
   )
   .settings(
     name           := "specular",
@@ -148,17 +150,47 @@ lazy val site = (projectMatrix in file("site"))
     libraryDependencies ++= Seq(
       "rocks.earlyeffect" %% "ascent-html"               % ascentVersion,
       "dev.zio"           %% "zio-http"                  % zioHttpVersion,
-      "org.commonmark"     % "commonmark"                % "0.29.0",
-      "org.commonmark"     % "commonmark-ext-gfm-tables" % "0.29.0",
+      "org.commonmark"     % "commonmark"                % "0.24.0",
+      "org.commonmark"     % "commonmark-ext-gfm-tables" % "0.24.0",
       // Format captured example source strings for the site (JVM-only).
       "org.scalameta" %% "scalafmt-core" % "3.11.1",
     ),
     zioTestSettings,
-    // DocsSiteSpec / ProjectMetaSpec / SitePathsSpec all set and clear the same global
-    // `specular.*` system properties, so they cannot share a JVM concurrently.
-    Test / parallelExecution := false,
   )
   .jvmPlatform(scalaVersions = scalaVersions)
+
+/** mermoid diagrams → ascent UI for Specular doc pages (see early-effect/specular#35).
+  *
+  * Cross-built for JVM (SSR / docs-as-tests) and Scala.js (interactive remount in the browser).
+  */
+lazy val specularMermoid = (projectMatrix in file("mermoid"))
+  .settings(
+    name := "specular-mermoid",
+    scalacOptions ++= commonScalacOptions,
+    libraryDependencies ++= Seq(
+      "rocks.earlyeffect" %% "ascent-core" % ascentVersion,
+      "rocks.earlyeffect" %% "mermoid"     % mermoidVersion,
+    ),
+  )
+  .jvmPlatform(
+    scalaVersions,
+    Nil,
+    (p: Project) =>
+      p.settings(
+        zioTestSettings,
+        libraryDependencies += "rocks.earlyeffect" %% "ascent-html" % ascentVersion % Test,
+      ),
+  )
+  .jsPlatform(
+    scalaVersions,
+    Nil,
+    (p: Project) =>
+      p.settings(
+        // SSR round-trip specs need ascent-html (JVM-only).
+        Test / skip    := true,
+        Test / sources := Nil,
+      ),
+  )
 
 /** Early Effect org brand pack (theme tokens + logo). Published; Specular core stays brand-agnostic. */
 lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
@@ -187,6 +219,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           zioTest.jvm(scala3Version),
           site.jvm(scala3Version),
           eeDocsTheme.jvm(scala3Version),
+          specularMermoid.jvm(scala3Version),
         )
         .settings(
           libraryDependencies ++= Seq(
@@ -266,7 +299,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
     scalaVersions,
     Nil,
     (p: Project) =>
-      p.dependsOn(core.js(scala3Version))
+      p.dependsOn(core.js(scala3Version), specularMermoid.js(scala3Version))
         .settings(
           javaTimePolyfill,
           libraryDependencies ++= Seq(
