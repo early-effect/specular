@@ -1,8 +1,8 @@
 val scala3Version   = "3.8.4"
 val zioVersion      = "2.1.26"
+val ascentVersion   = "0.1.0"
 val zioHttpVersion  = "3.11.3"
 val mermoidVersion  = "0.0.1"
-val ascentVersion  = "0.3.0"
 
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
 scalaVersion         := scala3Version
@@ -46,15 +46,16 @@ usePgpKeyHex(sys.env.getOrElse("PGP_KEY_HEX", "MISSING_KEY_HEX"))
 
 // zipx: Aggregate CI from the build graph (see sbt zipxWorkflowGenerate).
 zipxJavaVersion      := "25"
-zipxTestTask         := "test"
 zipxWorkflowDispatch := true
 zipxScalaSteward     := true
-zipxCapabilities += Capability.once("fmt", "scalafmtCheckAll")
-zipxCapabilities += Capability.test.copy(needsCapabilities = List("fmt"))
-zipxCapabilities += Capability.once("docs-site", "docs/specularSite")
-  .copy(needsCapabilities = List("test"))
+// One Verify job, one sbt session: format → tests → docs site (same as local `ci` alias).
+val ciVerify = "scalafmtCheckAll; test; docs/specularSite"
+zipxTestTask := ciVerify
+zipxCapabilities += Capability.test.copy(command = _ => ciVerify)
 zipxCapabilities += ZipxCentral.release
 zipxCapabilities += ZipxDocs.pages()
+
+addCommandAlias("ci", s"; $ciVerify")
 
 semanticdbEnabled := true
 
@@ -149,15 +150,12 @@ lazy val site = (projectMatrix in file("site"))
     libraryDependencies ++= Seq(
       "rocks.earlyeffect" %% "ascent-html"               % ascentVersion,
       "dev.zio"           %% "zio-http"                  % zioHttpVersion,
-      "org.commonmark"     % "commonmark"                % "0.29.0",
-      "org.commonmark"     % "commonmark-ext-gfm-tables" % "0.29.0",
+      "org.commonmark"     % "commonmark"                % "0.24.0",
+      "org.commonmark"     % "commonmark-ext-gfm-tables" % "0.24.0",
       // Format captured example source strings for the site (JVM-only).
       "org.scalameta" %% "scalafmt-core" % "3.11.1",
     ),
     zioTestSettings,
-    // DocsSiteSpec / ProjectMetaSpec / SitePathsSpec all set and clear the same global
-    // `specular.*` system properties, so they cannot share a JVM concurrently.
-    Test / parallelExecution := false,
   )
   .jvmPlatform(scalaVersions = scalaVersions)
 
