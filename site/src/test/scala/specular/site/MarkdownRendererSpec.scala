@@ -102,5 +102,48 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
         html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
       yield assertTrue(!html.contains("<script"), html.contains("safe"))
     },
-  ).provide(MarkdownRenderer.live, HtmlSsr.live)
+    test("fenced mermaid renders as SVG") {
+      val md =
+        """```mermaid
+          |flowchart LR
+          |  A --> B
+          |```""".stripMargin
+      for
+        ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi(md))
+        html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
+      yield assertTrue(html.contains("<svg"), !html.contains("specular-source"))
+    },
+    test("ThemeTokens.diagramConfig reaches fenced mermaid") {
+      val md =
+        """```mermaid
+          |flowchart LR
+          |  A --> B
+          |```""".stripMargin
+      val tokens =
+        ThemeTokens.default.copy(diagramConfig = mermoid.RenderConfig(theme = mermoid.css.ThemeName.Default))
+      (for
+        ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi(md))
+        html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
+      yield assertTrue(html.contains("#9370DB"), !html.contains("#c46a52")))
+        .provide(Theme.fromTokens(tokens), MarkdownRenderer.live, HtmlSsr.live)
+    },
+    test("bad fenced mermaid fails the build") {
+      val md =
+        """```mermaid
+          |this is not a diagram
+          |```""".stripMargin
+      for result <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi(md)).either
+      yield assertTrue(result.isLeft)
+    },
+    test("fenced scala still renders as source") {
+      for
+        ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi("```scala\nval a = 1\n```"))
+        html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
+      yield assertTrue(
+        html.contains("val a = 1"),
+        html.contains("specular-source"),
+        html.contains("specular-copy"),
+      )
+    },
+  ).provide(Theme.live, MarkdownRenderer.live, HtmlSsr.live)
 end MarkdownRendererSpec

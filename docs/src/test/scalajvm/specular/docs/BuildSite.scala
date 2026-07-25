@@ -31,8 +31,8 @@ object BuildSite extends DocsSite:
 under **zio-test** and SSR into a static site through [ascent](https://github.com/early-effect/ascent).
 
 Most teams adopt it as the **`sbt-specular` plugin**, which wires project meta and runs
-`specularSite`. The libraries (`specular-core`, `specular-zio-test`, `specular-site`, optional
-`specular-mermoid`) are available when you want to compose sites by hand.
+`specularSite`. The libraries (`specular-core`, `specular-zio-test`, `specular-site` with
+Mermaid Prose fences via `specular-mermoid`) are available when you want to compose sites by hand.
 """
       ),
       installSnippets = Vector(

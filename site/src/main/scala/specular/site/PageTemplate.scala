@@ -75,6 +75,25 @@ object PageTemplate:
       ),
     )
 
+  /** Favicon from [[SiteModel.logo]] when branded. */
+  private[site] def faviconLinks(model: SiteModel): Vector[UI[Any]] =
+    model.logo.toVector.map { src =>
+      val mime =
+        if src.endsWith(".svg") then "image/svg+xml"
+        else if src.endsWith(".ico") then "image/x-icon"
+        else "image/png"
+      el(
+        "link",
+        Vector.empty,
+        Vector(
+          attr("rel", "icon"),
+          attr("href", src),
+          attr("type", mime),
+          attr("sizes", "any"),
+        ),
+      )
+    }
+
   private def isGitHubLink(link: BrandLink): Boolean =
     link.label.equalsIgnoreCase("GitHub") ||
       SiteModel.sourceLinkLabel(link.href) == "GitHub"
@@ -114,10 +133,8 @@ object PageTemplate:
         headerLabel = model.meta.flatMap(_.versionBadge) match
           case Some(badge) => s"${model.title} · $badge"
           case None        => model.title
-        footerLabel = model.meta.flatMap(_.versionBadge) match
-          case Some(badge) => s"$badge · Built with specular"
-          case None        => "Built with specular"
-        logoEls = model.logo.toVector.map { src =>
+        footerKids = BuiltWith.credit(model.meta.flatMap(_.versionBadge))
+        logoEls    = model.logo.toVector.map { src =>
           val img = el(
             "img",
             Vector.empty,
@@ -125,8 +142,7 @@ object PageTemplate:
               attr("class", "specular-brand-logo"),
               attr("src", src),
               attr("alt", ""),
-              attr("width", "28"),
-              attr("height", "28"),
+              attr("height", "48"),
             ),
           )
           val href = model.logoLink.getOrElse(model.indexHref)
@@ -184,6 +200,7 @@ object PageTemplate:
                 Vector(attr("name", "viewport"), attr("content", "width=device-width, initial-scale=1")),
               ),
               el("title", Vector(UI.Text(s"${page.title} · ${model.title}"))),
+            ) ++ faviconLinks(model) ++ Vector(
               el("link", Vector.empty, Vector(attr("rel", "stylesheet"), attr("href", "assets/theme.css"))),
               el("link", Vector.empty, Vector(attr("rel", "stylesheet"), attr("href", s"assets/${page.slug}.css"))),
             ) ++ scriptTags ++ copyScriptTag,
@@ -204,7 +221,7 @@ object PageTemplate:
                     ),
                     Vector(attr("class", classes.content)),
                   ),
-                  el("footer", Vector(UI.Text(footerLabel)), Vector(attr("class", classes.footer))),
+                  el("footer", footerKids, Vector(attr("class", classes.footer))),
                 ),
                 Vector(attr("class", classes.layout)),
               )

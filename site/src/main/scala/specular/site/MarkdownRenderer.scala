@@ -5,28 +5,33 @@ import ascent.domtypes.AttrValue
 import org.commonmark.ext.gfm.tables.TablesExtension
 import org.commonmark.node.*
 import org.commonmark.parser.Parser
+import mermoid.RenderConfig
+import specular.mermoid.Mermoid
 import zio.*
 
 /** Parses markdown prose into an ascent [[UI]] tree (never spliced HTML strings). */
 trait MarkdownRenderer:
-  def toUi(markdown: String, copyCode: Boolean = true): UIO[UI[Any]]
+  def toUi(markdown: String, copyCode: Boolean = true): Task[UI[Any]]
 
 object MarkdownRenderer:
 
-  val live: ULayer[MarkdownRenderer] =
-    ZLayer.succeed(Live)
+  /** Uses [[Theme.diagramConfig]] for fenced `mermaid` blocks. */
+  val live: ZLayer[Theme, Nothing, MarkdownRenderer] =
+    ZLayer.fromFunction(Live(_))
 
-  private object Live extends MarkdownRenderer:
+  private final case class Live(theme: Theme) extends MarkdownRenderer:
     private val parser: Parser =
       Parser
         .builder()
         .extensions(java.util.List.of(TablesExtension.create()))
         .build()
 
-    def toUi(markdown: String, copyCode: Boolean = true): UIO[UI[Any]] =
-      ZIO.succeed:
-        val doc = parser.parse(markdown)
-        renderChildren(doc, copyCode)
+    def toUi(markdown: String, copyCode: Boolean = true): Task[UI[Any]] =
+      theme.diagramConfig.flatMap { diagramConfig =>
+        ZIO.attempt:
+          val doc = parser.parse(markdown)
+          renderChildren(doc, copyCode, diagramConfig)
+      }
 
     private def el(tag: String, children: Vector[UI[Any]], attrs: Vector[Attr[Any]] = Vector.empty): UI[Any] =
       UI.Element(tag, attrs, children)
@@ -34,8 +39,8 @@ object MarkdownRenderer:
     private def attr(name: String, value: String): Attr[Any] =
       Attr.StaticAttr(name, AttrValue.Str(value))
 
-    private def renderChildren(parent: Node, copyCode: Boolean): UI[Any] =
-      val kids = collect(parent).map(n => renderNode(n, copyCode))
+    private def renderChildren(parent: Node, copyCode: Boolean, diagramConfig: RenderConfig): UI[Any] =
+      val kids = collect(parent).map(n => renderNode(n, copyCode, diagramConfig))
       kids match
         case Vector()  => UI.Empty
         case Vector(u) => u
@@ -47,22 +52,24 @@ object MarkdownRenderer:
         .takeWhile(_ != null)
         .toVector
 
-    private def renderNode(node: Node, copyCode: Boolean): UI[Any] = node match
+    private def renderNode(node: Node, copyCode: Boolean, diagramConfig: RenderConfig): UI[Any] = node match
       case h: Heading =>
         val tag = s"h${h.getLevel.min(6).max(1)}"
         el(tag, inlineChildren(h))
       case p: Paragraph =>
         el("p", inlineChildren(p))
       case b: BulletList =>
-        el("ul", listItems(b, copyCode))
+        el("ul", listItems(b, copyCode, diagramConfig))
       case o: OrderedList =>
-        el("ol", listItems(o, copyCode))
+        el("ol", listItems(o, copyCode, diagramConfig))
       case bq: BlockQuote =>
-        el("blockquote", Vector(renderChildren(bq, copyCode)))
+        el("blockquote", Vector(renderChildren(bq, copyCode, diagramConfig)))
       case _: ThematicBreak =>
         el("hr", Vector.empty)
       case fb: FencedCodeBlock =>
-        sourcePre(fb.getLiteral, copyCode)
+        fenceLanguage(fb) match
+          case "mermaid" => Mermoid.diagram(fb.getLiteral, diagramConfig)
+          case _         => sourcePre(fb.getLiteral, copyCode)
       case ib: IndentedCodeBlock =>
         // Indented blocks are prose-adjacent legacy markdown; copy controls are for fenced code only.
         el(
@@ -71,20 +78,25 @@ object MarkdownRenderer:
           Vector(attr("class", "specular-source")),
         )
       case t: org.commonmark.ext.gfm.tables.TableBlock =>
-        el("table", Vector(renderChildren(t, copyCode)))
+        el("table", Vector(renderChildren(t, copyCode, diagramConfig)))
       case th: org.commonmark.ext.gfm.tables.TableHead =>
-        el("thead", Vector(renderChildren(th, copyCode)))
+        el("thead", Vector(renderChildren(th, copyCode, diagramConfig)))
       case tb: org.commonmark.ext.gfm.tables.TableBody =>
-        el("tbody", Vector(renderChildren(tb, copyCode)))
+        el("tbody", Vector(renderChildren(tb, copyCode, diagramConfig)))
       case tr: org.commonmark.ext.gfm.tables.TableRow =>
-        el("tr", Vector(renderChildren(tr, copyCode)))
+        el("tr", Vector(renderChildren(tr, copyCode, diagramConfig)))
       case tc: org.commonmark.ext.gfm.tables.TableCell =>
         val tag = if tc.isHeader then "th" else "td"
         el(tag, inlineChildren(tc))
       case _: HtmlBlock =>
         UI.Empty
       case other =>
-        if other.getFirstChild != null then renderChildren(other, copyCode) else UI.Empty
+        if other.getFirstChild != null then renderChildren(other, copyCode, diagramConfig) else UI.Empty
+
+    private def fenceLanguage(fb: FencedCodeBlock): String =
+      Option(fb.getInfo)
+        .map(_.nn.trim.takeWhile(!_.isWhitespace).toLowerCase)
+        .getOrElse("")
 
     private def sourcePre(literal: String, copyCode: Boolean): UI[Any] =
       val pre = el(
@@ -94,8 +106,10 @@ object MarkdownRenderer:
       )
       PageTemplate.codeBlock(pre, copyCode)
 
-    private def listItems(list: ListBlock, copyCode: Boolean): Vector[UI[Any]] =
-      collect(list).collect { case li: ListItem => el("li", Vector(renderChildren(li, copyCode))) }
+    private def listItems(list: ListBlock, copyCode: Boolean, diagramConfig: RenderConfig): Vector[UI[Any]] =
+      collect(list).collect { case li: ListItem =>
+        el("li", Vector(renderChildren(li, copyCode, diagramConfig)))
+      }
 
     private def inlineChildren(parent: Node): Vector[UI[Any]] =
       collect(parent).flatMap(inlineNode)

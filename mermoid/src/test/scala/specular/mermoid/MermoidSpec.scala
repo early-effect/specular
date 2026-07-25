@@ -124,8 +124,13 @@ object MermoidSpec extends ZIOSpecDefault:
       test("a custom RenderConfig reaches the rendered output") {
         for
           default <- render(flowchart)
-          dark    <- Html.render(Mermoid.diagram(flowchart, RenderConfig(theme = css.ThemeName.Dark)))
-        yield assertTrue(dark != default, dark.contains("#81B1DB"), default.contains("#9370DB"))
+          stock   <- Html.render(Mermoid.diagram(flowchart, RenderConfig(theme = css.ThemeName.Default)))
+        yield assertTrue(
+          stock != default,
+          stock.contains("#9370DB"),
+          default.contains("#c46a52"),
+          default.contains("#e8e6dc"),
+        )
       },
       test("svg() returns a self-contained document string") {
         val out = Mermoid.svg(flowchart)

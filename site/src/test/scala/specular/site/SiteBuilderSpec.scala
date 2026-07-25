@@ -177,7 +177,9 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
         index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
       yield assertTrue(
-        index.contains("Early Effect · Built with specular"),
+        index.contains("Early Effect · "),
+        index.contains("Built with specular"),
+        index.contains(s"""href="${BuiltWith.href}""""),
         // No dangling separator and no orphan `v`.
         !index.contains("· v ·"),
         !index.contains("v ·"),
@@ -197,7 +199,11 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         tmp   <- ZIO.attempt(Files.createTempDirectory("specular-versioned-landing"))
         _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
         index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
-      yield assertTrue(index.contains("Specular · v0.7.2 · Built with specular"))
+      yield assertTrue(
+        index.contains("Specular · v0.7.2 · "),
+        index.contains("Built with specular"),
+        index.contains(s"""href="${BuiltWith.href}""""),
+      )
     },
     test("live catalog emits mount shell, meta links, and client script") {
       val catalog = ProjectCatalog.live(
@@ -292,6 +298,9 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         page.contains("href=\"./index.html\""),
         page.contains("images/logo.svg"),
         page.contains("specular-brand-logo"),
+        page.contains("""rel="icon""""),
+        page.contains("""href="images/logo.svg""""),
+        page.contains("""type="image/svg+xml""""),
       )
       end for
     },
@@ -474,12 +483,12 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       yield assertTrue(ex.getMessage.contains("empty slug"))
     },
   ).provide(
+    Theme.live,
     MarkdownRenderer.live,
     ExampleRunner.live,
     HtmlSsr.live,
     SiteWriter.live,
     NavBuilder.live,
-    Theme.live,
     PageTemplate.live,
     LandingTemplate.live,
     SiteBuilder.live,

@@ -5,7 +5,7 @@ import specular.*
 import specular.mermoid.Mermoid
 import zio.test.*
 
-/** Optional `specular-mermoid` pack: Mermaid → SVG as ascent UI (early-effect/specular#35). */
+/** Mermaid → SVG as ascent UI via `specular-mermoid` (early-effect/specular#35). */
 object Diagrams extends DocSpec:
 
   private val flow =
@@ -26,19 +26,35 @@ object Diagrams extends DocSpec:
   def doc = page("Diagrams")(
     md"""
 Specular's markdown renderer drops raw HTML, so you cannot paste `<svg>` into `md"…"`. The
-optional **`specular-mermoid`** module embeds [mermoid](https://github.com/early-effect/mermoid)
-diagrams as ascent `UI` instead: parse Mermaid at docs-build time, map the `SvgNode` tree, fail
-loud on a bad diagram.
+**`specular-mermoid`** module (pulled in by `specular-site`) embeds
+[mermoid](https://github.com/early-effect/mermoid) diagrams as ascent `UI`: parse Mermaid at
+docs-build time, map the `SvgNode` tree, fail loud on a bad diagram.
+
+Fenced `mermaid` blocks inside `md"…"` pick up `ThemeTokens.diagramConfig` from your site
+theme (defaults to `Mermoid.chalkboard`). Tweak it when you compose layers:
 
 ```scala
-libraryDependencies += "rocks.earlyeffect" %% "specular-mermoid" % "<version>" % Test
-// Scala.js docs client:
-libraryDependencies += "rocks.earlyeffect" %%% "specular-mermoid" % "<version>"
+Theme.fromTokens(
+  ThemeTokens.default.copy(
+    diagramConfig = RenderConfig(theme = ThemeName.Forest)
+  )
+) >>> DocsSite.themedStack
+```
 
+Prefer `Mermoid.diagram` inside an `example` when you want an asserted or `.interactive`
+snapshot:
+
+```scala
 import specular.mermoid.Mermoid
 
 val src = "flowchart LR\\n  A --> B"
 example { Mermoid.diagram(src) }
+```
+
+For a Scala.js docs client that remounts diagrams live, add the JS artifact:
+
+```scala
+libraryDependencies += "rocks.earlyeffect" %%% "specular-mermoid" % "<version>"
 ```
 
 mermoid cross-builds JVM and Scala.js with **byte-identical SVG** for the same input. Coverage
@@ -76,11 +92,17 @@ browser. View source / disable JS and only the first picture survives.
         case _                     => assertTrue(false)
       },
     ),
-    section("Why not a markdown fence")(
+    section("Fenced mermaid in Prose")(
       md"""
-A future enhancement could treat fenced `mermaid` blocks specially inside `Prose`. The published
-API is the `Mermoid.diagram` function so DocSpecs stay explicit and parse errors stay test
-failures — the same pattern mermoid's own docs use.
+A `mermaid` fence inside Prose is enough for a static diagram. Parse errors fail the site build.
+Use `example { Mermoid.diagram(…) }` when you want DocSpec assertions or `.interactive` remount —
+Prose is skipped by the test interpreter.
+
+```mermaid
+flowchart LR
+  Prose["md fence"] --> Site[SiteBuilder]
+  Site --> Svg([SVG on the page])
+```
 """
     ),
   )

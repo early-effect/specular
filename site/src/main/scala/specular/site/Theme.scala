@@ -2,6 +2,8 @@ package specular.site
 
 import ascent.*
 import ascent.css.Styles.*
+import mermoid.RenderConfig
+import specular.mermoid.Mermoid
 import zio.*
 
 /** Design tokens for a specular theme. */
@@ -19,6 +21,10 @@ final case class ThemeTokens(
     radius: String,
     /** Optional light-scheme overrides (e.g. prefers-color-scheme: light). */
     light: Option[ThemeTokens] = None,
+    /** Extra CSS appended after chrome classes (brand textures, etc.). */
+    extraCss: String = "",
+    /** Mermaid / mermoid config for fenced `mermaid` blocks in Prose (build-time). */
+    diagramConfig: RenderConfig = Mermoid.chalkboard,
 )
 
 object ThemeTokens:
@@ -41,6 +47,7 @@ end ThemeTokens
 trait Theme:
   def cssText: UIO[String]
   def classNames: UIO[ThemeClasses]
+  def diagramConfig: UIO[RenderConfig]
 
 final case class ThemeClasses(
     layout: String,
@@ -84,7 +91,10 @@ object Theme:
         display.grid,
         gridTemplateColumns(GridTrack.list(GridTrack.of(240.px), GridTrack.fr(1))),
         gridTemplateRows(GridTrack.list(GridTrack.auto, GridTrack.fr(1), GridTrack.auto)),
-        minHeight.vh(100),
+        // Lock chrome to the viewport so header + footer stay put; middle row scrolls.
+        height.vh(100),
+        maxHeight.vh(100),
+        overflow.hidden,
         fontFamily(vFont),
         color(vText),
         background(vBg),
@@ -95,6 +105,8 @@ object Theme:
         gridColumn("1 / -1"),
         display.flex,
         alignItems.center,
+        justifyContent.spaceBetween,
+        flexWrap.nowrap,
         gap(1.rem),
         padding(1.rem, 1.5.rem),
         borderBottom(Border.solid(1.px, vBorder)),
@@ -103,43 +115,60 @@ object Theme:
         letterSpacing(0.02.em),
         Selector(
           " .specular-brand",
-          display.inlineFlex,
+          display.flex,
           alignItems.center,
           gap(0.65.rem),
-        ),
-        Selector(
-          " a.specular-brand-logo-link, a.specular-brand-title-link",
-          color(vText),
-          textDecoration.none,
-        ),
-        Selector(
-          " a.specular-brand-logo-link:hover, a.specular-brand-title-link:hover",
-          color(vAccent),
+          minWidth(0.px),
+          flexGrow(1),
+          flexShrink(1),
         ),
         Selector(
           " a.specular-brand-logo-link",
           display.inlineFlex,
           lineHeight(0),
+          color(vText),
+          textDecoration.none,
+          flexShrink(0),
+        ),
+        Selector(
+          " a.specular-brand-title-link",
+          color(vText),
+          textDecoration.none,
+          minWidth(0.px),
+          overflow.hidden,
+        ),
+        Selector(
+          " a.specular-brand-logo-link:hover",
+          color(vAccent),
+        ),
+        Selector(
+          " a.specular-brand-title-link:hover",
+          color(vAccent),
         ),
         Selector(
           " .specular-brand-logo",
           display.block,
-          width(1.75.rem),
-          height(1.75.rem),
-          borderRadius(0.4.rem),
+          height(3.rem),
+          width.auto,
+          borderRadius(0.45.rem),
           objectFit.contain,
           flexShrink(0),
         ),
         Selector(
           " .specular-brand-title",
+          display.block,
           fontWeight(600),
           letterSpacing(0.02.em),
+          overflow.hidden,
+          textOverflow.ellipsis,
+          whiteSpace.nowrap,
         ),
         Selector(
           " .specular-header-links",
           display.flex,
           alignItems.center,
           gap(0.75.rem),
+          flexShrink(0),
           marginLeft.auto,
           fontWeight(500),
         ),
@@ -150,6 +179,8 @@ object Theme:
           gap(0.4.rem),
           color(vMuted),
           textDecoration.none,
+          flexShrink(0),
+          whiteSpace.nowrap,
         ),
         Selector(
           " .specular-header-links a:hover",
@@ -172,6 +203,8 @@ object Theme:
 
   object Sidebar
       extends CssClass(
+        minHeight(0.px),
+        overflowY.auto,
         padding(1.25.rem),
         borderRight(Border.solid(1.px, vBorder)),
         background(vSurface),
@@ -207,9 +240,14 @@ object Theme:
 
   object Content
       extends CssClass(
+        // Fill the grid column so the scrollbar sits on the far right of the viewport;
+        // readable measure is applied to children instead of shrinking this pane.
+        minHeight(0.px),
+        overflowY.auto,
+        width.pct(100),
         padding(1.5.rem, 2.rem),
-        maxWidth(52.rem),
         lineHeight(1.55),
+        Selector(" > *", maxWidth(52.rem)),
         Selector(
           " pre.specular-source",
           background(vCodeBg),
@@ -246,7 +284,12 @@ object Theme:
           cursor.pointer,
         ),
         Selector(
-          " button.specular-copy:hover, button.specular-copy.specular-copy-done",
+          " button.specular-copy:hover",
+          color(vAccent),
+          borderColor(vAccent),
+        ),
+        Selector(
+          " button.specular-copy.specular-copy-done",
           color(vAccent),
           borderColor(vAccent),
         ),
@@ -316,7 +359,11 @@ object Theme:
           borderBottom.none,
         ),
         Selector(
-          " th code, td code",
+          " th code",
+          fontSize(0.85.em),
+        ),
+        Selector(
+          " td code",
           fontSize(0.85.em),
         ),
         MediaQuery(
@@ -328,11 +375,14 @@ object Theme:
   object Footer
       extends CssClass(
         gridColumn("1 / -1"),
+        flexShrink(0),
         padding(0.75.rem, 1.5.rem),
         borderTop(Border.solid(1.px, vBorder)),
         fontSize(0.85.rem),
         color(vMuted),
         background(vSurface),
+        Selector(" a", color(vMuted)),
+        Selector(" a:hover", color(vLink)),
       )
 
   object Landing
@@ -354,8 +404,8 @@ object Theme:
         Selector(
           " .specular-hero-image",
           display.block,
-          width(10.rem),
           height(10.rem),
+          width.auto,
           margin(0.px, Length.auto, 1.25.rem, Length.auto),
           objectFit.contain,
           borderRadius(1.25.rem),
@@ -474,6 +524,16 @@ object Theme:
        |  --specular-radius: ${cssValue(t.radius)};
        |}""".stripMargin
 
+  /** Kill UA body margin so `min-height: 100vh` layout does not sprout a phantom scrollbar. */
+  private val baseReset: String =
+    """*, *::before, *::after { box-sizing: border-box; }
+      |html, body {
+      |  margin: 0;
+      |  padding: 0;
+      |  min-height: 100%;
+      |  background: var(--specular-bg);
+      |}""".stripMargin
+
   private def lightOverrides(t: ThemeTokens): String =
     s"""@media (prefers-color-scheme: light) {
        |  :root {
@@ -495,12 +555,13 @@ object Theme:
     def cssText: UIO[String] =
       ZIO.succeed:
         val preamble =
-          rootVars(tokens) + tokens.light.fold("")(l => "\n\n" + lightOverrides(l))
+          rootVars(tokens) + "\n\n" + baseReset + tokens.light.fold("")(l => "\n\n" + lightOverrides(l))
         val classes =
           Vector(Layout, Header, Sidebar, Content, Footer, Landing, Hero, Catalog, Card)
             .map(_.renderCss)
             .mkString("\n\n")
-        preamble + "\n\n" + classes
+        val extra = tokens.extraCss.trim
+        preamble + "\n\n" + classes + (if extra.isEmpty then "" else "\n\n" + extra)
 
     def classNames: UIO[ThemeClasses] =
       ZIO.succeed(
@@ -516,5 +577,8 @@ object Theme:
           card = Card.className,
         )
       )
+
+    def diagramConfig: UIO[RenderConfig] =
+      ZIO.succeed(tokens.diagramConfig)
   end Live
 end Theme
