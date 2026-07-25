@@ -21,7 +21,7 @@ object CatalogCards:
     val rawHref   = safe.docsUrl.orElse(safe.homepage).getOrElse("#")
     val linkAttrs = SafeHref.anchorAttrs(rawHref).map { case (k, v) => attr(k, v) }
     val badges    =
-      Vector(s"v${safe.docsVersion}") ++ safe.language.toVector
+      safe.versionBadge.toVector ++ safe.language.toVector
     el(
       "article",
       Vector(

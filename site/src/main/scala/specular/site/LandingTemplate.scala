@@ -30,10 +30,11 @@ object LandingTemplate:
           case Some(text) =>
             md.toUi(text).map(ui => Vector(el("section", Vector(ui), Vector(attr("class", classes.content)))))
           case None => ZIO.succeed(Vector.empty)
-        heroUi     = renderHero(home.hero, brand, classes)
-        footerText = model.meta.fold("Built with specular")(m =>
-          s"${m.displayTitle} · v${m.docsVersion} · Built with specular"
-        )
+        heroUi = renderHero(home.hero, brand, classes)
+        // A hub has no artifact version to advertise, so the segment is dropped rather than faked.
+        footerText = model.meta.fold("Built with specular") { m =>
+          (Vector(m.displayTitle) ++ m.versionBadge ++ Vector("Built with specular")).mkString(" · ")
+        }
         scriptTags = model.clientScript.toVector.flatMap { src =>
           SafeHref.sanitizeClientScript(src).toVector.map { safe =>
             el("script", Vector.empty, Vector(attr("type", "module"), attr("src", safe)))
