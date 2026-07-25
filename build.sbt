@@ -148,8 +148,8 @@ lazy val site = (projectMatrix in file("site"))
     libraryDependencies ++= Seq(
       "rocks.earlyeffect" %% "ascent-html"               % ascentVersion,
       "dev.zio"           %% "zio-http"                  % zioHttpVersion,
-      "org.commonmark"     % "commonmark"                % "0.24.0",
-      "org.commonmark"     % "commonmark-ext-gfm-tables" % "0.24.0",
+      "org.commonmark"     % "commonmark"                % "0.29.0",
+      "org.commonmark"     % "commonmark-ext-gfm-tables" % "0.29.0",
       // Format captured example source strings for the site (JVM-only).
       "org.scalameta" %% "scalafmt-core" % "3.11.1",
     ),
