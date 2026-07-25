@@ -1,6 +1,6 @@
 val scala3Version  = "3.8.4"
 val zioVersion     = "2.1.26"
-val ascentVersion  = "0.1.0"
+val ascentVersion  = "0.3.0"
 val zioHttpVersion = "3.11.3"
 
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
@@ -154,6 +154,9 @@ lazy val site = (projectMatrix in file("site"))
       "org.scalameta" %% "scalafmt-core" % "3.11.1",
     ),
     zioTestSettings,
+    // DocsSiteSpec / ProjectMetaSpec / SitePathsSpec all set and clear the same global
+    // `specular.*` system properties, so they cannot share a JVM concurrently.
+    Test / parallelExecution := false,
   )
   .jvmPlatform(scalaVersions = scalaVersions)
 
