@@ -1,10 +1,6 @@
 package specular.docs
 
-import ascent.*
 import ascent.ast.UI
-import ascent.dsl.*
-import mermoid.RenderConfig
-import mermoid.css.ThemeName
 import specular.*
 import specular.mermoid.Mermoid
 import zio.test.*
@@ -19,11 +15,12 @@ object Diagrams extends DocSpec:
       |    site --> svg([SVG in page])
       |""".stripMargin
 
-  private val browserDemo =
+  /** Same Mermaid source for both snapshots below — one stays SSR, one remounts in the browser. */
+  private val shared =
     """flowchart TD
-      |    SSR[JVM SSR] -->|same SvgNode| Page[Static SVG]
-      |    JS[Scala.js client] -->|Mermoid.diagram| Remount[Live remount]
-      |    Remount --> Themes{Theme toggle}
+      |    Parse[MermaidParser] --> Tree[SvgNode]
+      |    Tree --> UI[ascent UI]
+      |    UI --> Out([SVG on the page])
       |""".stripMargin
 
   def doc = page("Diagrams")(
@@ -44,9 +41,8 @@ val src = "flowchart LR\\n  A --> B"
 example { Mermoid.diagram(src) }
 ```
 
-mermoid cross-builds JVM and Scala.js with **byte-identical SVG** for the same input, so the tree
-you SSR on the JVM is the tree you remount in the browser. Coverage today is flowcharts and state
-diagrams.
+mermoid cross-builds JVM and Scala.js with **byte-identical SVG** for the same input. Coverage
+today is flowcharts and state diagrams.
 """,
     example {
       Mermoid.diagram(flow)
@@ -54,24 +50,31 @@ diagrams.
       case UI.Element(tag, _, _) => assertTrue(tag == "svg")
       case _                     => assertTrue(false)
     },
-    section("Scala.js remount")(
+    section("Same chart: SSR vs Scala.js")(
       md"""
-SSR paints the first diagram at site build. Marking an example `.interactive` clears that
-snapshot and remounts `Mermoid.diagram` via the Scala.js client — same API, browser-side. Toggle
-the theme to prove the remount path re-renders with a different `RenderConfig`.
+Both examples call `Mermoid.diagram` on the **same** Mermaid source. The first is a plain
+`example` — SiteBuilder SSRs it at build time and that snapshot stays put. The second is
+`.interactive` — the Scala.js client clears the SSR node and remounts the diagram in the
+browser. View source / disable JS and only the first picture survives.
 """,
-      exampleIO {
-        for dark <- sq(false)
-        yield E.div(
-          E.p(dark.map(d => if d then "Theme: Dark (Scala.js)" else "Theme: Default (Scala.js)")),
-          E.button(
-            Events.onClick(_ => dark.update(!_)),
-            dark.map(d => if d then "Switch to Default" else "Switch to Dark"),
-          ),
-          when(dark)(Mermoid.diagram(browserDemo, RenderConfig(theme = ThemeName.Dark))),
-          when(dark.map(d => !d))(Mermoid.diagram(browserDemo, RenderConfig(theme = ThemeName.Default))),
-        )
-      }.interactive.assert(_ => assertTrue(true)),
+      md"""
+**SSR only** (build-time snapshot; not remounted):
+""",
+      example {
+        Mermoid.diagram(shared)
+      }.assert {
+        case UI.Element(tag, _, _) => assertTrue(tag == "svg")
+        case _                     => assertTrue(false)
+      },
+      md"""
+**Live (Scala.js)** — same source, remounted by the docs client:
+""",
+      example {
+        Mermoid.diagram(shared)
+      }.interactive.assert {
+        case UI.Element(tag, _, _) => assertTrue(tag == "svg")
+        case _                     => assertTrue(false)
+      },
     ),
     section("Why not a markdown fence")(
       md"""
