@@ -158,7 +158,10 @@ lazy val site = (projectMatrix in file("site"))
   )
   .jvmPlatform(scalaVersions = scalaVersions)
 
-/** mermoid diagrams → ascent UI for Specular doc pages (see early-effect/specular#35). */
+/** mermoid diagrams → ascent UI for Specular doc pages (see early-effect/specular#35).
+  *
+  * Cross-built for JVM (SSR / docs-as-tests) and Scala.js (interactive remount in the browser).
+  */
 lazy val specularMermoid = (projectMatrix in file("mermoid"))
   .settings(
     name := "specular-mermoid",
@@ -167,12 +170,26 @@ lazy val specularMermoid = (projectMatrix in file("mermoid"))
       "rocks.earlyeffect" %% "ascent-core" % ascentVersion,
       "rocks.earlyeffect" %% "mermoid"     % mermoidVersion,
     ),
-    zioTestSettings,
-    libraryDependencies ++= Seq(
-      "rocks.earlyeffect" %% "ascent-html" % ascentVersion % Test,
-    ),
   )
-  .jvmPlatform(scalaVersions = scalaVersions)
+  .jvmPlatform(
+    scalaVersions,
+    Nil,
+    (p: Project) =>
+      p.settings(
+        zioTestSettings,
+        libraryDependencies += "rocks.earlyeffect" %% "ascent-html" % ascentVersion % Test,
+      ),
+  )
+  .jsPlatform(
+    scalaVersions,
+    Nil,
+    (p: Project) =>
+      p.settings(
+        // SSR round-trip specs need ascent-html (JVM-only).
+        Test / skip    := true,
+        Test / sources := Nil,
+      ),
+  )
 
 /** Early Effect org brand pack (theme tokens + logo). Published; Specular core stays brand-agnostic. */
 lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
@@ -281,7 +298,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
     scalaVersions,
     Nil,
     (p: Project) =>
-      p.dependsOn(core.js(scala3Version))
+      p.dependsOn(core.js(scala3Version), specularMermoid.js(scala3Version))
         .settings(
           javaTimePolyfill,
           libraryDependencies ++= Seq(

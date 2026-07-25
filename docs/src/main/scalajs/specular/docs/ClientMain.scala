@@ -15,6 +15,7 @@ object ClientMain extends ZIOAppDefault:
     WhySpecular.doc,
     GettingStarted.doc,
     Concepts.doc,
+    Diagrams.doc,
     LibraryAuthors.doc,
     Showcase.doc,
   )

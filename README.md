@@ -81,9 +81,11 @@ libraryDependencies ++= Seq(
   "rocks.earlyeffect" %% "specular-core"     % "<version>" % Test,
   "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
   "rocks.earlyeffect" %% "specular-site"     % "<version>" % Test,
-  // optional: Mermaid diagrams via mermoid
+  // optional: Mermaid diagrams via mermoid (JVM SSR + Scala.js remount)
   "rocks.earlyeffect" %% "specular-mermoid"  % "<version>" % Test,
 )
+// docs JS client (when you remount diagrams interactively):
+// libraryDependencies += "rocks.earlyeffect" %%% "specular-mermoid" % "<version>"
 
 // sbt plugin: injects product meta and runs specularSite from the Test classpath
 addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "<version>")
@@ -175,7 +177,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section`, shared `ProjectMeta` / catalog cards (+ JS `LiveCatalog`) |
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
 | `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
-| `mermoid` | `specular-mermoid` | Embed [mermoid](https://github.com/early-effect/mermoid) Mermaid→SVG diagrams in doc pages (`Mermoid.diagram`) |
+| `mermoid` | `specular-mermoid` | Embed [mermoid](https://github.com/early-effect/mermoid) Mermaid→SVG diagrams in doc pages (`Mermoid.diagram`); JVM + Scala.js |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
 | `docs` | (unpublished) | Dogfood site for specular itself |
