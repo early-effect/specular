@@ -1,7 +1,8 @@
-val scala3Version  = "3.8.4"
-val zioVersion     = "2.1.26"
-val ascentVersion  = "0.1.0"
-val zioHttpVersion = "3.11.3"
+val scala3Version   = "3.8.4"
+val zioVersion      = "2.1.26"
+val ascentVersion   = "0.1.0"
+val zioHttpVersion  = "3.11.3"
+val mermoidVersion  = "0.0.1"
 
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
 scalaVersion         := scala3Version
@@ -94,8 +95,8 @@ addCommandAlias("release", "; publishSigned; sonaRelease")
 
 lazy val root = (project in file("."))
   .aggregate(
-    (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++ eeDocsTheme.projectRefs ++
-      docs.projectRefs ++ Seq[ProjectReference](plugin)) *
+    (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++ specularMermoid.projectRefs ++
+      eeDocsTheme.projectRefs ++ docs.projectRefs ++ Seq[ProjectReference](plugin))*
   )
   .settings(
     name           := "specular",
@@ -157,6 +158,22 @@ lazy val site = (projectMatrix in file("site"))
   )
   .jvmPlatform(scalaVersions = scalaVersions)
 
+/** mermoid diagrams → ascent UI for Specular doc pages (see early-effect/specular#35). */
+lazy val specularMermoid = (projectMatrix in file("mermoid"))
+  .settings(
+    name := "specular-mermoid",
+    scalacOptions ++= commonScalacOptions,
+    libraryDependencies ++= Seq(
+      "rocks.earlyeffect" %% "ascent-core" % ascentVersion,
+      "rocks.earlyeffect" %% "mermoid"     % mermoidVersion,
+    ),
+    zioTestSettings,
+    libraryDependencies ++= Seq(
+      "rocks.earlyeffect" %% "ascent-html" % ascentVersion % Test,
+    ),
+  )
+  .jvmPlatform(scalaVersions = scalaVersions)
+
 /** Early Effect org brand pack (theme tokens + logo). Published; Specular core stays brand-agnostic. */
 lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
   .dependsOn(site)
@@ -184,6 +201,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           zioTest.jvm(scala3Version),
           site.jvm(scala3Version),
           eeDocsTheme.jvm(scala3Version),
+          specularMermoid.jvm(scala3Version),
         )
         .settings(
           libraryDependencies ++= Seq(
