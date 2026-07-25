@@ -1,8 +1,8 @@
 val scala3Version   = "3.8.4"
 val zioVersion      = "2.1.26"
-val ascentVersion   = "0.1.0"
 val zioHttpVersion  = "3.11.3"
 val mermoidVersion  = "0.0.1"
+val ascentVersion  = "0.3.0"
 
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
 scalaVersion         := scala3Version
@@ -149,12 +149,15 @@ lazy val site = (projectMatrix in file("site"))
     libraryDependencies ++= Seq(
       "rocks.earlyeffect" %% "ascent-html"               % ascentVersion,
       "dev.zio"           %% "zio-http"                  % zioHttpVersion,
-      "org.commonmark"     % "commonmark"                % "0.24.0",
-      "org.commonmark"     % "commonmark-ext-gfm-tables" % "0.24.0",
+      "org.commonmark"     % "commonmark"                % "0.29.0",
+      "org.commonmark"     % "commonmark-ext-gfm-tables" % "0.29.0",
       // Format captured example source strings for the site (JVM-only).
       "org.scalameta" %% "scalafmt-core" % "3.11.1",
     ),
     zioTestSettings,
+    // DocsSiteSpec / ProjectMetaSpec / SitePathsSpec all set and clear the same global
+    // `specular.*` system properties, so they cannot share a JVM concurrently.
+    Test / parallelExecution := false,
   )
   .jvmPlatform(scalaVersions = scalaVersions)
 
