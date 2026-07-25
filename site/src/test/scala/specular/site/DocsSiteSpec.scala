@@ -24,6 +24,10 @@ object DocsSiteSpec extends ZIOSpecDefault:
     java.lang.System.setProperty("specular.meta.title", "Demo Lib")
     java.lang.System.setProperty("specular.meta.description", "A demo library")
 
+  /** Site model built without `specular.meta.*`, so theme assertions do not depend on prop ordering. */
+  private val themeProbeSite: SiteModel =
+    SiteModel(title = "Theme Probe", pages = Vector(page("Overview")(md"Hello")), clientScript = None)
+
   private def sampleSite(pg: Vector[DocPage]): DocsSite =
     new DocsSite:
       def pages = pg
@@ -81,6 +85,34 @@ object DocsSiteSpec extends ZIOSpecDefault:
         index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
         _     <- ZIO.succeed(clearMeta())
       yield assertTrue(index.contains("addSbtPlugin"), index.contains("sbt-specular"))
+    },
+    test("standardLayers keeps the stock unbranded theme") {
+      val tmp = Files.createTempDirectory("docs-site-default-theme")
+      for
+        _   <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(themeProbeSite, tmp))
+        css <- ZIO.attempt(Files.readString(tmp.resolve("assets/theme.css")))
+      yield assertTrue(
+        css.contains(s"--specular-bg: ${ThemeTokens.default.bg};"),
+        css.contains(s"--specular-radius: ${ThemeTokens.default.radius};"),
+        // the stock theme declares no light-scheme overrides
+        !css.contains("prefers-color-scheme"),
+      )
+    },
+    test("themedStack takes the caller's theme instead") {
+      val tmp    = Files.createTempDirectory("docs-site-custom-theme")
+      val tokens = ThemeTokens.default.copy(bg = "#0d1117", radius = "12px")
+      val build  =
+        for
+          _   <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(themeProbeSite, tmp))
+          css <- ZIO.attempt(Files.readString(tmp.resolve("assets/theme.css")))
+        yield css
+      build.provideLayer(Theme.fromTokens(tokens) >>> DocsSite.themedStack).map { css =>
+        assertTrue(
+          css.contains("--specular-bg: #0d1117;"),
+          css.contains("--specular-radius: 12px;"),
+          !css.contains(s"--specular-bg: ${ThemeTokens.default.bg};"),
+        )
+      }
     },
     test("empty pages fail the build") {
       clearMeta()

@@ -76,17 +76,26 @@ end DocsSite
 
 object DocsSite:
 
-  /** Markdown + SSR + templates + default theme + [[SiteBuilder]]. */
-  val standardLayers: ZLayer[Any, Nothing, SiteBuilder] =
-    ZLayer.make[SiteBuilder](
+  /** Markdown + SSR + templates + [[SiteBuilder]], with [[Theme]] left to the caller.
+    *
+    * Compose with any theme layer to get a full stack:
+    * {{{
+    * override def layers = EarlyEffectTheme.live >>> DocsSite.themedStack
+    * }}}
+    */
+  val themedStack: ZLayer[Theme, Nothing, SiteBuilder] =
+    ZLayer.makeSome[Theme, SiteBuilder](
       MarkdownRenderer.live,
       ExampleRunner.live,
       HtmlSsr.live,
       SiteWriter.live,
       NavBuilder.live,
-      Theme.default,
       PageTemplate.live,
       LandingTemplate.live,
       SiteBuilder.live,
     )
+
+  /** [[themedStack]] with the stock unbranded theme. */
+  val standardLayers: ZLayer[Any, Nothing, SiteBuilder] =
+    Theme.default >>> themedStack
 end DocsSite

@@ -107,8 +107,10 @@ proxy. Link fields are sanitized with `SafeHref`.
 Docs-only mode is enough for a library micro-site: `SiteModel(title, pages)` plus meta.
 
 Full project / org sites add `brand` and `home` (hero, `ProjectCatalog`, …). Themes ship
-as `Theme.default` or `Theme.fromTokens(...)`. Early Effect docs use the published
-`early-effect-docs-theme` pack (`EarlyEffectTheme.live` + logo resource).
+as `Theme.default` or `Theme.fromTokens(...)`. `DocsSite.standardLayers` uses the stock theme;
+`DocsSite.themedStack` leaves `Theme` as an environment hole so any theme layer composes in:
+`override def layers = myTheme >>> DocsSite.themedStack`. Early Effect docs use the published
+`early-effect-docs-theme` pack, which pre-composes that as `EarlyEffectTheme.layers`.
 
 Use micro-sites for versioned library docs; use a hub site when you want one landing page
 that discovers many libraries via their published manifests. Live catalogs remount through

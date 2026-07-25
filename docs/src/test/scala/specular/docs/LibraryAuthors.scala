@@ -33,8 +33,9 @@ not pull zio-test into the browser bundle.
 Depend the docs project on `specular-core`, `specular-zio-test`, and `specular-site` (**Test**
 scope), plus your library modules so examples import the real public API.
 
-Early Effect libraries should also take `early-effect-docs-theme` for hub-matched colors
-and the shared logo (`EarlyEffectTheme.live` via `DocsSite.layers`, `writeLogo` in `afterBuild`).
+Early Effect libraries should also take `early-effect-docs-theme` for hub-matched colors and
+the shared logo. Branding is three one-liners on the `DocsSite`: `EarlyEffectTheme.brand(super.site)`,
+`override def layers = EarlyEffectTheme.layers`, and `EarlyEffectTheme.writeLogo(out)` in `afterBuild`.
 """,
       example {
         E.ol(

@@ -22,10 +22,9 @@ object BuildSite extends DocsSite:
     val m       = meta
     val version = m.docsVersion
     val org     = m.organization
-    super.site.copy(
+    val branded = EarlyEffectTheme.brand(super.site)
+    branded.copy(
       clientScript = Some("assets/client.js"),
-      logo = Some(EarlyEffectTheme.logoHref),
-      logoLink = Some(EarlyEffectTheme.hubUrl),
       summaryMarkdown = Some(
         s"""**Specular** is tests-as-docs for Scala 3: author pages as `DocSpec` programs that assert
 under **zio-test** and SSR into a static site through [ascent](https://github.com/early-effect/ascent).
@@ -62,17 +61,7 @@ sbt docs/specularSite""",
   end site
 
   override def layers: ZLayer[Any, Nothing, SiteBuilder] =
-    ZLayer.make[SiteBuilder](
-      MarkdownRenderer.live,
-      ExampleRunner.live,
-      HtmlSsr.live,
-      SiteWriter.live,
-      NavBuilder.live,
-      EarlyEffectTheme.live,
-      PageTemplate.live,
-      LandingTemplate.live,
-      SiteBuilder.live,
-    )
+    EarlyEffectTheme.layers
 
   override def afterBuild(out: Path, result: SiteOutput): Task[Unit] =
     EarlyEffectTheme.writeLogo(out) *> copyClientBundle(out)

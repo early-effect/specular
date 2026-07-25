@@ -136,20 +136,27 @@ classpath with `-Dspecular.meta.*` from `specularMetaProject`.
 | **Docs-only** | `SiteModel(title, pages)` (+ optional theme / meta) | Sidebar docs + index + `metadata.json` |
 | **Full site** | `brand`, `home` (hero, `ProjectCatalog`, …) | Landing page + optional deep links to micro-sites |
 
-Themes: `Theme.default` or `Theme.fromTokens(...)`. Early Effect projects should depend on
-`early-effect-docs-theme` for hub-matched tokens and logo PNGs:
+Themes: `Theme.default` or `Theme.fromTokens(...)`. `DocsSite.standardLayers` is the stock
+stack; `DocsSite.themedStack` is the same stack with `Theme` left as an environment hole, so
+any theme layer composes in:
+
+```scala
+override def layers = Theme.fromTokens(myTokens) >>> DocsSite.themedStack
+```
+
+Early Effect projects should depend on `early-effect-docs-theme` for hub-matched tokens and
+logo PNGs — it pre-composes the stack, so branding is three one-liners:
 
 ```scala
 libraryDependencies += "rocks.earlyeffect" %% "early-effect-docs-theme" % "<version>"
-// SiteModel(..., logo = Some(EarlyEffectTheme.logoHref))
-// Hero(..., image = Some(EarlyEffectTheme.heroImageHref))
-// .provide(..., EarlyEffectTheme.live, ...)
-// EarlyEffectTheme.writeLogo(outDir)  // writes header + hero PNGs
+
+override def site   = EarlyEffectTheme.brand(super.site)   // header logo + hub link
+override def layers = EarlyEffectTheme.layers              // EE tokens >>> DocsSite.themedStack
+override def afterBuild(out: Path, result: SiteOutput) = EarlyEffectTheme.writeLogo(out)
 ```
 
-Set `SiteModel.logo` for a small header mark beside the project name; use
-`EarlyEffectTheme.heroImageHref` on landing heroes. The brand link goes to
-`index.html`.
+`brand` only fills fields the caller left unset, so an explicit `logo` / `logoLink` still wins.
+Use `EarlyEffectTheme.heroImageHref` on landing heroes. The brand title links to `index.html`.
 
 Every site build writes **`metadata.json`** next to `index.html` (name, org, version, pages, …)
 so hubs can fetch published manifests instead of hardcoding library cards.
