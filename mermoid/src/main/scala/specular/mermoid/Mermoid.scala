@@ -1,16 +1,20 @@
 package specular.mermoid
 
-import ascent.ast.{Attr, UI}
-import ascent.domtypes.AttrValue
+import ascent.ast.UI
+import mermoid.ascent.MermoidAscent
 import mermoid.css.{Theme, ThemeColors, ThemeName}
-import mermoid.{MermaidParser, RenderConfig, SvgNode, SvgRenderer}
+import mermoid.{RenderConfig, Viewport}
+import zio.UIO
 
 /** Embed [mermoid](https://github.com/early-effect/mermoid) diagrams in Specular doc pages as ascent `UI`.
   *
+  * Thin Specular defaults (chalkboard palette, fail-loud parse) over published **`mermoid-ascent`**:
+  *   - [[diagram]] — hybrid HTML nodes + SVG edges (SSR-friendly; used by fenced `mermaid` in Prose)
+  *   - [[diagramInteractive]] — selection, tooltips/links, viewport reflow (use with `exampleIO` + `.interactive`)
+  *   - [[svgDiagram]] / [[svg]] — inert SVG when a pure structure tree is intentional
+  *
   * Specular's markdown renderer drops raw HTML, so inline `<svg>` in `md"…"` cannot appear on a page. Fenced `mermaid`
-  * blocks inside Prose are rendered via [[diagram]] by `specular-site`. Call [[diagram]] from an `example { … }` when
-  * you want an asserted or `.interactive` snapshot: mermoid parses the Mermaid source and returns an `SvgNode` tree
-  * that this module maps structurally onto ascent — no string re-parsing.
+  * blocks inside Prose are rendered via [[diagram]] by `specular-site`.
   *
   * A doc page is a test. Parse failures throw so a broken diagram turns CI red rather than rendering an empty box.
   *
@@ -50,34 +54,31 @@ object Mermoid:
       customStylesheet = Some(Theme.toStylesheet(chalkboardColors)),
     )
 
-  /** Parse and render `mmd` to an ascent `UI` tree, or fail loudly. */
-  def diagram(mmd: String, config: RenderConfig = chalkboard): UI[Any] =
-    MermaidParser.parse(mmd) match
-      case Right(d)  => toUi(SvgRenderer.renderTree(d, config))
-      case Left(err) => throw new IllegalArgumentException(s"mermoid could not parse this diagram: $err\n$mmd")
+  /** Hybrid HTML + SVG diagram (SSR-friendly). Prefer this for Prose fences and static examples. */
+  def diagram(
+      mmd: String,
+      config: RenderConfig = chalkboard,
+      viewport: Option[Viewport] = None,
+  ): UI[Any] =
+    MermoidAscent.diagram(mmd, config, viewport)
+
+  /** Interactive diagram: selection, Mermaid `click` tooltips/links, and Narrow/Medium/Wide reflow.
+    *
+    * Use with `exampleIO { … }.interactive` so the Scala.js docs client remounts it live.
+    */
+  def diagramInteractive(
+      mmd: String,
+      config: RenderConfig = chalkboard,
+      initialWidth: Double = 720.0,
+      showWidthControls: Boolean = true,
+  ): UIO[UI[Any]] =
+    MermoidAscent.diagramInteractive(mmd, config, initialWidth, showWidthControls)
+
+  /** Inert SVG embed mapped into ascent UI (byte-stable structure demos / SSR assertions). */
+  def svgDiagram(mmd: String, config: RenderConfig = chalkboard): UI[Any] =
+    MermoidAscent.svgDiagram(mmd, config)
 
   /** The SVG source for the same diagram — for pages that show the markup rather than the picture. */
   def svg(mmd: String, config: RenderConfig = chalkboard): String =
-    MermaidParser.parse(mmd) match
-      case Right(d)  => SvgRenderer.render(d, config)
-      case Left(err) => throw new IllegalArgumentException(s"mermoid could not parse this diagram: $err\n$mmd")
-
-  /** Total structural map. `Raw` carries a `<style>` body; ascent's SSR escapes text nodes, and `<style>` is a raw-text
-    * element where a browser would NOT decode entities — so escaped CSS would be broken CSS. mermoid's generated CSS
-    * contains none of `& < >` today, and [[cssIsEntitySafe]] is asserted in the suite so the day that stops being true
-    * fails the build instead of shipping a corrupt stylesheet.
-    */
-  private[mermoid] def toUi(node: SvgNode): UI[Any] = node match
-    case SvgNode.Text(value)                   => UI.Text(value)
-    case SvgNode.Raw(content)                  => UI.Text(content)
-    case SvgNode.Element(tag, attrs, children) =>
-      UI.Element(
-        tag,
-        attrs.map((name, value) => Attr.StaticAttr(name, AttrValue.Str(value))).toVector,
-        children.map(toUi).toVector,
-      )
-
-  /** True when `css` survives HTML text-node escaping unchanged — see [[toUi]]. */
-  private[mermoid] def cssIsEntitySafe(css: String): Boolean =
-    !css.exists(c => c == '&' || c == '<' || c == '>')
+    MermoidAscent.svg(mmd, config)
 end Mermoid

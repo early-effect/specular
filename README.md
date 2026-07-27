@@ -82,7 +82,7 @@ libraryDependencies ++= Seq(
   "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
   "rocks.earlyeffect" %% "specular-site"     % "<version>" % Test, // includes mermaid Prose fences
 )
-// docs JS client (when you remount diagrams interactively):
+// docs JS client (when you remount interactive diagrams):
 // libraryDependencies += "rocks.earlyeffect" %%% "specular-mermoid" % "<version>"
 
 // sbt plugin: injects product meta and runs specularSite from the Test classpath
@@ -113,10 +113,14 @@ def page(title: String)(nodes: DocNode*): DocPage
 def section(title: String)(nodes: DocNode*): Section
 def md"""…""": Prose                                          // markdown → ascent UI
 def example { ui }: Example[Any]                              // static UI + source capture
-def exampleIO { urio }: Example[Any]                          // effectful UI (e.g. sq(0))
+def exampleIO { urio }: Example[Any]                          // effectful UI (e.g. sq(0), diagramInteractive)
 example.interactive                                           // also mount client-side
 example.assert(ui => assertTrue(…))                           // zio-test assertion
 ```
+
+Mermaid diagrams use `specular-mermoid` (via `specular-site`): fenced `mermaid` in Prose and
+`Mermoid.diagram` render hybrid HTML+SVG at build time; `exampleIO { Mermoid.diagramInteractive(…) }.interactive`
+adds selection, tooltips, and viewport reflow in the browser.
 
 Wire the page with `DocSpecSuite` (tests) and `DocsSite` (site map):
 
@@ -175,7 +179,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section`, shared `ProjectMeta` / catalog cards (+ JS `LiveCatalog`) |
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
 | `site` | `specular-site` | Markdown → UI (incl. fenced `mermaid`), SSR, themes, templates, `metadata.json`, JVM meta fetch |
-| `mermoid` | `specular-mermoid` | [mermoid](https://github.com/early-effect/mermoid) Mermaid→SVG (`Mermoid.diagram`); pulled in by site on JVM; `%%%` for Scala.js remount |
+| `mermoid` | `specular-mermoid` | [mermoid](https://github.com/early-effect/mermoid) via `mermoid-ascent`: `Mermoid.diagram` (hybrid), `diagramInteractive` (selection/reflow), `svgDiagram` (inert); pulled in by site on JVM; `%%%` for Scala.js remount |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
 | `docs` | (unpublished) | Dogfood site for specular itself |

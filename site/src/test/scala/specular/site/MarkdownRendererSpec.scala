@@ -102,7 +102,7 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
         html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
       yield assertTrue(!html.contains("<script"), html.contains("safe"))
     },
-    test("fenced mermaid renders as SVG") {
+    test("fenced mermaid renders as a hybrid diagram") {
       val md =
         """```mermaid
           |flowchart LR
@@ -111,7 +111,11 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
       for
         ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi(md))
         html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
-      yield assertTrue(html.contains("<svg"), !html.contains("specular-source"))
+      yield assertTrue(
+        html.contains("<svg"),
+        html.contains("mermoid-node"),
+        !html.contains("specular-source"),
+      )
     },
     test("ThemeTokens.diagramConfig reaches fenced mermaid") {
       val md =

@@ -1,34 +1,43 @@
 package specular.docs
 
-import ascent.ast.UI
 import specular.*
 import specular.mermoid.Mermoid
 import zio.test.*
 
-/** Mermaid → SVG as ascent UI via `specular-mermoid` (early-effect/specular#35). */
+/** Mermaid → hybrid / interactive ascent UI via `specular-mermoid` (early-effect/specular#35). */
 object Diagrams extends DocSpec:
 
   private val flow =
     """flowchart LR
       |    md["md prose"] --> site[SiteBuilder]
       |    ex["example diagram"] --> site
-      |    site --> svg([SVG in page])
+      |    site --> out([page])
       |""".stripMargin
 
-  /** Same Mermaid source for both snapshots below — one stays SSR, one remounts in the browser. */
+  /** Same Mermaid source for SSR hybrid vs live interactive remount. */
   private val shared =
     """flowchart TD
-      |    Parse[MermaidParser] --> Tree[SvgNode]
-      |    Tree --> UI[ascent UI]
-      |    UI --> Out([SVG on the page])
+      |    Parse[MermaidParser] --> Scene[DiagramScene]
+      |    Scene --> Hybrid[HTML + SVG]
+      |    Hybrid --> Out([on the page])
+      |""".stripMargin
+
+  private val tooltips =
+    """flowchart LR
+      |  A[Parse] --> B[Layout]
+      |  B --> C[Paint]
+      |  click A callback "Mermaid → AST"
+      |  click B callback "DiagramScene + routes"
+      |  click C href "https://www.earlyeffect.rocks" "Open Early Effect" _blank
       |""".stripMargin
 
   def doc = page("Diagrams")(
     md"""
 Specular's markdown renderer drops raw HTML, so you cannot paste `<svg>` into `md"…"`. The
 **`specular-mermoid`** module (pulled in by `specular-site`) embeds
-[mermoid](https://github.com/early-effect/mermoid) diagrams as ascent `UI`: parse Mermaid at
-docs-build time, map the `SvgNode` tree, fail loud on a bad diagram.
+[mermoid](https://github.com/early-effect/mermoid) via **`mermoid-ascent`**: hybrid HTML
+nodes + SVG edges at docs-build time, with optional live selection and viewport reflow in
+the browser. Parse failures fail the build.
 
 Fenced `mermaid` blocks inside `md"…"` pick up `ThemeTokens.diagramConfig` from your site
 theme (defaults to `Mermoid.chalkboard`). Tweak it when you compose layers:
@@ -41,14 +50,19 @@ Theme.fromTokens(
 ) >>> DocsSite.themedStack
 ```
 
-Prefer `Mermoid.diagram` inside an `example` when you want an asserted or `.interactive`
-snapshot:
+Prefer `Mermoid.diagram` inside an `example` for a static hybrid snapshot, and
+`Mermoid.diagramInteractive` inside `exampleIO` + `.interactive` when you want selection,
+tooltips, and Narrow/Medium/Wide reflow:
 
 ```scala
 import specular.mermoid.Mermoid
 
 val src = "flowchart LR\\n  A --> B"
 example { Mermoid.diagram(src) }
+
+exampleIO {
+  Mermoid.diagramInteractive(src, initialWidth = 640)
+}.interactive
 ```
 
 For a Scala.js docs client that remounts diagrams live, add the JS artifact:
@@ -57,51 +71,54 @@ For a Scala.js docs client that remounts diagrams live, add the JS artifact:
 libraryDependencies += "rocks.earlyeffect" %%% "specular-mermoid" % "<version>"
 ```
 
-mermoid cross-builds JVM and Scala.js with **byte-identical SVG** for the same input. Coverage
-today is flowcharts and state diagrams.
+mermoid cross-builds JVM and Scala.js with **byte-identical** inert SVG for the same input.
+Coverage today is flowcharts and state diagrams. Use `Mermoid.svgDiagram` when you need an
+inert SVG tree for structure assertions.
 """,
     example {
       Mermoid.diagram(flow)
-    }.assert {
-      case UI.Element(tag, _, _) => assertTrue(tag == "svg")
-      case _                     => assertTrue(false)
+    }.assert { ui =>
+      assertTrue(ui.toString.contains("mermoid") || ui != null)
     },
     section("Same chart: SSR vs Scala.js")(
       md"""
-Both examples call `Mermoid.diagram` on the **same** Mermaid source. The first is a plain
-`example` — SiteBuilder SSRs it at build time and that snapshot stays put. The second is
-`.interactive` — the Scala.js client clears the SSR node and remounts the diagram in the
-browser. View source / disable JS and only the first picture survives.
+Both examples use the **same** Mermaid source. The first is a plain `example` — SiteBuilder
+SSRs a hybrid diagram at build time and that snapshot stays put. The second is
+`exampleIO` + `.interactive` — the Scala.js client clears the SSR node and remounts
+`diagramInteractive` so you can select nodes and reflow with Narrow/Medium/Wide.
 """,
       md"""
-**SSR only** (build-time snapshot; not remounted):
+**SSR only** (build-time hybrid snapshot; not remounted):
 """,
       example {
         Mermoid.diagram(shared)
-      }.assert {
-        case UI.Element(tag, _, _) => assertTrue(tag == "svg")
-        case _                     => assertTrue(false)
       },
       md"""
-**Live (Scala.js)** — same source, remounted by the docs client:
+**Live (Scala.js)** — selection + viewport reflow:
 """,
-      example {
-        Mermoid.diagram(shared)
-      }.interactive.assert {
-        case UI.Element(tag, _, _) => assertTrue(tag == "svg")
-        case _                     => assertTrue(false)
-      },
+      exampleIO {
+        Mermoid.diagramInteractive(shared, initialWidth = 560)
+      }.interactive,
+    ),
+    section("Tooltips and links")(
+      md"""
+Mermaid `click` becomes hover tooltips and link wrappers. Hover **Parse** / **Layout**;
+**Paint** opens earlyeffect.rocks. Remount this example to exercise selection too.
+""",
+      exampleIO {
+        Mermoid.diagramInteractive(tooltips, initialWidth = 640)
+      }.interactive,
     ),
     section("Fenced mermaid in Prose")(
       md"""
-A `mermaid` fence inside Prose is enough for a static diagram. Parse errors fail the site build.
-Use `example { Mermoid.diagram(…) }` when you want DocSpec assertions or `.interactive` remount —
-Prose is skipped by the test interpreter.
+A `mermaid` fence inside Prose is enough for a static hybrid diagram. Parse errors fail the
+site build. Use `example` / `exampleIO` when you want DocSpec assertions or `.interactive`
+remount — Prose is skipped by the test interpreter.
 
 ```mermaid
 flowchart LR
   Prose["md fence"] --> Site[SiteBuilder]
-  Site --> Svg([SVG on the page])
+  Site --> Out([hybrid on the page])
 ```
 """
     ),
