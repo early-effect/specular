@@ -240,14 +240,33 @@ object Theme:
 
   object Content
       extends CssClass(
-        // Fill the grid column so the scrollbar sits on the far right of the viewport;
-        // readable measure is applied to children instead of shrinking this pane.
+        // Fill the grid column so the scrollbar sits on the far right of the viewport.
+        // Prose keeps a readable measure; tables / examples break out to the full content
+        // pane (Content's horizontal padding is the only side margin).
         minHeight(0.px),
         overflowY.auto,
         width.pct(100),
         padding(1.5.rem, 2.rem),
         lineHeight(1.55),
         Selector(" > *", maxWidth(52.rem)),
+        Selector(" > section", maxWidth.none, width.pct(100)),
+        Selector(" > table", maxWidth.none, width.pct(100)),
+        Selector(" > figure.specular-example", maxWidth.none, width.pct(100)),
+        Selector(" > .mermoid-root", maxWidth.none, width.pct(100)),
+        Selector(" > .mermoid-ascent", maxWidth.none, width.pct(100)),
+        Selector(" section > p", maxWidth(52.rem)),
+        Selector(" section > h1", maxWidth(52.rem)),
+        Selector(" section > h2", maxWidth(52.rem)),
+        Selector(" section > h3", maxWidth(52.rem)),
+        Selector(" section > h4", maxWidth(52.rem)),
+        Selector(" section > h5", maxWidth(52.rem)),
+        Selector(" section > h6", maxWidth(52.rem)),
+        Selector(" section > ul", maxWidth(52.rem)),
+        Selector(" section > ol", maxWidth(52.rem)),
+        Selector(" section > blockquote", maxWidth(52.rem)),
+        Selector(" section > hr", maxWidth(52.rem)),
+        Selector(" section > .specular-code", maxWidth(52.rem)),
+        Selector(" section > pre.specular-source", maxWidth(52.rem)),
         Selector(
           " pre.specular-source",
           background(vCodeBg),
@@ -293,7 +312,13 @@ object Theme:
           color(vAccent),
           borderColor(vAccent),
         ),
-        Selector(" figure.specular-example", margin(1.25.rem, 0.px), padding(0.px)),
+        Selector(
+          " figure.specular-example",
+          width.pct(100),
+          maxWidth.none,
+          margin(1.25.rem, 0.px),
+          padding(0.px),
+        ),
         Selector(
           " .specular-snapshot",
           marginTop(0.75.rem),
@@ -301,6 +326,7 @@ object Theme:
           background(vSurface),
           border(Border.solid(1.px, vBorder)),
           borderRadius(vRadius),
+          overflowX.auto,
         ),
         Selector(
           " .specular-result pre",
@@ -312,10 +338,12 @@ object Theme:
           borderRadius(vRadius),
         ),
         Selector(" a", color(vLink)),
-        // GFM markdown tables (bare table/th/td from MarkdownRenderer)
+        // GFM markdown tables: fill the content pane; scroll horizontally when needed.
         Selector(
           " table",
           width.pct(100),
+          maxWidth.none,
+          tableLayout.auto,
           borderCollapse.separate,
           borderSpacing(0.px),
           margin(1.5.rem, 0.px),
@@ -324,7 +352,8 @@ object Theme:
           background(vSurface),
           border(Border.solid(1.px, vBorder)),
           borderRadius(vRadius),
-          overflow.hidden,
+          overflowX.auto,
+          overflowY.hidden,
         ),
         Selector(
           " thead",
@@ -349,6 +378,7 @@ object Theme:
           color(vText),
           padding(0.85.rem, 1.1.rem),
           borderBottom(Border.solid(1.px, vBorder)),
+          overflowWrap.anywhere,
         ),
         Selector(
           " tbody tr:nth-child(even)",

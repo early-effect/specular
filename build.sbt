@@ -2,7 +2,7 @@ val scala3Version   = "3.8.4"
 val zioVersion      = "2.1.26"
 val ascentVersion   = "0.3.1"
 val zioHttpVersion  = "3.11.3"
-val mermoidVersion  = "0.0.1"
+val mermoidVersion  = "0.0.3"
 
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
 scalaVersion         := scala3Version
@@ -171,8 +171,8 @@ lazy val specularMermoid = (projectMatrix in file("mermoid"))
     name := "specular-mermoid",
     scalacOptions ++= commonScalacOptions,
     libraryDependencies ++= Seq(
-      "rocks.earlyeffect" %% "ascent-core" % ascentVersion,
-      "rocks.earlyeffect" %% "mermoid"     % mermoidVersion,
+      "rocks.earlyeffect" %% "ascent-core"    % ascentVersion,
+      "rocks.earlyeffect" %% "mermoid-ascent" % mermoidVersion,
     ),
   )
   .jvmPlatform(

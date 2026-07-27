@@ -1,12 +1,11 @@
 package specular.mermoid
 
-import ascent.ast.{Attr, UI}
-import ascent.domtypes.AttrValue
 import ascent.html.Html
+import mermoid.ascent.SvgBridge
 import mermoid.{RenderConfig, SvgNode, SvgRenderer, css}
 import zio.test.*
 
-/** Proves the SvgNode → UI bridge round-trips: SSR HTML carries the structure mermoid's serializer emits. */
+/** Proves the chalkboard facade over mermoid-ascent: inert SVG structure, hybrid smoke, fail-loud parse. */
 object MermoidSpec extends ZIOSpecDefault:
 
   private val flowchart =
@@ -24,32 +23,11 @@ object MermoidSpec extends ZIOSpecDefault:
       |    end note
       |""".stripMargin
 
-  private def render(mmd: String) = Html.render(Mermoid.diagram(mmd))
+  private def renderSvg(mmd: String) = Html.render(Mermoid.svgDiagram(mmd))
+
+  private def renderHybrid(mmd: String) = Html.render(Mermoid.diagram(mmd))
 
   def spec = suite("Mermoid")(
-    suite("toUi")(
-      test("an element maps tag, attributes and children in order") {
-        val node = SvgNode.elem("g")("class" -> "node", "id" -> "node-A")(SvgNode.leaf("rect")("x" -> "1"))
-        Mermoid.toUi(node) match
-          case UI.Element(tag, attrs, children) =>
-            assertTrue(
-              tag == "g",
-              attrs == Vector(
-                Attr.StaticAttr("class", AttrValue.Str("node")),
-                Attr.StaticAttr("id", AttrValue.Str("node-A")),
-              ),
-              children.size == 1,
-            )
-          case _ => assertTrue(false)
-        end match
-      },
-      test("text and raw both become text nodes") {
-        assertTrue(
-          Mermoid.toUi(SvgNode.Text("hi")) == UI.Text("hi"),
-          Mermoid.toUi(SvgNode.Raw(".a { fill: red }")) == UI.Text(".a { fill: red }"),
-        )
-      },
-    ),
     suite("parse failures")(
       test("an unparseable diagram throws rather than rendering an empty box") {
         assertTrue(scala.util.Try(Mermoid.diagram("not a diagram at all")).isFailure)
@@ -61,14 +39,25 @@ object MermoidSpec extends ZIOSpecDefault:
           theme    <- css.ThemeName.values.toList
           resolved <- List(true, false)
           rendered = css.CssRenderer.render(css.Theme.toStylesheet(theme), resolveVariables = resolved)
-          if !Mermoid.cssIsEntitySafe(rendered)
+          if !SvgBridge.cssIsEntitySafe(rendered)
         yield s"$theme (resolveVariables=$resolved)"
         assertTrue(unsafe.isEmpty)
       }
     ),
-    suite("SSR round-trip")(
+    suite("hybrid")(
+      test("diagram paints HTML nodes plus an SVG edge layer") {
+        for html <- renderHybrid(flowchart)
+        yield assertTrue(
+          html.contains("mermoid-node"),
+          html.contains("<svg"),
+          html.contains("Do the work"),
+          html.contains("#c46a52"),
+        )
+      }
+    ),
+    suite("SSR round-trip (inert svgDiagram)")(
       test("a flowchart renders the node and edge structure mermoid emits") {
-        for html <- render(flowchart)
+        for html <- renderSvg(flowchart)
         yield assertTrue(
           html.startsWith("<svg"),
           html.contains("""class="node node-circle""""),
@@ -81,7 +70,7 @@ object MermoidSpec extends ZIOSpecDefault:
         )
       },
       test("a state diagram renders its note and start state") {
-        for html <- render(stateDiagram)
+        for html <- renderSvg(stateDiagram)
         yield assertTrue(
           html.contains("""class="note""""),
           html.contains("id=\"note-Idle-0\""),
@@ -90,7 +79,7 @@ object MermoidSpec extends ZIOSpecDefault:
         )
       },
       test("the stylesheet survives as usable CSS, not escaped entities") {
-        for html <- render(flowchart)
+        for html <- renderSvg(flowchart)
         yield assertTrue(
           html.contains("<style"),
           html.contains(".node-shape {"),
@@ -98,7 +87,7 @@ object MermoidSpec extends ZIOSpecDefault:
         )
       },
       test("unresolved CSS variables also survive the round-trip") {
-        for html <- Html.render(Mermoid.diagram(flowchart, RenderConfig(resolveVariables = false)))
+        for html <- Html.render(Mermoid.svgDiagram(flowchart, RenderConfig(resolveVariables = false)))
         yield assertTrue(html.contains(":root {"), html.contains("--mermoid"), html.contains("var(--mermoid"))
       },
       test("every element mermoid emits reaches the HTML") {
@@ -108,14 +97,14 @@ object MermoidSpec extends ZIOSpecDefault:
         def count(n: SvgNode): Int = n match
           case SvgNode.Element(_, _, children) => 1 + children.map(count).sum
           case _                               => 0
-        for html <- render(flowchart)
+        for html <- renderSvg(flowchart)
         yield assertTrue(html.sliding(1).count(_ == "<") - html.sliding(2).count(_ == "</") == count(tree))
       },
       test("a label with XML special characters is escaped exactly once") {
         val tricky = """flowchart TD
                        |    A["a < b & c"] --> B[plain]
                        |""".stripMargin
-        for html <- render(tricky)
+        for html <- renderSvg(tricky)
         yield assertTrue(
           html.contains("a &lt; b &amp; c"),
           !html.contains("&amp;lt;"),
@@ -123,8 +112,8 @@ object MermoidSpec extends ZIOSpecDefault:
       },
       test("a custom RenderConfig reaches the rendered output") {
         for
-          default <- render(flowchart)
-          stock   <- Html.render(Mermoid.diagram(flowchart, RenderConfig(theme = css.ThemeName.Default)))
+          default <- renderSvg(flowchart)
+          stock   <- Html.render(Mermoid.svgDiagram(flowchart, RenderConfig(theme = css.ThemeName.Default)))
         yield assertTrue(
           stock != default,
           stock.contains("#9370DB"),
