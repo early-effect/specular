@@ -406,6 +406,9 @@ object Theme:
       extends CssClass(
         gridColumn("1 / -1"),
         flexShrink(0),
+        // With Landing as a column flex, auto top margin pins the footer to the viewport bottom
+        // when content is short (docs Layout already does this via `1fr` middle row).
+        marginTop.auto,
         padding(0.75.rem, 1.5.rem),
         borderTop(Border.solid(1.px, vBorder)),
         fontSize(0.85.rem),
@@ -417,6 +420,8 @@ object Theme:
 
   object Landing
       extends CssClass(
+        display.flex,
+        flexDirection.column,
         minHeight.vh(100),
         fontFamily(vFont),
         color(vText),
