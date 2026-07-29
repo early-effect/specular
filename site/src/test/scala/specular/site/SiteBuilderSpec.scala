@@ -107,6 +107,30 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("fail and crash examples render source and diagnostics panels") {
+      val doc = page("Failures")(
+        expectFail("""
+          val x: Int = "nope"
+        """),
+        expectCrash {
+          ZIO.fail(new RuntimeException("boom")): ZIO[Scope, Throwable, Nothing]
+        },
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-site-fail"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield assertTrue(
+        html.contains("id=\"failures-ex-1\""),
+        html.contains("id=\"failures-ex-2\""),
+        html.contains("specular-diagnostics"),
+        html.contains("specular-crash"),
+        html.contains("val x"),
+        html.contains("ZIO.fail"),
+        html.contains("boom"),
+      )
+      end for
+    },
     test("two pages do not share CSS across renders") {
       val pageA = page("Page A")(example { E.div(OnlyA, "a") })
       val pageB = page("Page B")(example { E.div(OnlyB, "b") })

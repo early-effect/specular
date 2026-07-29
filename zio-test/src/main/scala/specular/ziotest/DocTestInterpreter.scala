@@ -2,6 +2,7 @@ package specular.ziotest
 
 import specular.*
 import zio.Chunk
+import zio.Exit
 import zio.ZIO
 import zio.ZLayer
 import zio.test.*
@@ -41,6 +42,24 @@ object DocTestInterpreter:
           test(s"example ${erased.id}") {
             for value <- ZIO.scoped(erased.body)
             yield assertFn(value)
+          }
+        )
+      case fe: FailExample if fe.assertion.isDefined =>
+        val assertFn = fe.assertion.get
+        Vector(
+          test(s"example ${fe.id}") {
+            ZIO.succeed(assertFn(fe.diagnostics))
+          }
+        )
+      case ce: CrashExample[?, ?] if ce.assertion.isDefined =>
+        val erased   = ce.asInstanceOf[CrashExample[Any, Any]]
+        val assertFn = erased.assertion.get
+        Vector(
+          test(s"example ${erased.id}") {
+            ZIO.scoped(erased.body).exit.map {
+              case Exit.Failure(cause) => assertFn(cause)
+              case Exit.Success(_)     => assertTrue(false).label(s"expectCrash ${erased.id}: effect succeeded")
+            }
           }
         )
       case _ =>

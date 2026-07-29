@@ -22,10 +22,13 @@ that fold it into tests or HTML. Everything else (themes, hubs, sbt wiring) hang
 | `Prose` | `md"…"` | Markdown → ascent `UI` at build time |
 | `Example` | `example` / `exampleIO` | Source string + UI effect |
 | `ValueExample` | `exampleValue` / `exampleZIO` | Source string + plain value or effect |
+| `FailExample` | `expectFail("…")` | Must-not-compile snippet + diagnostics |
+| `CrashExample` | `expectCrash { … }` | Must-fail effect + failure output |
 
 Examples carry optional flags:
 
-- `.assert(…)`: zio-test `TestResult` (gates CI); UI examples assert on the tree, value examples on `A`
+- `.assert(…)`: zio-test `TestResult` (gates CI); UI examples assert on the tree, value examples on `A`,
+  fail examples on `typeCheckErrors`, crash examples on `Cause[E]`
 - `.interactive`: UI examples only; register for client remount after SSR
 
 Ids (`<page-slug>-ex-1`, …) are assigned when you call `page`, so SSR wrappers and the JS
@@ -47,9 +50,11 @@ in the suite. UI examples go through `ExampleRunner`; value examples run their `
 1. Markdown → UI via commonmark
 2. UI examples → source panel + SSR snapshot (`ascent-html`)
 3. Value examples → source panel + printed result
-4. Page template + sidebar nav + theme CSS
-5. Optional landing / catalog when `SiteModel.home` is set
-6. Write `metadata.json` for hub consumption
+4. Fail examples → source panel + real compiler diagnostics
+5. Crash examples → source panel + pretty-printed failure
+6. Page template + sidebar nav + theme CSS
+7. Optional landing / catalog when `SiteModel.home` is set
+8. Write `metadata.json` for hub consumption
 
 One authoring surface; two consumers. That is the product.
 """,

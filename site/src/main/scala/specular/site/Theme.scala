@@ -409,6 +409,22 @@ object Theme:
           overflow.auto,
           borderRadius(vRadius),
         ),
+        Selector(
+          " .specular-diagnostics",
+          borderColor(Color.keyword("color-mix(in srgb, #b45309 45%, var(--specular-border))")),
+        ),
+        Selector(
+          " .specular-diagnostics pre",
+          background(Color.keyword("color-mix(in srgb, #b45309 12%, var(--specular-code-bg))")),
+        ),
+        Selector(
+          " .specular-crash",
+          borderColor(Color.keyword("color-mix(in srgb, #b91c1c 45%, var(--specular-border))")),
+        ),
+        Selector(
+          " .specular-crash pre",
+          background(Color.keyword("color-mix(in srgb, #b91c1c 12%, var(--specular-code-bg))")),
+        ),
         Selector(" a", color(vLink)),
         // GFM markdown tables: fill the content pane; scroll horizontally when needed.
         Selector(
