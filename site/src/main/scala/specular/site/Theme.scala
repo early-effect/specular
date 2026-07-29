@@ -236,6 +236,24 @@ object Theme:
           " a.specular-nav-home:hover",
           color(vAccent),
         ),
+        Selector(
+          " .nav-group",
+          marginTop(0.85.rem),
+        ),
+        Selector(
+          " .nav-group-label",
+          fontSize(0.75.rem),
+          fontWeight(700),
+          letterSpacing(0.04.em),
+          textTransform.uppercase,
+          color(vMuted),
+          padding(0.35.rem, 0.px, 0.15.rem, 0.px),
+        ),
+        Selector(
+          " .nav-group > ul",
+          margin(0.15.rem, 0.px, 0.px, 0.65.rem),
+          padding(0.px),
+        ),
       )
 
   object Content
@@ -250,6 +268,7 @@ object Theme:
         lineHeight(1.55),
         Selector(" > *", maxWidth(52.rem)),
         Selector(" > section", maxWidth.none, width.pct(100)),
+        Selector(" > nav.specular-page-toc", maxWidth(52.rem)),
         Selector(" > table", maxWidth.none, width.pct(100)),
         Selector(" > figure.specular-example", maxWidth.none, width.pct(100)),
         Selector(" > .mermoid-root", maxWidth.none, width.pct(100)),
@@ -257,6 +276,59 @@ object Theme:
         Selector(" section > p", maxWidth(52.rem)),
         Selector(" section > h1", maxWidth(52.rem)),
         Selector(" section > h2", maxWidth(52.rem)),
+        Selector(
+          " h2",
+          position.relative,
+        ),
+        Selector(
+          " a.specular-heading-anchor",
+          marginRight(0.35.rem),
+          color(vMuted),
+          textDecoration.none,
+          fontWeight(500),
+          opacity(0),
+        ),
+        Selector(
+          " h2:hover a.specular-heading-anchor",
+          opacity(1),
+          color(vAccent),
+        ),
+        Selector(
+          " .specular-page-toc",
+          margin(0.px, 0.px, 1.5.rem, 0.px),
+          padding(0.85.rem, 1.rem),
+          background(vSurface),
+          border(Border.solid(1.px, vBorder)),
+          borderRadius(vRadius),
+        ),
+        Selector(
+          " .specular-page-toc-label",
+          fontSize(0.75.rem),
+          fontWeight(700),
+          letterSpacing(0.04.em),
+          textTransform.uppercase,
+          color(vMuted),
+          marginBottom(0.4.rem),
+        ),
+        Selector(
+          " .specular-page-toc ul",
+          listStyle.none,
+          margin(0.px),
+          padding(0.px),
+        ),
+        Selector(
+          " .specular-page-toc li",
+          margin(0.2.rem, 0.px),
+        ),
+        Selector(
+          " .specular-page-toc a",
+          color(vText),
+          textDecoration.none,
+        ),
+        Selector(
+          " .specular-page-toc a:hover",
+          color(vAccent),
+        ),
         Selector(" section > h3", maxWidth(52.rem)),
         Selector(" section > h4", maxWidth(52.rem)),
         Selector(" section > h5", maxWidth(52.rem)),
