@@ -128,6 +128,32 @@ object DocBuildersSpec extends ZIOSpecDefault:
           ex.source.contains("ZIO.succeed"),
         )
       },
+      test("expectFail captures source and compile diagnostics") {
+        val ex = expectFail("""
+          val x: Int = "nope"
+        """)
+        assertTrue(
+          ex.source.contains("val x"),
+          ex.diagnostics.nonEmpty,
+          ex.assertion.isEmpty,
+        )
+      },
+      test("expectCrash captures fallible effect source") {
+        val ex = expectCrash {
+          ZIO.fail("boom"): ZIO[Scope, String, Nothing]
+        }
+        assertTrue(
+          ex.source.contains("ZIO.fail"),
+          ex.assertion.isEmpty,
+        )
+      },
+      test("fluent .assert on expectFail and expectCrash") {
+        val fail  = expectFail("""1 + """).assert(errs => assertTrue(errs.nonEmpty))
+        val crash = expectCrash {
+          ZIO.fail("x"): ZIO[Scope, String, Nothing]
+        }.assert(c => assertTrue(c.isFailure))
+        assertTrue(fail.assertion.isDefined, crash.assertion.isDefined)
+      },
     ),
     suite("page / section structure")(
       test("page assigns stable example ids in document order") {
@@ -138,12 +164,20 @@ object DocBuildersSpec extends ZIOSpecDefault:
             exampleValue { 1 + 1 },
           ),
           exampleZIO { ZIO.succeed("c") },
+          expectFail("""val bad: Int = "x""""),
+          expectCrash { ZIO.fail("e"): ZIO[Scope, String, Nothing] },
         )
         val ids = collectExampleIds(p.children)
         assertTrue(
           p.title == "Getting started",
-          ids == Vector("getting-started-ex-1", "getting-started-ex-2", "getting-started-ex-3"),
-          ids.distinct.length == 3,
+          ids == Vector(
+            "getting-started-ex-1",
+            "getting-started-ex-2",
+            "getting-started-ex-3",
+            "getting-started-ex-4",
+            "getting-started-ex-5",
+          ),
+          ids.distinct.length == 5,
         )
       },
       test("section nests children") {
@@ -159,9 +193,11 @@ object DocBuildersSpec extends ZIOSpecDefault:
 
   private def collectExampleIds(nodes: Vector[DocNode]): Vector[String] =
     nodes.flatMap {
-      case e: Example[?]      => Vector(e.id)
-      case v: ValueExample[?] => Vector(v.id)
-      case Section(_, kids)   => collectExampleIds(kids)
-      case _                  => Vector.empty
+      case e: Example[?]         => Vector(e.id)
+      case v: ValueExample[?]    => Vector(v.id)
+      case f: FailExample        => Vector(f.id)
+      case c: CrashExample[?, ?] => Vector(c.id)
+      case Section(_, kids)      => collectExampleIds(kids)
+      case _                     => Vector.empty
     }
 end DocBuildersSpec
