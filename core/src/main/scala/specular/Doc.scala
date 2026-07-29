@@ -53,6 +53,40 @@ final case class ValueExample[A](
   def withShow(f: A => String): ValueExample[A] = copy(show = f)
 end ValueExample
 
+/** A must-not-compile snippet: source string + [[scala.compiletime.testing.typeCheckErrors]] diagnostics.
+  *
+  * The body cannot be a typed Scala expression (it would fail to compile the DocSpec). Pass a self-contained snippet
+  * string, Saferis / zio-test style. Diagnostics are captured at the [[expectFail]] call site (the argument must be a
+  * string literal / constant).
+  */
+final case class FailExample(
+    id: String,
+    source: String,
+    diagnostics: List[scala.compiletime.testing.Error],
+    assertion: Option[List[scala.compiletime.testing.Error] => TestResult],
+) extends DocNode:
+
+  def assert(f: List[scala.compiletime.testing.Error] => TestResult): FailExample =
+    copy(assertion = Some(f))
+end FailExample
+
+/** A must-fail effect: source + real failure for site rendering and CI.
+  *
+  * Unlike [[ValueExample]] (`URIO`), the body is intentionally fallible.
+  */
+final case class CrashExample[E, A](
+    id: String,
+    source: String,
+    body: ZIO[Scope, E, A],
+    assertion: Option[Cause[E] => TestResult],
+    show: Cause[E] => String = (c: Cause[E]) => c.prettyPrint,
+) extends DocNode:
+
+  def assert(f: Cause[E] => TestResult): CrashExample[E, A] = copy(assertion = Some(f))
+
+  def withShow(f: Cause[E] => String): CrashExample[E, A] = copy(show = f)
+end CrashExample
+
 extension (sc: StringContext)
   def md(args: Any*): Prose =
     Prose(sc.s(args*))
@@ -83,6 +117,14 @@ inline def exampleValue[A](inline body: A): ValueExample[A] =
 /** Capture a success-typed ZIO effect as a [[ValueExample]] (same node and `.assert` as plain values). */
 inline def exampleZIO[A](inline body: URIO[Scope, A]): ValueExample[A] =
   DocInternal.mkValueExampleZIO(capturedSource(body), body)
+
+/** Capture a must-not-compile snippet (self-contained string literal for `typeCheckErrors`). */
+inline def expectFail(inline source: String): FailExample =
+  DocInternal.mkFailExample(source, scala.compiletime.testing.typeCheckErrors(source))
+
+/** Capture a must-fail effect: source panel + failure output. */
+inline def expectCrash[E, A](inline body: ZIO[Scope, E, A]): CrashExample[E, A] =
+  DocInternal.mkCrashExample(capturedSource(body), body)
 
 /** Macro-only source capture; keeps the executable body out of quotes (see [[ExampleMacros]]). */
 private inline def capturedSource(inline body: Any): String =
@@ -123,6 +165,25 @@ private[specular] object DocInternal:
       assertion = None,
     )
 
+  def mkFailExample(
+      source: String,
+      diagnostics: List[scala.compiletime.testing.Error],
+  ): FailExample =
+    FailExample(
+      id = "",
+      source = trimSource(source),
+      diagnostics = diagnostics,
+      assertion = None,
+    )
+
+  def mkCrashExample[E, A](source: String, effect: ZIO[Scope, E, A]): CrashExample[E, A] =
+    CrashExample(
+      id = "",
+      source = source,
+      body = effect,
+      assertion = None,
+    )
+
   def trimSource(src: String): String =
     val lines = src.split('\n').toVector
     if lines.isEmpty then src
@@ -146,6 +207,12 @@ private[specular] object DocInternal:
         case v: ValueExample[?] =>
           n += 1
           v.copy(id = s"$pageSlug-ex-$n")
+        case f: FailExample =>
+          n += 1
+          f.copy(id = s"$pageSlug-ex-$n")
+        case c: CrashExample[?, ?] =>
+          n += 1
+          c.copy(id = s"$pageSlug-ex-$n")
         case Section(title, kids) =>
           Section(title, go(kids))
         case other => other

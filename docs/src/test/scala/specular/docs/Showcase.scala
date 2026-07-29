@@ -46,6 +46,8 @@ Emphasis with *italics*, **bold**, and `inline code`. Link out to [ascent](https
 | `md"..."`   | `Prose`               | SSR HTML         |
 | `example`   | `Example`             | source + UI snap |
 | `exampleValue` / `exampleZIO` | `ValueExample` | source + result |
+| `expectFail` | `FailExample` | source + diagnostics |
+| `expectCrash` | `CrashExample` | source + failure |
 | `.assert`   | zio-test bridge       | CI green/red     |
 | `.interactive` | client registry    | live mount       |
 
@@ -75,6 +77,25 @@ tests run the body under `Scope` and print / assert the result.
           b <- ZIO.succeed(2)
         yield a * b
       }.assert(n => assertTrue(n == 42)),
+    ),
+    section("Compile-fail examples")(
+      md"""
+Guide pages that teach *what must not compile* use `expectFail` with a self-contained string
+snippet (Saferis / zio-test `typeCheckErrors` style). The site shows the source and the real
+diagnostics; `.assert` fails CI if the snippet unexpectedly typechecks.
+""",
+      expectFail("""
+        val x: Int = "nope"
+      """).assert(errs => assertTrue(errs.nonEmpty)),
+    ),
+    section("Runtime-fail examples")(
+      md"""
+`expectCrash` captures a fallible effect (not `URIO`). The site renders the source plus the
+pretty-printed failure; tests fail if the effect succeeds.
+""",
+      expectCrash {
+        ZIO.fail(new IllegalArgumentException("demo failure")): ZIO[Scope, Throwable, Nothing]
+      }.assert(c => assertTrue(c.failures.exists(_.getMessage == "demo failure"))),
     ),
     section("CSS-in-Scala layouts")(
       md"Examples are real ascent trees: define `CssClass`es with the typed `S` catalog, then apply them like any other attr:",

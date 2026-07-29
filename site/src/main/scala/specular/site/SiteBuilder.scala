@@ -219,5 +219,73 @@ object SiteBuilder:
             Vector(attr("class", "specular-example")),
           )
         end for
+      case fe: FailExample =>
+        val text = FailDiagnostics.format(fe.diagnostics)
+        ZIO.succeed:
+          val pre = el(
+            "pre",
+            Vector(el("code", Vector(UI.Text(SourceFormatter.format(fe.source))))),
+            Vector(attr("class", "specular-source")),
+          )
+          el(
+            "figure",
+            Vector(
+              PageTemplate.codeBlock(pre, copyCode),
+              el(
+                "div",
+                Vector(el("pre", Vector(el("code", Vector(UI.Text(text)))))),
+                Vector(
+                  attr("id", fe.id),
+                  attr("class", "specular-snapshot specular-result specular-diagnostics"),
+                ),
+              ),
+            ),
+            Vector(attr("class", "specular-example")),
+          )
+      case ce: CrashExample[?, ?] =>
+        val erased = ce.asInstanceOf[CrashExample[Any, Any]]
+        for
+          exit <- ZIO.scoped(erased.body).exit
+          text <- exit match
+            case Exit.Failure(cause) => ZIO.succeed(erased.show(cause))
+            case Exit.Success(_)     =>
+              ZIO.fail(
+                new IllegalStateException(s"expectCrash ${erased.id}: effect succeeded during site build")
+              )
+        yield
+          val pre = el(
+            "pre",
+            Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
+            Vector(attr("class", "specular-source")),
+          )
+          el(
+            "figure",
+            Vector(
+              PageTemplate.codeBlock(pre, copyCode),
+              el(
+                "div",
+                Vector(el("pre", Vector(el("code", Vector(UI.Text(text)))))),
+                Vector(
+                  attr("id", erased.id),
+                  attr("class", "specular-snapshot specular-result specular-crash"),
+                ),
+              ),
+            ),
+            Vector(attr("class", "specular-example")),
+          )
+        end for
   end Live
 end SiteBuilder
+
+private[site] object FailDiagnostics:
+  def format(errors: List[scala.compiletime.testing.Error]): String =
+    if errors.isEmpty then "(no compiler errors; snippet unexpectedly compiled)"
+    else
+      errors
+        .map { e =>
+          val snippet = e.lineContent.trim
+          if snippet.nonEmpty then s"${e.message}\n  $snippet"
+          else e.message
+        }
+        .mkString("\n\n")
+end FailDiagnostics

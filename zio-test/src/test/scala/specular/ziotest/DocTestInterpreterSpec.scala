@@ -29,6 +29,14 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
           yield a * b
         }.assert(n => assertTrue(n == 6)),
       ),
+      section("Failures")(
+        expectFail("""
+          val x: Int = "nope"
+        """).assert(errs => assertTrue(errs.nonEmpty)),
+        expectCrash {
+          ZIO.fail("boom"): ZIO[Scope, String, Nothing]
+        }.assert(c => assertTrue(c.failures.headOption.contains("boom"))),
+      ),
     )
   end SampleDoc
 
