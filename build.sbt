@@ -250,9 +250,18 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
             val log       = streams.value.log
             val converter = fileConverter.value
             val siteDir   = (ThisBuild / baseDirectory).value / "target" / "site"
-            val basePath  = sys.env.getOrElse("SPECULAR_BASE_PATH", ".")
-            val docsUrl        = sys.env.getOrElse("SPECULAR_DOCS_URL", "")
-            val displayVersion = sys.env.getOrElse("SPECULAR_DISPLAY_VERSION", "")
+            val basePath = sys.env.getOrElse("SPECULAR_BASE_PATH", ".")
+            val docsUrl  = sys.env.getOrElse("SPECULAR_DOCS_URL", "")
+            // Prefer SPECULAR_DISPLAY_VERSION; otherwise hide dynver `-ci` / SNAPSHOT like peer docs modules.
+            val displayVersion = {
+              val fromEnv = sys.env.getOrElse("SPECULAR_DISPLAY_VERSION", "")
+              if fromEnv.nonEmpty then fromEnv
+              else
+                val v = version.value
+                if v.endsWith("-ci") || v.endsWith("-SNAPSHOT") then
+                  previousStableVersion.value.getOrElse("")
+                else ""
+            }
 
             (LocalProject("docsJS") / Compile / fastLinkJS).value
             val outDir = (LocalProject("docsJS") / Compile / fastLinkJSOutput).value
