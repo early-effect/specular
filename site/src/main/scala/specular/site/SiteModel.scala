@@ -24,9 +24,17 @@ final case class SiteModel(
     installSnippets: Vector[CodeSnippet] = Vector.empty,
     /** When true, source panels and fenced code blocks get a copy-to-clipboard control. */
     copyCode: Boolean = true,
+    /** Optional nested sidebar; when set, [[NavBuilder]] renders the tree (pages still drive routing). */
+    nav: Option[NavModel] = None,
+    /** In-page TOC: `None` = auto (show when 2+ top-level sections), `Some` forces on/off. */
+    pageToc: Option[Boolean] = None,
 ):
   def navItems: Vector[NavItem] =
     pages.map(p => NavItem(p.title, hrefFor(p)))
+
+  /** Effective sidebar model: explicit [[nav]], else a flat list from [[pages]]. */
+  def sidebarNav: NavModel =
+    nav.getOrElse(NavModel.flat(pages))
 
   /** Header chrome links: explicit [[Brand.links]], else a single link from [[ProjectMeta.homepage]]. */
   def headerLinks: Vector[BrandLink] =

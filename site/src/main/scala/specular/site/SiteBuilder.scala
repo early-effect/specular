@@ -86,7 +86,7 @@ object SiteBuilder:
 
     private def renderOne(model: SiteModel, page: DocPage, outDir: JPath): Task[JPath] =
       for
-        bodyUi   <- renderNodes(page.children, model.copyCode)
+        bodyUi   <- renderPageBody(page, model.copyCode, model.pageToc)
         docUi    <- template.wrap(model, page, bodyUi)
         rendered <- ssr.renderPage(docUi)
         htmlPath = outDir.resolve(s"${page.slug}.html")
@@ -95,6 +95,20 @@ object SiteBuilder:
         _ <- writeUnder(outDir, htmlPath, fullHtml)
         _ <- writeUnder(outDir, cssPath, rendered.css)
       yield htmlPath
+
+    private def renderPageBody(
+        page: DocPage,
+        copyCode: Boolean,
+        pageToc: Option[Boolean],
+    ): Task[UI[Any]] =
+      val anchors = PageToc.AnchorIds()
+      val tocBuf  = scala.collection.mutable.ArrayBuffer.empty[(String, String)]
+      for content <- renderNodes(page.children, copyCode, depth = 0, anchors, tocBuf)
+      yield
+        val entries = tocBuf.toVector
+        if PageToc.show(pageToc, entries.length) then UI.Fragment(Vector(PageToc.render(entries), content))
+        else content
+    end renderPageBody
 
     private def writeDocsIndex(model: SiteModel, outDir: JPath): Task[JPath] =
       val links = model.pages.map { p =>
@@ -166,19 +180,51 @@ object SiteBuilder:
       val path = outDir.resolve("metadata.json")
       writeUnder(outDir, path, model.publishedMeta.toJson + "\n").as(path)
 
-    private def renderNodes(nodes: Vector[DocNode], copyCode: Boolean): Task[UI[Any]] =
-      ZIO.foreach(nodes)(n => renderNode(n, copyCode)).map {
+    private def renderNodes(
+        nodes: Vector[DocNode],
+        copyCode: Boolean,
+        depth: Int,
+        anchors: PageToc.AnchorIds,
+        tocBuf: scala.collection.mutable.ArrayBuffer[(String, String)],
+    ): Task[UI[Any]] =
+      ZIO.foreach(nodes)(n => renderNode(n, copyCode, depth, anchors, tocBuf)).map {
         case Vector()  => UI.Empty
         case Vector(u) => u
         case many      => UI.Fragment(many)
       }
 
-    private def renderNode(node: DocNode, copyCode: Boolean): Task[UI[Any]] = node match
+    private def renderNode(
+        node: DocNode,
+        copyCode: Boolean,
+        depth: Int,
+        anchors: PageToc.AnchorIds,
+        tocBuf: scala.collection.mutable.ArrayBuffer[(String, String)],
+    ): Task[UI[Any]] = node match
       case Prose(markdown) =>
         md.toUi(markdown, copyCode)
       case Section(title, children) =>
-        for kids <- renderNodes(children, copyCode)
-        yield el("section", Vector(el("h2", Vector(UI.Text(title))), kids))
+        val id = anchors.idFor(title)
+        if depth == 0 then tocBuf += (title -> id)
+        for kids <- renderNodes(children, copyCode, depth + 1, anchors, tocBuf)
+        yield
+          val heading = el(
+            "h2",
+            Vector(
+              el(
+                "a",
+                Vector(UI.Text("#")),
+                Vector(
+                  attr("href", s"#$id"),
+                  attr("class", "specular-heading-anchor"),
+                  attr("aria-hidden", "true"),
+                ),
+              ),
+              UI.Text(title),
+            ),
+            Vector(attr("id", id)),
+          )
+          el("section", Vector(heading, kids))
+        end for
       case ex: Example[?] =>
         val erased = ex.asInstanceOf[Example[Any]]
         for ui <- runner.run(erased)

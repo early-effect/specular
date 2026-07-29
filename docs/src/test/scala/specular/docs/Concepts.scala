@@ -86,9 +86,16 @@ In this dogfood site, `ExampleRegistry.fromPages(…)` collects interactive bodi
     section("SiteModel and ProjectMeta")(
       md"""
 `SiteModel` is the site-level config: title, `basePath`, pages, optional `clientScript`,
-theme hooks, `meta`, and optional `logo` (header mark beside the project name).
+theme hooks, `meta`, optional `logo`, nested `nav`, and `pageToc`.
 
 The header brand (logo + title) and the sidebar project name both link to `index.html`.
+
+For guide-scale sidebars, declare a nested product and `derives SiteNav` (Saferis-style).
+Nested case classes become nav groups; leaf `DocSpec` singletons become pages. Flatten with
+`nav.pages` for routing. Optional `@navLabel("…")` overrides the humanized type name.
+
+Section headings get stable `id`s. An on-page TOC appears automatically when a page has two or
+more top-level `section`s (`pageToc = Some(true/false)` to force).
 
 `ProjectMeta` is what hubs care about: name, organization, version, Scala version, title,
 description, docs URL, page list, and optional `displayVersion` (install / chrome when it

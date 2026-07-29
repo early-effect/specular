@@ -35,6 +35,53 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("section headings get ids and auto TOC appears for 2+ sections") {
+      val doc = page("Guide")(
+        section("Alpha")(md"a"),
+        section("Beta")(md"b"),
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-site-toc"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield assertTrue(
+        html.contains("id=\"alpha\""),
+        html.contains("id=\"beta\""),
+        html.contains("specular-page-toc"),
+        html.contains("On this page"),
+        html.contains("href=\"#alpha\""),
+        html.contains("href=\"#beta\""),
+        html.contains("specular-heading-anchor"),
+      )
+      end for
+    },
+    test("auto TOC is omitted for a single section") {
+      val doc = page("Short")(
+        section("Only")(md"x")
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-site-toc-one"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield assertTrue(
+        html.contains("id=\"only\""),
+        !html.contains("specular-page-toc"),
+      )
+      end for
+    },
+    test("pageToc force-on shows TOC for a single section") {
+      val doc = page("Forced")(
+        section("Only")(md"x")
+      )
+      val model = SiteModel(title = "Docs", pages = Vector(doc), pageToc = Some(true))
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-site-toc-force"))
+        out  <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        html <- ZIO.attempt(Files.readString(tmp.resolve("forced.html")))
+        _    <- ZIO.succeed(out)
+      yield assertTrue(html.contains("specular-page-toc"), html.contains("href=\"#only\""))
+      end for
+    },
     test("value examples render source and result panels") {
       val doc = page("Values")(
         exampleValue {

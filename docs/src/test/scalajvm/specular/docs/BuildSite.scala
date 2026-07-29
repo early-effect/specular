@@ -10,14 +10,22 @@ import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 /** Dogfood DocsSite: Test classpath main invoked by `docs/specularSite`. */
 object BuildSite extends DocsSite:
 
-  def pages = Vector(
-    WhySpecular.doc,
-    GettingStarted.doc,
-    Concepts.doc,
-    Diagrams.doc,
-    LibraryAuthors.doc,
-    Showcase.doc,
+  @navLabel("Start here")
+  final case class Start(why: WhySpecular.type, started: GettingStarted.type)
+
+  @navLabel("Guides")
+  final case class Guides(
+      concepts: Concepts.type,
+      diagrams: Diagrams.type,
+      authors: LibraryAuthors.type,
+      showcase: Showcase.type,
   )
+
+  final case class SpecularNav(start: Start, guides: Guides) derives SiteNav
+
+  private val siteNav: NavModel = SiteNav[SpecularNav].toNavModel
+
+  def pages: Vector[DocPage] = siteNav.pages
 
   override def site: SiteModel =
     val m       = meta
@@ -25,6 +33,8 @@ object BuildSite extends DocsSite:
     val org     = m.organization
     val branded = EarlyEffectTheme.brand(super.site)
     branded.copy(
+      nav = Some(siteNav),
+      pages = siteNav.pages,
       clientScript = Some("assets/client.js"),
       summaryMarkdown = Some(
         s"""**Specular** is tests-as-docs for Scala 3: author pages as `DocSpec` programs that assert
