@@ -45,17 +45,19 @@ pomIncludeRepository := { _ => false }
 usePgpKeyHex(sys.env.getOrElse("PGP_KEY_HEX", "MISSING_KEY_HEX"))
 
 // zipx: Aggregate CI from the build graph (see sbt zipxWorkflowGenerate).
-zipxJavaVersion      := "25"
+zipxJavaVersion      := JdkVersion("25")
 zipxWorkflowDispatch := true
 zipxScalaSteward     := true
 // One Verify job, one sbt session: format → tests → docs site (same as local `ci` alias).
-val ciVerify = "scalafmtCheckAll; test; docs/specularSite"
-zipxTestTask := ciVerify
+// Typed at its definition: SbtCommand's apply is inline and only accepts a literal.
+val ciVerify: SbtCommand = SbtCommand("scalafmtCheckAll; test; docs/specularSite")
+// SbtCommandText is a Subtype[String], so .text widens into String positions.
+zipxTestTask := ciVerify.text
 zipxCapabilities += Capability.test.copy(command = _ => ciVerify)
 zipxCapabilities += ZipxCentral.release
 zipxCapabilities += ZipxDocs.pages()
 
-addCommandAlias("ci", s"; $ciVerify")
+addCommandAlias("ci", s"; ${ciVerify.text}")
 
 /** Watch docs: rebuild site + restart DocsServe. Open http://127.0.0.1:8765 — Enter exits watch. */
 addCommandAlias("docsDev", "; ~docs/Test/runReload")
