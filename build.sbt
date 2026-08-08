@@ -50,8 +50,7 @@ zipxJavaVersion      := JdkVersion("25")
 zipxWorkflowDispatch := true
 zipxScalaSteward     := true
 // One Verify job, one sbt session: format → tests → docs site (same as local `ci` alias).
-// `testFull`, not `test`: on sbt 2 plain `test` is `testQuick`, which skips suites it deems
-// unaffected and prints "No tests to run", so a green Verify would prove nothing.
+// `testFull`, not `test`: plain `test` is `testQuick` on sbt 2, so Verify would prove nothing.
 // Typed at its definition: SbtCommand's apply is inline and only accepts a literal.
 val ciVerify: SbtCommand = SbtCommand("scalafmtCheckAll; testFull; docs/specularSite")
 // SbtCommandText is a Subtype[String], so .text widens into String positions.

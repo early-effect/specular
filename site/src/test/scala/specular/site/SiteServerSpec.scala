@@ -87,9 +87,10 @@ object SiteServerSpec extends ZIOSpecDefault:
         yield assertTrue(resp.status.isSuccess, body.contains("hello"))
       }
         // Ephemeral port + real clock; timeout so a stuck Netty Scope cannot hang site/test.
+        // A deadlock guard, not a performance bound: a cold CI runner blew 5 s.
         .provide(Server.defaultWith(_.onAnyOpenPort), Client.default) @@
         TestAspect.withLiveClock @@
-        TestAspect.timeout(5.seconds)
+        TestAspect.timeout(10.seconds)
     ),
   )
 
