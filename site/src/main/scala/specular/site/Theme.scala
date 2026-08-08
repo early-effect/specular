@@ -425,6 +425,24 @@ object Theme:
           " .specular-crash pre",
           background(Color.keyword("color-mix(in srgb, #b91c1c 12%, var(--specular-code-bg))")),
         ),
+        // A DomExample's SSR placeholder: what a reader without JavaScript is left with, so it has to
+        // read as deliberate copy rather than an empty box.
+        Selector(
+          " .specular-dom-fallback",
+          margin(0.px),
+          color(vMuted),
+          fontSize(0.9.rem),
+          fontStyle.italic,
+        ),
+        // Registry drift (a mount point with no mounter) or a mounter that failed. Styled like `.specular-crash`
+        // because it means the same thing to a reader: this example is broken, not merely quiet.
+        Selector(
+          " .specular-mount-error",
+          margin(0.px),
+          color(Color.keyword("color-mix(in srgb, #b91c1c 70%, var(--specular-text))")),
+          fontSize(0.9.rem),
+          fontFamily("ui-monospace, SFMono-Regular, Menlo, monospace"),
+        ),
         Selector(" a", color(vLink)),
         // GFM markdown tables: fill the content pane; scroll horizontally when needed.
         Selector(

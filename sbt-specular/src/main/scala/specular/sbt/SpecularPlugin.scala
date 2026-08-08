@@ -16,6 +16,7 @@ import sbt.Keys.*
   *   - `-Dspecular.site.dir` from `specularSiteDirectory`
   *   - `-Dspecular.site.basePath` from `specularBasePath` (or `SPECULAR_BASE_PATH`)
   *   - `-Dspecular.meta.docsUrl` from `specularDocsUrl` (or `SPECULAR_DOCS_URL`)
+  *   - `-Dspecular.source.root` from `specularSourceRoot` (source panels of `exampleDom`)
   */
 object SpecularPlugin extends AutoPlugin:
 
@@ -46,6 +47,11 @@ object SpecularPlugin extends AutoPlugin:
       )
     val specularArtifactKind =
       settingKey[String]("Install snippet kind: \"library\" (default) or \"plugin\"")
+    val specularSourceRoot =
+      settingKey[File](
+        "Root that exampleDom source paths are relative to, passed as -Dspecular.source.root " +
+          "(default: the build's base directory)"
+      )
     val specularJsLink =
       taskKey[Unit]("Optional Scala.js link before site build (no-op by default)")
     val specularSite =
@@ -76,6 +82,9 @@ object SpecularPlugin extends AutoPlugin:
     specularServeMain     := "specular.site.DocsServe",
     specularMetaProject   := None,
     specularArtifactKind  := "library",
+    // exampleDom paths are repo-relative, but projectMatrix starts forked JVMs under
+    // .sbt/matrix/<id>, so the builder cannot infer the root from its working directory.
+    specularSourceRoot := (ThisBuild / baseDirectory).value,
     // CI / early-effect/.github specular-docs workflow sets these via env when deploying to Pages.
     specularBasePath       := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
     specularDocsUrl        := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
@@ -94,6 +103,7 @@ object SpecularPlugin extends AutoPlugin:
         val displayVersion = specularDisplayVersion.value
         val dir            = specularSiteDirectory.value.getAbsolutePath
         val base           = specularBasePath.value
+        val sourceRoot     = specularSourceRoot.value.getAbsolutePath
         if kind != "library" && kind != "plugin" then
           sys.error(s"""specularArtifactKind must be "library" or "plugin", got: ${specularArtifactKind.value}""")
         Def.task {
@@ -116,6 +126,7 @@ object SpecularPlugin extends AutoPlugin:
             Seq(
               s"-Dspecular.site.dir=$dir",
               s"-Dspecular.site.basePath=$base",
+              s"-Dspecular.source.root=$sourceRoot",
             )
         }
       }.value

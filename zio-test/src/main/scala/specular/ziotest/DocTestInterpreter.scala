@@ -62,6 +62,20 @@ object DocTestInterpreter:
             }
           }
         )
+      case de: DomExample =>
+        // The one node kind that always emits a test, with no `.assert` — a deliberate exception to the
+        // "only .assert makes a test" rule. Its body lives in a Scala.js project the JVM cannot run, so
+        // what the JVM can and must check is that the named source still resolves. That depends on the
+        // filesystem, so a moved file or a deleted marker has to go red under plain `sbt test`, not only
+        // when someone happens to rebuild the site.
+        Vector(
+          test(s"example ${de.id} source") {
+            ZIO.succeed:
+              DomSourceLoader.resolve(de.source, DomSourceLoader.sourceRoot) match
+                case Right(excerpt) => assertTrue(excerpt.nonEmpty)
+                case Left(message)  => assertTrue(false).label(s"DomExample ${de.id}: $message")
+          }
+        )
       case _ =>
         Vector.empty
     })

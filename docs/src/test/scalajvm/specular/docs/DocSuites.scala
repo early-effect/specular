@@ -18,5 +18,8 @@ object DiagramsSuite extends DocSpecSuite:
 object LibraryAuthorsSuite extends DocSpecSuite:
   def doc = LibraryAuthors.doc
 
+object InteractiveSuite extends DocSpecSuite:
+  def doc = Interactive.doc
+
 object ShowcaseSuite extends DocSpecSuite:
   def doc = Showcase.doc

@@ -159,9 +159,9 @@ jobs:
       - name: test
         run: |
           if [ "$ZIPX_VERIFY_CLEAN_FULL" = "true" ]; then
-            sbt 'cleanFull; scalafmtCheckAll; test; docs/specularSite'
+            sbt 'cleanFull; scalafmtCheckAll; testFull; docs/specularSite'
           else
-            sbt 'scalafmtCheckAll; test; docs/specularSite'
+            sbt 'scalafmtCheckAll; testFull; docs/specularSite'
           fi
         env:
           ZIPX_VERIFY_CLEAN_FULL: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'clean') }}

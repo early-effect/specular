@@ -1,8 +1,9 @@
-val scala3Version   = "3.8.4"
-val zioVersion      = "2.1.26"
-val ascentVersion   = "0.3.1"
-val zioHttpVersion  = "3.11.3"
-val mermoidVersion  = "0.0.3"
+val scala3Version     = "3.8.4"
+val zioVersion        = "2.1.26"
+val ascentVersion     = "0.3.1"
+val zioHttpVersion    = "3.11.3"
+val mermoidVersion    = "0.0.3"
+val scalajsDomVersion = "2.8.1"
 
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
 scalaVersion         := scala3Version
@@ -49,8 +50,9 @@ zipxJavaVersion      := JdkVersion("25")
 zipxWorkflowDispatch := true
 zipxScalaSteward     := true
 // One Verify job, one sbt session: format → tests → docs site (same as local `ci` alias).
+// `testFull`, not `test`: plain `test` is `testQuick` on sbt 2, so Verify would prove nothing.
 // Typed at its definition: SbtCommand's apply is inline and only accepts a literal.
-val ciVerify: SbtCommand = SbtCommand("scalafmtCheckAll; test; docs/specularSite")
+val ciVerify: SbtCommand = SbtCommand("scalafmtCheckAll; testFull; docs/specularSite")
 // SbtCommandText is a Subtype[String], so .text widens into String positions.
 zipxTestTask := ciVerify.text
 zipxCapabilities += Capability.test.copy(command = _ => ciVerify)
@@ -129,8 +131,18 @@ lazy val core = (projectMatrix in file("core"))
     (p: Project) =>
       p.settings(
         javaTimePolyfill,
-        libraryDependencies += "rocks.earlyeffect" %% "ascent-js" % ascentVersion,
+        libraryDependencies ++= Seq(
+          "rocks.earlyeffect" %% "ascent-js" % ascentVersion,
+          // The Mounter hook speaks org.scalajs.dom.Element, the type foreign frameworks (preact,
+          // laminar, slinky, tyrian) already use, so their mounters need no cast. Types-only: the
+          // facade is @js.native over the same runtime objects as ascent.dom, so nothing is emitted.
+          // `%%` (not `%%%`): projectMatrix's JS row already appends the _sjs1_3 suffix.
+          "org.scala-js" %% "scalajs-dom" % scalajsDomVersion,
+        ),
         Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "scalajs",
+        // No jsdom JSEnv: scalajs-env-jsdom-nodejs is published only for Scala 2.10-2.13, so it
+        // cannot load in sbt 2's Scala 3 meta-build. The client specs run on the default Node
+        // JSEnv over an in-memory DOM stub instead (see specular.client.FakeDom).
       ),
   )
 
@@ -293,6 +305,9 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
                 Seq(
                   s"-Dspecular.site.dir=${siteDir.getAbsolutePath}",
                   s"-Dspecular.site.basePath=$basePath",
+                  // Mirrors sbt-specular's specularSourceRoot: exampleDom paths are repo-relative,
+                  // but projectMatrix forks start under .sbt/matrix/<id>.
+                  s"-Dspecular.source.root=${(ThisBuild / baseDirectory).value.getAbsolutePath}",
                 )
             val jars =
               (Test / fullClasspath).value
