@@ -55,8 +55,9 @@ pipeline keeps them honest. specular flips that:
   `ascent.UI` values with full-span source capture for the site code panel.
 - **One AST, two interpreters** — fold the same `DocPage` into zio-test assertions *and* a
   multi-page static site (nav, theme, SSR snapshots).
-- **ascent-native** — examples SSR through `ascent-html` and can remount live in the reader’s
-  browser. Docs dogfood the UI library they describe.
+- **ascent-native, not ascent-only** — examples SSR through `ascent-html` and can remount live in
+  the reader’s browser. Interactive examples are a keyed DOM mount, so preact, laminar, slinky,
+  tyrian or raw DOM work the same way. Docs dogfood the UI library they describe.
 
 Use it for a **library docs micro-site**, or for a **full project / org hub** (landing page,
 project catalog, themes). Each published micro-site emits a `metadata.json` so an org hub
@@ -66,7 +67,8 @@ version metadata.
 The dogfood site expands this story for adopters:
 [Why Specular](https://early-effect.github.io/specular/why-specular.html),
 [Getting started](https://early-effect.github.io/specular/getting-started.html),
-[Concepts](https://early-effect.github.io/specular/concepts.html), and
+[Concepts](https://early-effect.github.io/specular/concepts.html),
+[Interactive examples](https://early-effect.github.io/specular/interactive-examples.html), and
 [Library authors](https://early-effect.github.io/specular/library-authors.html).
 
 ---
@@ -96,6 +98,7 @@ enablePlugins(SpecularPlugin)
 specularBuildMain    := "com.example.docs.BuildSite"
 specularMetaProject  := Some(LocalProject("root")) // published module identity
 specularArtifactKind := "library" // or "plugin"
+specularSourceRoot   := (ThisBuild / baseDirectory).value // exampleDom paths are relative to this
 ```
 
 ```scala
@@ -114,7 +117,10 @@ def section(title: String)(nodes: DocNode*): Section
 def md"""…""": Prose                                          // markdown → ascent UI
 def example { ui }: Example[Any]                              // static UI + source capture
 def exampleIO { urio }: Example[Any]                          // effectful UI (e.g. sq(0), diagramInteractive)
-example.interactive                                           // also mount client-side
+def exampleValue { a } / exampleZIO { urio }: ValueExample[A]  // plain value / effect + printed result
+def expectFail("…") / expectCrash { zio }                     // must-not-compile / must-fail
+def exampleDom(key): DomExample                               // interactive mount, any framework
+example.interactive                                           // also mount client-side (ascent)
 example.assert(ui => assertTrue(…))                           // zio-test assertion
 ```
 
@@ -134,6 +140,39 @@ object BuildSite extends DocsSite:
 
 `sbt test` discovers DocSpecSuites; `sbt docs/specularSite` forks `BuildSite` on the Test
 classpath with `-Dspecular.meta.*` from `specularMetaProject`.
+
+### Interactive examples in any framework
+
+An interactive example is a **keyed DOM mount**, not an ascent feature. The site SSRs a placeholder
+carrying `data-specular-mount="<key>"`; the browser client hands the live element to the `Mounter`
+registered under that key. So preact, laminar, slinky, tyrian and raw DOM are all first-class, and
+ascent is one adapter over the same hook.
+
+```scala
+// JVM DocSpec: name the file; the site build reads it, so the panel shows real compiled code
+exampleDom("counter").fromSource("docs/client/src/main/scala/acme/Counter.scala", "demo")
+```
+
+```scala
+// Scala.js client: one call covers both kinds
+def run = ZIO.scoped {
+  SpecularClient.mountAll(
+    SpecularClient.fromPages(pages*) ++ Map("counter" -> Mounter.sync(el => Preact.render(node, el)))
+  ) *> ZIO.never
+}
+```
+
+`fromSource(path)` shows the whole file minus its leading `package` / `import` header;
+`fromSource(path, marker)` shows just the region between `// specular:begin <marker>` and
+`// specular:end`. Paths are repo-relative to `specularSourceRoot` and confined to it.
+
+`fromPages` registers every `.interactive` ascent example; `exampleDom` keys are yours to bind.
+Mounters share the **page's** `Scope` (so an `acquireRelease`d listener survives setup), run isolated
+(one failure gets an error box, not a blank page), and are forked (a never-ending mounter cannot
+starve the rest). `exampleDom` is the one node kind that emits a test without `.assert`, so a moved
+file or deleted marker goes red under plain `sbt test`.
+
+See the [Interactive examples](https://early-effect.github.io/specular/interactive-examples.html) page.
 
 ### Docs micro-site vs full site
 
@@ -176,7 +215,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 
 | Module | Artifact | Role |
 |--------|----------|------|
-| `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section`, shared `ProjectMeta` / catalog cards (+ JS `LiveCatalog`) |
+| `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section` / `exampleDom`, shared `ProjectMeta` / catalog cards; JVM `DomSourceLoader`; JS `SpecularClient` / `Mounter` / `LiveCatalog` |
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
 | `site` | `specular-site` | Markdown → UI (incl. fenced `mermaid`), SSR, themes, templates, `metadata.json`, JVM meta fetch |
 | `mermoid` | `specular-mermoid` | [mermoid](https://github.com/early-effect/mermoid) via `mermoid-ascent`: `Mermoid.diagram` (hybrid), `diagramInteractive` (selection/reflow), `svgDiagram` (inert); pulled in by site on JVM; `%%%` for Scala.js remount |

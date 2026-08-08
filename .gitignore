@@ -38,4 +38,7 @@ build.sbt.semanticdb
 .claude/
 .cursor/
 
+# Playwright MCP scratch output (snapshots / console logs from browser checks)
+.playwright-mcp/
+
 node_modules/

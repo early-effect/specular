@@ -69,13 +69,20 @@ Avoid:
     ),
     section("Interactive examples (optional)")(
       md"""
-Use `.interactive` when the point is *behavior* (clicks, state, streaming), not just a
-static tree. You will need:
+Reach for an interactive example when the point is *behavior* (clicks, state, streaming) rather than a
+static tree. Your library does **not** have to be an ascent library: an interactive example is a keyed
+DOM mount, so anything that writes into an element qualifies. [Interactive examples](interactive-examples.html)
+is the full guide; the setup is:
 
-1. Scala.js docs project depending on `specular-core` (and ascent-js as needed)
-2. `ExampleRegistry.fromPages(…)` listing the same pages as `SiteModel`
-3. A `ClientMain` that mounts into `#<page-slug>-ex-N`
+1. A Scala.js docs project depending on `specular-core` (plus your own JS modules)
+2. Either `.interactive` on an ascent example, or `exampleDom(key).fromSource(file, marker)` for
+   anything else
+3. A `ClientMain` calling `SpecularClient.mountAll(SpecularClient.fromPages(pages*) ++ yourMounters)`
 4. `specularSite` (or equivalent) linking `main.js` into `assets/client.js`
+
+`fromPages` registers every `.interactive` ascent example for you; `exampleDom` keys are yours to bind,
+since specular cannot import your client code. Guard the two against drift with
+`SpecularClient.requiredKeys(pages*)`.
 
 If your library is JVM-only and examples are pure values, skip the JS client entirely.
 """

@@ -71,10 +71,21 @@ object SiteBuilder:
           .groupBy(_.slug)
           .collect { case (slug, group) if group.size > 1 => s"$slug ← ${group.map(_.title).mkString(", ")}" }
           .toVector
+      // Mount keys are the browser's dispatch table, so they must be unique across the WHOLE site, not
+      // per page: the client keys one `Map[String, Mounter]`, so a collision (two `exampleDom`s sharing a
+      // key, or an explicit key equal to some page's `<slug>-ex-N` auto-key) silently drops a mount.
+      val keyDupes =
+        pages
+          .flatMap(p => DocInternal.mountKeys(p.children).map(_ -> p.title))
+          .groupBy(_._1)
+          .collect { case (key, group) if group.size > 1 => s"$key ← ${group.map(_._2).mkString(", ")}" }
+          .toVector
       if empty.nonEmpty then
         ZIO.fail(new IllegalArgumentException(s"DocPage title(s) produce empty slug: ${empty.mkString(", ")}"))
       else if dupes.nonEmpty then
         ZIO.fail(new IllegalArgumentException(s"Duplicate DocPage slug(s): ${dupes.mkString("; ")}"))
+      else if keyDupes.nonEmpty then
+        ZIO.fail(new IllegalArgumentException(s"Duplicate specular mount key(s): ${keyDupes.mkString("; ")}"))
       else ZIO.unit
     end validatePages
 
@@ -234,15 +245,53 @@ object SiteBuilder:
             Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
             Vector(attr("class", "specular-source")),
           )
+          // An interactive example also carries the mount key, so the browser client needs one scan
+          // for ascent and foreign examples alike (see MountPoint).
+          val mountAttrs = erased.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
           el(
             "figure",
             Vector(
               PageTemplate.codeBlock(pre, copyCode),
-              el("div", Vector(ui), Vector(attr("id", erased.id), attr("class", "specular-snapshot"))),
+              el(
+                "div",
+                Vector(ui),
+                Vector(attr("id", erased.id), attr("class", "specular-snapshot")) ++ mountAttrs,
+              ),
             ),
             Vector(attr("class", "specular-example")),
           )
         end for
+      case de: DomExample =>
+        // Source comes from a real Scala.js file rather than a captured expression, so an unresolvable
+        // ref fails the site build the way `expectCrash` does: a stale path or deleted marker must not
+        // degrade into an example with an empty source panel.
+        ZIO
+          .fromEither(DomSourceLoader.resolve(de.source, DomSourceLoader.sourceRoot))
+          .mapError(msg => new IllegalArgumentException(s"DomExample ${de.id}: $msg"))
+          .map { excerpt =>
+            val pre = el(
+              "pre",
+              Vector(el("code", Vector(UI.Text(excerpt)))),
+              Vector(attr("class", "specular-source")),
+            )
+            el(
+              "figure",
+              Vector(
+                PageTemplate.codeBlock(pre, copyCode),
+                el(
+                  "div",
+                  // The fallback is what no-JS readers see; the client clears it before mounting.
+                  Vector(de.fallback),
+                  Vector(
+                    attr("id", de.id),
+                    attr("class", "specular-snapshot"),
+                    attr(MountPoint.Attr, de.mountKey),
+                  ),
+                ),
+              ),
+              Vector(attr("class", "specular-example")),
+            )
+          }
       case ve: ValueExample[?] =>
         val erased = ve.asInstanceOf[ValueExample[Any]]
         for value <- ZIO.scoped(erased.body)

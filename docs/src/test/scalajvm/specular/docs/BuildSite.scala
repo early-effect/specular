@@ -18,6 +18,7 @@ object BuildSite extends DocsSite:
       concepts: Concepts.type,
       diagrams: Diagrams.type,
       authors: LibraryAuthors.type,
+      interactive: Interactive.type,
       showcase: Showcase.type,
   )
 
