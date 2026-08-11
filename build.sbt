@@ -55,7 +55,7 @@ zipxScalaSteward     := true
 val ciVerify: SbtCommand = SbtCommand("scalafmtCheckAll; testFull; docs/specularSite")
 // SbtCommandText is a Subtype[String], so .text widens into String positions.
 zipxTestTask := ciVerify.text
-zipxCapabilities += Capability.test.copy(command = _ => ciVerify)
+zipxCapabilities += Capability.test.copy(command = _ => Some(ciVerify))
 zipxCapabilities += ZipxCentral.release
 zipxCapabilities += ZipxDocs.pages()
 
