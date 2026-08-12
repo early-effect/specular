@@ -55,7 +55,7 @@ zipxScalaSteward     := true
 val ciVerify: SbtCommand = SbtCommand("scalafmtCheckAll; testFull; docs/specularSite")
 // SbtCommandText is a Subtype[String], so .text widens into String positions.
 zipxTestTask := ciVerify.text
-zipxCapabilities += Capability.test.copy(command = _ => ciVerify)
+zipxCapabilities += Capability.test.copy(command = _ => Some(ciVerify))
 zipxCapabilities += ZipxCentral.release
 zipxCapabilities += ZipxDocs.pages()
 
@@ -170,7 +170,7 @@ lazy val site = (projectMatrix in file("site"))
       "org.commonmark"     % "commonmark"                % "0.30.0",
       "org.commonmark"     % "commonmark-ext-gfm-tables" % "0.30.0",
       // Format captured example source strings for the site (JVM-only).
-      "org.scalameta" %% "scalafmt-core" % "3.11.1",
+      "org.scalameta" %% "scalafmt-core" % "3.11.5",
     ),
     zioTestSettings,
   )
