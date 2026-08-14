@@ -218,7 +218,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section` / `exampleDom`, shared `ProjectMeta` / catalog cards; JVM `DomSourceLoader`; JS `SpecularClient` / `Mounter` / `LiveCatalog` |
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
 | `site` | `specular-site` | Markdown → UI (incl. fenced `mermaid`), SSR, themes, templates, `metadata.json`, JVM meta fetch |
-| `mermoid` | `specular-mermoid` | [mermoid](https://github.com/early-effect/mermoid) via `mermoid-ascent`: `Mermoid.diagram` (hybrid), `diagramInteractive` (selection/reflow), `svgDiagram` (inert); pulled in by site on JVM; `%%%` for Scala.js remount |
+| `mermoid` | `specular-mermoid` | [mermoid](https://github.com/early-effect/mermoid) via `mermoid-ascent`: `Mermoid.diagram` (hybrid), `diagramInteractive` / `diagramControlled` (selection/reflow), `svgDiagram` (inert); pulled in by site on JVM; `%%%` for Scala.js remount |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
 | `docs` | (unpublished) | Dogfood site for specular itself |

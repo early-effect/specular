@@ -2,7 +2,7 @@ val scala3Version     = "3.8.4"
 val zioVersion        = "2.1.26"
 val ascentVersion     = "0.3.1"
 val zioHttpVersion    = "3.11.3"
-val mermoidVersion    = "0.0.3"
+val mermoidVersion    = "0.0.5"
 val scalajsDomVersion = "2.8.1"
 
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
