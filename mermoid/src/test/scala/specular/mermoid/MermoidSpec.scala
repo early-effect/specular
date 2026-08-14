@@ -53,7 +53,30 @@ object MermoidSpec extends ZIOSpecDefault:
           html.contains("Do the work"),
           html.contains("#c46a52"),
         )
-      }
+      },
+      test("chalkboard uses readable type and terracotta selection") {
+        val css = Mermoid.svg(flowchart)
+        assertTrue(
+          css.contains("17px") || css.contains("font-size: 17"),
+          css.contains("--mermoid-selection"),
+          css.contains("#c46a52"),
+        )
+      },
+      test("sad happy warn classes restyle node-shape") {
+        val src =
+          """flowchart LR
+            |  A[Sad] --> B[Happy]
+            |  class A sad
+            |  class B happy
+            |""".stripMargin
+        for html <- renderHybrid(src)
+        yield assertTrue(
+          html.contains("sad"),
+          html.contains("happy"),
+          html.contains("#5c2a2a"),
+          html.contains("#1f4a35"),
+        )
+      },
     ),
     suite("SSR round-trip (inert svgDiagram)")(
       test("a flowchart renders the node and edge structure mermoid emits") {

@@ -114,7 +114,23 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
       yield assertTrue(
         html.contains("<svg"),
         html.contains("mermoid-node"),
+        html.contains("mermoid-fit") || html.contains("mermoid-root"),
         !html.contains("specular-source"),
+      )
+    },
+    test("fenced mermaid honors chalkboard path classes") {
+      val md =
+        """```mermaid
+          |flowchart LR
+          |  A[Tired] --> B[Zipx]
+          |  class A warn
+          |```""".stripMargin
+      for
+        ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi(md))
+        html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
+      yield assertTrue(
+        html.contains("warn"),
+        html.contains("#4a4030") || html.contains("#e0c070"),
       )
     },
     test("ThemeTokens.diagramConfig reaches fenced mermaid") {

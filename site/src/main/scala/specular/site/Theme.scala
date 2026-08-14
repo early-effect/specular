@@ -271,7 +271,8 @@ object Theme:
         Selector(" > nav.specular-page-toc", maxWidth(52.rem)),
         Selector(" > table", maxWidth.none, width.pct(100)),
         Selector(" > figure.specular-example", maxWidth.none, width.pct(100)),
-        Selector(" > .mermoid-root", maxWidth.none, width.pct(100)),
+        // Fenced mermaid stays in the prose measure; layout uses Mermoid.proseViewport (52rem).
+        Selector(" section > .mermoid-root", maxWidth(52.rem), width.pct(100)),
         Selector(" > .mermoid-ascent", maxWidth.none, width.pct(100)),
         Selector(" section > p", maxWidth(52.rem)),
         Selector(" section > h1", maxWidth(52.rem)),
