@@ -68,7 +68,7 @@ object MarkdownRenderer:
         el("hr", Vector.empty)
       case fb: FencedCodeBlock =>
         fenceLanguage(fb) match
-          case "mermaid" => Mermoid.diagram(fb.getLiteral, diagramConfig)
+          case "mermaid" => Mermoid.diagram(fb.getLiteral, diagramConfig, Some(Mermoid.proseViewport))
           case _         => sourcePre(fb.getLiteral, copyCode)
       case ib: IndentedCodeBlock =>
         // Indented blocks are prose-adjacent legacy markdown; copy controls are for fenced code only.
