@@ -133,6 +133,21 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
         html.contains("#4a4030") || html.contains("#e0c070"),
       )
     },
+    test("fenced state diagrams honor chalkboard classes") {
+      val md =
+        """```mermaid
+          |stateDiagram-v2
+          |  [*] --> Green
+          |  class Green happy
+          |```""".stripMargin
+      for
+        ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi(md))
+        html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
+      yield assertTrue(
+        html.contains("happy"),
+        html.contains("#1f4a35") || html.contains("#7dcea0"),
+      )
+    },
     test("ThemeTokens.diagramConfig reaches fenced mermaid") {
       val md =
         """```mermaid
