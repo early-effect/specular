@@ -77,6 +77,22 @@ object MermoidSpec extends ZIOSpecDefault:
           html.contains("#1f4a35"),
         )
       },
+      test("state diagrams accept class like flowcharts") {
+        val src =
+          """stateDiagram-v2
+            |  [*] --> Green
+            |  Green --> Yellow: Timer
+            |  class Green happy
+            |  class Yellow warn
+            |""".stripMargin
+        for html <- renderHybrid(src)
+        yield assertTrue(
+          html.contains("happy"),
+          html.contains("warn"),
+          html.contains("#1f4a35"),
+          html.contains("#4a4030"),
+        )
+      },
     ),
     suite("SSR round-trip (inert svgDiagram)")(
       test("a flowchart renders the node and edge structure mermoid emits") {

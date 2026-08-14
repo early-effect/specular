@@ -121,13 +121,26 @@ flowchart LR
   Site --> Out([hybrid on the page])
 ```
 
-`class A,B sad` / `happy` / `warn` are chalkboard product classes (fill + stroke on `.node-shape`). Fences layout at `Mermoid.proseViewport` (52rem) so type stays readable in the content column.
+`class A,B sad` / `happy` / `warn` are chalkboard product classes (fill + stroke on `.node-shape`). They work on
+flowcharts and `stateDiagram-v2`. Fences layout at `Mermoid.proseViewport` (52rem) so type stays readable in the content
+column.
 
 ```mermaid
 flowchart LR
   Tired --> Zipx
   class Tired warn
   class Zipx happy
+```
+
+```mermaid
+stateDiagram-v2
+  [*] --> Green
+  Green --> Yellow: Timer
+  Yellow --> Red: Timer
+  Red --> Green: Timer
+  class Green happy
+  class Yellow warn
+  class Red sad
 ```
 """
     ),
