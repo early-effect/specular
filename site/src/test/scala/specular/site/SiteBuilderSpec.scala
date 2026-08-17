@@ -179,6 +179,8 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         theme.contains("--specular-bg"),
         theme.contains("specular-brand-logo"),
         Files.exists(tmp.resolve("assets/theme.css")),
+        Files.exists(tmp.resolve("assets/dev-stamp")),
+        Files.readString(tmp.resolve("assets/dev-stamp")).nn.nonEmpty,
         Files.exists(tmp.resolve("metadata.json")),
         meta.contains("\"name\""),
         meta.contains("Alpha") || meta.contains("alpha"),

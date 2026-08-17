@@ -228,21 +228,28 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 ## Build & dogfood
 
 ```bash
-sbt test                 # unit + DocSpec tests
-sbt docs/specularSite    # link JS client + write target/site (incl. metadata.json)
-sbt docsDev              # watch docs: rebuild site + restart preview (http://127.0.0.1:8765)
+sbt testFull             # unit + DocSpec tests (plain `test` is testQuick on sbt 2)
+sbt docs/specularSite    # spliceFast JS client + write target/site (incl. metadata.json)
+sbt docsDev              # watch docs: spliceFast + rebuild in place (http://127.0.0.1:8765)
 ./scripts/install-git-hooks   # once per clone: pre-commit runs scalafmtCheckAll
 ```
 
-`docsDev` is `~docs/Test/runReload` (sbt-reload): each source change runs `docs/specularSite`, then
-restarts `DocsServe`. Press Enter to leave watch mode.
+`docsDev` starts `DocsServe` once (ascent-preview: static files plus SSE reload), then
+`~docs/specularSiteDev`. Each source change runs `spliceFast` and rebuilds HTML; the tab
+reloads when `assets/dev-stamp` changes. Press Enter to leave watch mode.
 
 Requires a JDK that can run Scala 3.8 / sbt 2 (CI uses Temurin 25). Interactive examples need
-the docs JS link (`docsJS/fastLinkJS`), which `docs/specularSite` runs for you.
+the docs JS splice (`docsJS/spliceFast`), which
+`docs/specularSite` / `docsDev` run for you. Add [sbt-splice](https://github.com/early-effect/sbt-splice)
+when the client uses `@JSImport`; Specular's own client has none, but still ships through splice
+so there is one pipeline. Publish should move to `spliceFull` once
+[sbt-splice#11](https://github.com/early-effect/sbt-splice/issues/11) is fixed
+([#67](https://github.com/early-effect/specular/issues/67)).
 
 ### Publishing docs (GitHub Pages)
 
-On each `v*` tag (or **Actions → Docs → Run workflow**), [`.github/workflows/docs.yml`](.github/workflows/docs.yml) calls the org reusable
+On each `v*` tag (or **Actions → CI → Run workflow**), the generated `docs` job in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) (`ZipxDocs.pages()`) calls the org reusable
 workflow [`early-effect/.github` → `specular-docs.yml`](https://github.com/early-effect/.github/blob/main/.github/workflows/specular-docs.yml).
 That builds `docs/specularSite` and deploys to **GitHub Pages** at
 `https://early-effect.github.io/specular/`.

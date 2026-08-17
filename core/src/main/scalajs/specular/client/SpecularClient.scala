@@ -1,5 +1,6 @@
 package specular.client
 
+import ascent.js.DevReload
 import org.scalajs.dom
 import specular.*
 import zio.*
@@ -20,7 +21,8 @@ import zio.*
   *
   * Drift is loud in one direction only: a mount point with no registered mounter gets a console error and a visible
   * error box, while a registered key with no node on the current page is a silent no-op, since other pages' nodes are
-  * absent by design.
+  * absent by design. After dispatch, [[ascent.js.DevReload.install]] subscribes to ascent-preview SSE on localhost only
+  * (inert on Pages).
   */
 object SpecularClient:
 
@@ -29,6 +31,8 @@ object SpecularClient:
     for
       points <- ZIO.succeed(mountPoints)
       _      <- ZIO.foreachDiscard(points)((el, key) => mountOne(el, key, mounters).forkScoped)
+      // Localhost only; inert on Pages. Ascent preview SSE reloads the tab when assets/dev-stamp changes.
+      _ <- ZIO.succeed(DevReload.install())
     yield ()
 
   /** Ascent adapter: a mounter per interactive `Example` across `pages`, keyed by its mount key.

@@ -1,10 +1,16 @@
 package specular.site
 
+import ascent.preview.{Preview, PreviewConfig}
 import zio.*
 
 import java.nio.file.{Path, Paths}
 
-/** Preview server for a built site directory (`specularServe` / local docs loop). */
+/** Preview server for a built site directory (`specularServe` / local docs loop).
+  *
+  * Thin wrapper around [[ascent.preview.Preview]]: path-jailed static serve plus SSE tab reload on stamp change.
+  * Resolves the site root from CLI args / `-Dspecular.site.dir` because projectMatrix forks often start under
+  * `.sbt/matrix/<project>` rather than the repo root.
+  */
 object DocsServe extends ZIOAppDefault:
 
   def run =
@@ -14,11 +20,8 @@ object DocsServe extends ZIOAppDefault:
         .map(_.toInt)
         .orElse(Option(java.lang.System.getProperty("specular.site.port")).map(_.nn.toInt))
         .getOrElse(8765)
-      // Prefer an explicit path (sbt-reload `runReloadArgs`, or specularServe) over cwd-relative
-      // `target/site` — projectMatrix forks often start under `.sbt/matrix/<project>`.
       root = resolveRoot(args)
-      _ <- Console.printLine(s"Serving $root on http://127.0.0.1:$port")
-      _ <- SiteServer.serveForever(root, port)
+      _ <- Preview.serveForever(PreviewConfig(root = root, port = port))
     yield ()
 
   /** `args(1)` if present, else `-Dspecular.site.dir`, else cwd-relative `target/site`. */

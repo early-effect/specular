@@ -107,16 +107,21 @@ object BuildSite extends DocsSite:
   // optional: override site / layers / afterBuild
 ```
 
-Also under `src/test`. `sbt docs/specularSite` compiles Test, forks that main with product
-meta from `specularMetaProject`, and writes HTML plus `metadata.json`.
+Also under `src/test`. `sbt docs/specularSite` compiles Test, splices the JS client (`spliceFast`),
+forks that main with product meta from `specularMetaProject`, and writes HTML plus `metadata.json`.
 
 Local loop:
 
 ```bash
-sbt test
-sbt docs/specularSite
-sbt docs/specularServe   # preview
+sbt docsDev              # edit loop: spliceFast, preview once, tab reload
+sbt docs/specularSite    # one-shot site (same spliceFast; Pages deploys this)
+sbt docs/specularServe   # one-shot preview of an already-built site
 ```
+
+A Scala.js client is optional. When you have one, add `sbt-splice` and wire `specularJsLink` and
+`specularJsLinkDev` to `spliceFast` (copy into `assets/client.js`). Switch `specularJsLink` to
+`spliceFull` once [sbt-splice#11](https://github.com/early-effect/sbt-splice/issues/11) is fixed
+([#67](https://github.com/early-effect/specular/issues/67)).
 """,
       example {
         E.div(A.className("demo"), E.p("Hello from Specular"))
@@ -128,7 +133,9 @@ Any static host works; GitHub Pages is the common path. Enable **Settings → Pa
 Source: GitHub Actions**, then deploy `specularSite` output on `v*` tags (and optional
 `workflow_dispatch`).
 
-One reusable-workflow example (copy and point `sbt-project` at your docs module):
+On a zipx build, add `zipxCapabilities += ZipxDocs.pages()` and regenerate CI: that emits a `docs`
+job in `.github/workflows/ci.yml` calling the same reusable workflow. Without zipx, a caller
+workflow is enough (copy and point `sbt-project` at your docs module):
 
 ```yaml
 # .github/workflows/docs.yml

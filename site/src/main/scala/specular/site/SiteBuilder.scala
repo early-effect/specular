@@ -60,6 +60,9 @@ object SiteBuilder:
           if model.isLanding then writeLandingIndex(model, root)
           else writeDocsIndex(model, root)
         metaPath <- writeMetadata(model, root)
+        // Last write: SSE live-reload watches this file. Harmless on Pages (client only polls localhost).
+        stamp = java.lang.Long.toString(java.lang.System.currentTimeMillis)
+        _ <- writeUnder(root, root.resolve("assets/dev-stamp"), stamp)
       yield SiteOutput(root, paths :+ index :+ metaPath)
       end for
     end buildSite
