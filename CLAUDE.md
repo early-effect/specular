@@ -159,7 +159,7 @@ These are load-bearing security properties, not incidental style. Preserve them:
 - **The client error box uses `textContent`, never `innerHTML`.** Its message quotes a mount key and an exception message. Mount keys reach an HTML *attribute*, which is why `MountKey`'s alphabet is narrow; `InteractiveHtmlSpec` asserts what lands at the attribute position.
 - **Catalog metadata URLs are an http(s) allowlist with a 256 KiB body cap** (`ProjectMeta.MaxBodyBytes`), not an open proxy. `ProjectCatalog.live` filters through `ProjectMeta.isAllowedMetaUrl`; rebuild the hub when the allowlist changes.
 
-Every build writes **`metadata.json`** next to `index.html` so org hubs compose library cards from live manifests. CI controls it through the environment: `SPECULAR_BASE_PATH` (`/specular` for GitHub Pages project sites, `.` locally), `SPECULAR_DOCS_URL`, and `SPECULAR_DISPLAY_VERSION` (used to avoid advertising a dynver `-ci` coordinate on docs-only deploys).
+Every build writes **`metadata.json`** next to `index.html` so org hubs compose library cards from live manifests. CI controls it through the environment: `SPECULAR_BASE_PATH` (`/specular` for GitHub Pages project sites, `.` locally), `SPECULAR_DOCS_URL`, and `SPECULAR_STRIP_CI` (`true` selects `stripCi` so docs-only deploys do not advertise a dynver `-ci` coordinate).
 
 ## Build and CI
 

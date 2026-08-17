@@ -12,7 +12,7 @@ import sbt.Keys.*
   * identity. Wire `specularJsLink` to `(jsProj / Compile / fastLinkJS)` when you have a Scala.js client.
   *
   * Passes into the forked builder:
-  *   - `-Dspecular.meta.*` from `specularMetaProject` (+ `specularArtifactKind`, optional `specularDisplayVersion`)
+  *   - `-Dspecular.meta.*` from `specularMetaProject` (+ `specularArtifactKind`, optional mapped display version)
   *   - `-Dspecular.site.dir` from `specularSiteDirectory`
   *   - `-Dspecular.site.basePath` from `specularBasePath` (or `SPECULAR_BASE_PATH`)
   *   - `-Dspecular.meta.docsUrl` from `specularDocsUrl` (or `SPECULAR_DOCS_URL`)
@@ -36,12 +36,17 @@ object SpecularPlugin extends AutoPlugin:
     val specularDocsUrl =
       settingKey[String]("Canonical docs URL written to metadata.json as -Dspecular.meta.docsUrl")
     val specularDisplayVersion =
-      settingKey[String](
-        "Optional version for docs install snippets and chrome (empty = build version). " +
-          "Use for docs-only deploys that would otherwise advertise a dynver -ci coordinate. " +
-          "Also honored via SPECULAR_DISPLAY_VERSION."
+      settingKey[String => String](
+        "Maps the build version to the version shown in docs install snippets and chrome. " +
+          "Default is identity (advertise the build version). Use stripCi to drop a trailing " +
+          "-ci, or (_ => \"0.0.6\") to pin. SPECULAR_STRIP_CI=true selects stripCi and wins " +
+          "over this setting. The mapped value is passed as -Dspecular.meta.displayVersion " +
+          "only when it differs from the build version."
       )
-    val specularMetaProject =
+
+    /** Drop a trailing `-ci` (sbt-dynver-ci). RC and SNAPSHOT coordinates are unchanged. */
+    def stripCi(version: String): String = DisplayVersion.stripCi(version)
+    val specularMetaProject              =
       settingKey[Option[ProjectReference]](
         "Project whose name/organization/version/description feed -Dspecular.meta.* (required for specularSite)"
       )
@@ -88,7 +93,7 @@ object SpecularPlugin extends AutoPlugin:
     // CI / early-effect/.github specular-docs workflow sets these via env when deploying to Pages.
     specularBasePath       := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
     specularDocsUrl        := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
-    specularDisplayVersion := sys.env.getOrElse("SPECULAR_DISPLAY_VERSION", ""),
+    specularDisplayVersion := identity[String],
     specularJsLink         := {},
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     specularMetaProps := Def.uncached {
@@ -98,24 +103,26 @@ object SpecularPlugin extends AutoPlugin:
             "specularMetaProject is not set. Example: specularMetaProject := Some(LocalProject(\"root\"))"
           )
         }
-        val kind           = specularArtifactKind.value.trim.toLowerCase
-        val docsUrl        = specularDocsUrl.value
-        val displayVersion = specularDisplayVersion.value
-        val dir            = specularSiteDirectory.value.getAbsolutePath
-        val base           = specularBasePath.value
-        val sourceRoot     = specularSourceRoot.value.getAbsolutePath
+        val kind       = specularArtifactKind.value.trim.toLowerCase
+        val docsUrl    = specularDocsUrl.value
+        val displayMap = specularDisplayVersion.value
+        val dir        = specularSiteDirectory.value.getAbsolutePath
+        val base       = specularBasePath.value
+        val sourceRoot = specularSourceRoot.value.getAbsolutePath
         if kind != "library" && kind != "plugin" then
           sys.error(s"""specularArtifactKind must be "library" or "plugin", got: ${specularArtifactKind.value}""")
         Def.task {
           def opt(key: String, value: String): Seq[String] =
             if value == null || value.isBlank then Nil else Seq(s"-Dspecular.meta.$key=$value")
 
-          val home = (ref / homepage).value.map(_.toString).getOrElse("")
-          val desc = (ref / description).value
-          val nm   = (ref / name).value
+          val home           = (ref / homepage).value.map(_.toString).getOrElse("")
+          val desc           = (ref / description).value
+          val nm             = (ref / name).value
+          val buildVersion   = (ref / version).value
+          val displayVersion = DisplayVersion.displayProp(buildVersion, displayMap)
           opt("name", nm) ++
             opt("organization", (ref / organization).value) ++
-            opt("version", (ref / version).value) ++
+            opt("version", buildVersion) ++
             opt("scalaVersion", (ref / scalaVersion).value) ++
             opt("title", nm) ++
             opt("description", desc) ++

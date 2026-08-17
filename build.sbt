@@ -266,15 +266,12 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
             val siteDir   = (ThisBuild / baseDirectory).value / "target" / "site"
             val basePath = sys.env.getOrElse("SPECULAR_BASE_PATH", ".")
             val docsUrl  = sys.env.getOrElse("SPECULAR_DOCS_URL", "")
-            // Prefer SPECULAR_DISPLAY_VERSION; otherwise hide dynver `-ci` / SNAPSHOT like peer docs modules.
+            // This repo cannot load its own plugin; mirror `specularDisplayVersion := stripCi`
+            // so dogfood Pages do not advertise a dynver `-ci` coordinate.
             val displayVersion = {
-              val fromEnv = sys.env.getOrElse("SPECULAR_DISPLAY_VERSION", "")
-              if fromEnv.nonEmpty then fromEnv
-              else
-                val v = version.value
-                if v.endsWith("-ci") || v.endsWith("-SNAPSHOT") then
-                  previousStableVersion.value.getOrElse("")
-                else ""
+              val v      = version.value
+              val mapped = if v.endsWith("-ci") then v.stripSuffix("-ci") else v
+              if mapped == v then "" else mapped
             }
 
             (LocalProject("docsJS") / Compile / fastLinkJS).value
@@ -355,4 +352,6 @@ lazy val plugin = project
     name := "sbt-specular",
     scalacOptions ++= commonScalacOptions,
     // sbt 2.0 plugins compile against Scala 3 and publish with the _sbt2_3 suffix.
+    zioTestSettings,
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
   )
