@@ -104,7 +104,7 @@ should differ from the build version). Prefer `ProjectMeta.fromSystemProperties`
 
 - `-Dspecular.meta.name=…`
 - `-Dspecular.meta.version=…`
-- `-Dspecular.meta.displayVersion=…` (optional; `specularDisplayVersion` / `SPECULAR_DISPLAY_VERSION`)
+- `-Dspecular.meta.displayVersion=…` (optional; `specularDisplayVersion := stripCi` / `SPECULAR_STRIP_CI=true`)
 - `-Dspecular.site.dir=…`
 - `-Dspecular.site.basePath=…`
 

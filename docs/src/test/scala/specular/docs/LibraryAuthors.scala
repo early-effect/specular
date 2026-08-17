@@ -97,13 +97,15 @@ sbt-dynver / [sbt-dynver-ci](https://github.com/early-effect/sbt-dynver-ci) may 
 build version like `0.0.7-ci`. That is fine for jars and cache epochs, but install snippets
 and header chrome should not advertise it as a Central coordinate.
 
-Set an override so docs show a release (or placeholder) version while the build version stays
-unchanged:
+Map the build version so docs show a release (or placeholder) while `metadata.json` `version`
+stays the real coordinate. The default is identity. `stripCi` drops a trailing `-ci` only
+(`0.2.2-ci` → `0.2.2`; RC and SNAPSHOT are left alone). `SPECULAR_STRIP_CI=true` selects
+`stripCi` and wins over the setting. The mapped value is passed as
+`-Dspecular.meta.displayVersion` only when it differs from the build version.
 
 ```scala
-// empty = use build version (default; also SPECULAR_DISPLAY_VERSION)
-specularDisplayVersion := "0.0.6"
-// or, with dynver: previousStableVersion.value.getOrElse("<version>")
+specularDisplayVersion := stripCi
+// or pin: specularDisplayVersion := (_ => "0.0.6")
 ```
 
 `ProjectMeta.displayVersion` / `docsVersion` feed `ArtifactKind.defaultInstall`, docs header
@@ -115,8 +117,8 @@ Checklist:
 1. `sbt test` green (includes DocSpecs)
 2. Tag `vX.Y.Z` → Central publish **and** docs deploy
 3. Confirm your published docs URL and `…/metadata.json` load
-4. Use a manual docs workflow run when you need a regen without a new tag (set
-   `specularDisplayVersion` / `SPECULAR_DISPLAY_VERSION` so install copy stays honest)
+4. Use a manual docs workflow run when you need a regen without a new tag (`stripCi` /
+   `SPECULAR_STRIP_CI=true` so install copy stays honest)
 
 Enable GitHub Pages (Actions source) before the first tag deploy if that is your host.
 """,
