@@ -24,7 +24,7 @@ Keep docs next to the library, not in a separate repo. **Docs-as-tests** means D
 | `DocsSite` (`BuildSite`) | `docs/src/test/scalajvm/…` (or `src/test/scala`) |
 | `ClientMain` (optional) | `docs/src/main/scalajs/…` (linker-only JS project) |
 | Shared DocSpecs for JS | same `src/test/scala` added to JS `Compile` sources |
-| Caller workflow | `.github/workflows/docs.yml` |
+| Caller workflow | zipx `ZipxDocs.pages()` (or a `docs.yml` caller of `specular-docs.yml`) |
 
 Without interactives, extend `DocSpecSuite` once per page (page = suite). With interactives,
 keep shared pages as `DocSpec` and add thin JVM `DocSpecSuite` wrappers so the JS client does
@@ -41,7 +41,7 @@ the shared logo. Branding is three one-liners on the `DocsSite`: `EarlyEffectThe
         E.ol(
           E.li("docs Test asserts DocSpecs"),
           E.li("docs/specularSite SSR from Test CP"),
-          E.li("docs JS (optional) links client.js"),
+          E.li("docs JS (optional) splices client.js"),
         )
       }.assert(_ => assertTrue(true)),
     ),
@@ -78,7 +78,7 @@ is the full guide; the setup is:
 2. Either `.interactive` on an ascent example, or `exampleDom(key).fromSource(file, marker)` for
    anything else
 3. A `ClientMain` calling `SpecularClient.mountAll(SpecularClient.fromPages(pages*) ++ yourMounters)`
-4. `specularSite` (or equivalent) linking `main.js` into `assets/client.js`
+4. `specularSite` (or equivalent) splicing `spliceFast` into `assets/client.js`
 
 `fromPages` registers every `.interactive` ascent example for you; `exampleDom` keys are yours to bind,
 since specular cannot import your client code. Guard the two against drift with

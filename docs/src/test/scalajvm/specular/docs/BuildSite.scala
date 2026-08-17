@@ -5,7 +5,7 @@ import specular.*
 import specular.site.*
 import zio.*
 
-import java.nio.file.{Files, Path, Paths, StandardCopyOption}
+import java.nio.file.Path
 
 /** Dogfood DocsSite: Test classpath main invoked by `docs/specularSite`. */
 object BuildSite extends DocsSite:
@@ -76,59 +76,6 @@ sbt docs/specularSite""",
     EarlyEffectTheme.layers
 
   override def afterBuild(out: Path, result: SiteOutput): Task[Unit] =
-    EarlyEffectTheme.writeLogo(out) *> copyClientBundle(out)
-
-  private def copyClientBundle(out: Path): Task[Unit] =
-    ZIO.attempt {
-      val dest = out.resolve("assets/client.js")
-      val src  = findClientJs.getOrElse {
-        throw new RuntimeException(
-          "JS client not linked; run docs/specularSite (or docsJS/fastLinkJS) first. " +
-            s"Looked for marker ${clientJsMarker} and under ${repoRoot.resolve("target/out")}"
-        )
-      }
-      Files.createDirectories(dest.getParent)
-      Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING)
-      ()
-    }
-
-  private def clientJsMarker: Path =
-    repoRoot.resolve("target/specular-client-js.path")
-
-  private def findClientJs: Option[Path] =
-    readMarker.orElse(walkTargetOut)
-
-  private def readMarker: Option[Path] =
-    val marker = clientJsMarker
-    if !Files.isRegularFile(marker) then None
-    else
-      val line = Files.readString(marker).nn.trim
-      if line.isEmpty then None
-      else
-        val path = Paths.get(line)
-        Option.when(Files.isRegularFile(path))(path)
-
-  private def walkTargetOut: Option[Path] =
-    val outRoot = repoRoot.resolve("target/out")
-    if !Files.isDirectory(outRoot) then None
-    else
-      val stream = Files.walk(outRoot)
-      try
-        val found = stream
-          .filter { p =>
-            val s = p.toString.replace('\\', '/')
-            s.endsWith("specular-docs-fastopt/main.js")
-          }
-          .findFirst()
-        if found.isPresent then Some(found.get.nn) else None
-      finally stream.close()
-    end if
-  end walkTargetOut
-
-  private def repoRoot: Path =
-    Iterator
-      .iterate(Paths.get("").toAbsolutePath.nn)(p => Option(p.getParent).orNull)
-      .takeWhile(_ != null)
-      .find(p => Files.exists(p.resolve("build.sbt")))
-      .getOrElse(Paths.get("").toAbsolutePath.nn)
+    val _ = result
+    EarlyEffectTheme.writeLogo(out)
 end BuildSite

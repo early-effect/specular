@@ -9,7 +9,9 @@ import sbt.Keys.*
   * JS (if wired), and forks the builder with `(Test / fullClasspath)`.
   *
   * Set `specularMetaProject` to the published module (not the docs project) so `-Dspecular.meta.*` carries product
-  * identity. Wire `specularJsLink` to `(jsProj / Compile / fastLinkJS)` when you have a Scala.js client.
+  * identity. Wire `specularJsLink` to `(jsProj / spliceFast)` (and copy into `assets/client.js`) when you have a
+  * Scala.js client. Wire `specularJsLinkDev` to `spliceFast` for `specularSiteDev` / `docsDev`. Switch `specularJsLink`
+  * to `spliceFull` after sbt-splice#11 (tracked in specular#67).
   *
   * Passes into the forked builder:
   *   - `-Dspecular.meta.*` from `specularMetaProject` (+ `specularArtifactKind`, optional mapped display version)
@@ -58,9 +60,13 @@ object SpecularPlugin extends AutoPlugin:
           "(default: the build's base directory)"
       )
     val specularJsLink =
-      taskKey[Unit]("Optional Scala.js link before site build (no-op by default)")
+      taskKey[Unit]("Optional Scala.js spliceFast before specularSite (no-op by default)")
+    val specularJsLinkDev =
+      taskKey[Unit]("Optional Scala.js spliceFast before specularSiteDev (no-op by default)")
     val specularSite =
-      taskKey[Unit]("Test/compile, link JS (if wired), then run specularBuildMain on Test CP")
+      taskKey[Unit]("Test/compile, spliceFast (if wired), then run specularBuildMain on Test CP")
+    val specularSiteDev =
+      taskKey[Unit]("Test/compile, spliceFast (if wired), then run specularBuildMain on Test CP")
     val specularServe =
       taskKey[Unit]("Serve specularSiteDirectory via specularServeMain on Test CP")
     val specularMetaProps =
@@ -95,6 +101,7 @@ object SpecularPlugin extends AutoPlugin:
     specularDocsUrl        := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
     specularDisplayVersion := identity[String],
     specularJsLink         := {},
+    specularJsLinkDev      := {},
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     specularMetaProps := Def.uncached {
       Def.taskDyn {
@@ -156,20 +163,27 @@ object SpecularPlugin extends AutoPlugin:
       val jars =
         (Test / fullClasspath).value
           .map(af => converter.toPath(af.data).toFile.getAbsolutePath)
-      val jvmOpts = (run / javaOptions).value.toVector ++ metaProps
-      log.info(s"specularSite: running $mainClass → $dir (Test classpath)")
-      log.debug(s"specularSite: meta props ${metaProps.mkString(" ")}")
-      val code = Fork.java(
-        ForkOptions()
-          .withOutputStrategy(Some(LoggedOutput(log)))
-          .withRunJVMOptions(jvmOpts),
-        Seq("-cp", jars.mkString(java.io.File.pathSeparator), mainClass),
-      )
-      if code != 0 then sys.error(s"$mainClass failed with exit code $code")
-      if !dir.exists then sys.error(s"Site directory was not created: $dir (did $mainClass write there?)")
-      val metaFile = dir / "metadata.json"
-      if metaFile.exists then log.info(s"specularSite: wrote ${metaFile.getName}")
-      log.info(s"specularSite: ready at $dir")
+      runBuildMain(log, mainClass, dir, jars, (run / javaOptions).value.toVector ++ metaProps)
+    },
+    specularSiteDev := Def.uncached {
+      val log       = streams.value.log
+      val mainClass = specularBuildMain.value.trim
+      val dir       = specularSiteDirectory.value
+      val converter = fileConverter.value
+      val metaProps = specularMetaProps.value
+
+      if mainClass.isEmpty then
+        sys.error(
+          "specularBuildMain is not set. Example: specularBuildMain := \"com.example.docs.BuildSite\""
+        )
+
+      (Test / compile).value
+      specularJsLinkDev.value
+
+      val jars =
+        (Test / fullClasspath).value
+          .map(af => converter.toPath(af.data).toFile.getAbsolutePath)
+      runBuildMain(log, mainClass, dir, jars, (run / javaOptions).value.toVector ++ metaProps)
     },
     specularServe := Def.uncached {
       val log       = streams.value.log
@@ -204,4 +218,26 @@ object SpecularPlugin extends AutoPlugin:
       if code != 0 then sys.error(s"$mainClass failed with exit code $code")
     },
   )
+
+  private def runBuildMain(
+      log: Logger,
+      mainClass: String,
+      dir: File,
+      jars: Seq[String],
+      jvmOpts: Vector[String],
+  ): Unit =
+    log.info(s"specularSite: running $mainClass → $dir (Test classpath)")
+    log.debug(s"specularSite: meta props ${jvmOpts.filter(_.startsWith("-Dspecular")).mkString(" ")}")
+    val code = Fork.java(
+      ForkOptions()
+        .withOutputStrategy(Some(LoggedOutput(log)))
+        .withRunJVMOptions(jvmOpts),
+      Seq("-cp", jars.mkString(java.io.File.pathSeparator), mainClass),
+    )
+    if code != 0 then sys.error(s"$mainClass failed with exit code $code")
+    if !dir.exists then sys.error(s"Site directory was not created: $dir (did $mainClass write there?)")
+    val metaFile = dir / "metadata.json"
+    if metaFile.exists then log.info(s"specularSite: wrote ${metaFile.getName}")
+    log.info(s"specularSite: ready at $dir")
+  end runBuildMain
 end SpecularPlugin
