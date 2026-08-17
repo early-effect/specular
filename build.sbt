@@ -177,7 +177,7 @@ lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
   .jvmPlatform(scalaVersions = scalaVersions)
 
 // Dogfood site tasks (mirror sbt-specular: Test CP + meta props). Same-repo cannot load the plugin on itself.
-lazy val specularSite    = taskKey[Unit]("spliceFast + build static site from Test classpath (publish)")
+lazy val specularSite    = taskKey[Unit]("spliceFull + build static site from Test classpath (publish)")
 lazy val specularSiteDev = taskKey[Unit]("spliceFast + build static site from Test classpath (docsDev)")
 
 lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
@@ -216,8 +216,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           },
           Test / runReload := Def.uncached((Test / runReload).dependsOn(specularSiteDev).value),
           specularSite := Def.uncached {
-            // spliceFast until sbt-splice#11; switch to spliceFull in #67.
-            val js         = (LocalProject("docsJS") / spliceFast).value
+            val js         = (LocalProject("docsJS") / spliceFull).value
             val log        = streams.value.log
             val converter  = fileConverter.value
             val siteDir    = (ThisBuild / baseDirectory).value / "target" / "site"

@@ -229,7 +229,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 
 ```bash
 sbt testFull             # unit + DocSpec tests (plain `test` is testQuick on sbt 2)
-sbt docs/specularSite    # spliceFast JS client + write target/site (incl. metadata.json)
+sbt docs/specularSite    # spliceFull JS client + write target/site (incl. metadata.json)
 sbt docsDev              # watch docs: spliceFast + rebuild in place (http://127.0.0.1:8765)
 ./scripts/install-git-hooks   # once per clone: pre-commit runs scalafmtCheckAll
 ```
@@ -239,12 +239,10 @@ sbt docsDev              # watch docs: spliceFast + rebuild in place (http://127
 reloads when `assets/dev-stamp` changes. Press Enter to leave watch mode.
 
 Requires a JDK that can run Scala 3.8 / sbt 2 (CI uses Temurin 25). Interactive examples need
-the docs JS splice (`docsJS/spliceFast`), which
+the docs JS splice (`docsJS/spliceFull` for publish, `spliceFast` for the edit loop), which
 `docs/specularSite` / `docsDev` run for you. Add [sbt-splice](https://github.com/early-effect/sbt-splice)
 when the client uses `@JSImport`; Specular's own client has none, but still ships through splice
-so there is one pipeline. Publish should move to `spliceFull` once
-[sbt-splice#11](https://github.com/early-effect/sbt-splice/issues/11) is fixed
-([#67](https://github.com/early-effect/specular/issues/67)).
+so there is one pipeline.
 
 ### Publishing docs (GitHub Pages)
 

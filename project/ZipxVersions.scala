@@ -43,7 +43,7 @@ object MyVersions extends ZipxVersions:
   val scalafmt  = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
   val sbtReload = Plugin("com.jamesward", "sbt-reload", "0.0.7")
   val dynverCi  = Plugin("rocks.earlyeffect", "sbt-dynver-ci", "0.2.2")
-  val sbtSplice = Plugin("rocks.earlyeffect", "sbt-splice", "0.0.2")
+  val sbtSplice = Plugin("rocks.earlyeffect", "sbt-splice", "0.0.4")
 
   def zioTests   = library(zioTest.test, zioTestSbt.test)
   def zioLib     = library(zio)

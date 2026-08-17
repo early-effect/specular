@@ -78,7 +78,7 @@ is the full guide; the setup is:
 2. Either `.interactive` on an ascent example, or `exampleDom(key).fromSource(file, marker)` for
    anything else
 3. A `ClientMain` calling `SpecularClient.mountAll(SpecularClient.fromPages(pages*) ++ yourMounters)`
-4. `specularSite` (or equivalent) splicing `spliceFast` into `assets/client.js`
+4. `specularSite` (or equivalent) splicing `spliceFull` into `assets/client.js`
 
 `fromPages` registers every `.interactive` ascent example for you; `exampleDom` keys are yours to bind,
 since specular cannot import your client code. Guard the two against drift with

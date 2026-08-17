@@ -9,9 +9,8 @@ import sbt.Keys.*
   * JS (if wired), and forks the builder with `(Test / fullClasspath)`.
   *
   * Set `specularMetaProject` to the published module (not the docs project) so `-Dspecular.meta.*` carries product
-  * identity. Wire `specularJsLink` to `(jsProj / spliceFast)` (and copy into `assets/client.js`) when you have a
-  * Scala.js client. Wire `specularJsLinkDev` to `spliceFast` for `specularSiteDev` / `docsDev`. Switch `specularJsLink`
-  * to `spliceFull` after sbt-splice#11 (tracked in specular#67).
+  * identity. Wire `specularJsLink` to `(jsProj / spliceFull)` (and copy into `assets/client.js`) when you have a
+  * Scala.js client. Wire `specularJsLinkDev` to `spliceFast` for `specularSiteDev` / `docsDev`.
   *
   * Passes into the forked builder:
   *   - `-Dspecular.meta.*` from `specularMetaProject` (+ `specularArtifactKind`, optional mapped display version)
@@ -60,11 +59,11 @@ object SpecularPlugin extends AutoPlugin:
           "(default: the build's base directory)"
       )
     val specularJsLink =
-      taskKey[Unit]("Optional Scala.js spliceFast before specularSite (no-op by default)")
+      taskKey[Unit]("Optional Scala.js spliceFull before specularSite (no-op by default)")
     val specularJsLinkDev =
       taskKey[Unit]("Optional Scala.js spliceFast before specularSiteDev (no-op by default)")
     val specularSite =
-      taskKey[Unit]("Test/compile, spliceFast (if wired), then run specularBuildMain on Test CP")
+      taskKey[Unit]("Test/compile, spliceFull (if wired), then run specularBuildMain on Test CP")
     val specularSiteDev =
       taskKey[Unit]("Test/compile, spliceFast (if wired), then run specularBuildMain on Test CP")
     val specularServe =
