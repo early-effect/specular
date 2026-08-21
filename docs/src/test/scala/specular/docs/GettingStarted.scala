@@ -113,13 +113,14 @@ forks that main with product meta from `specularMetaProject`, and writes HTML pl
 Local loop:
 
 ```bash
-sbt docsDev              # edit loop: spliceFast, preview once, tab reload
-sbt docs/specularSite    # publish-quality: spliceFull (what Pages deploys)
-sbt docs/specularServe   # one-shot preview of an already-built site
+sbt ~docs/specularPreview   # edit loop: spliceFast, Preview stays up, tab reload
+sbt docs/specularSite       # publish-quality: spliceFull (what Pages deploys)
+sbt docs/specularServe      # one-shot preview of an already-built site (do not ~)
 ```
 
 A Scala.js client is optional. When you have one, add `sbt-splice` and wire `specularJsLink` to
-`spliceFull` (copy into `assets/client.js`) and `specularJsLinkDev` to `spliceFast` for `docsDev`.
+`spliceFull` (copy into `assets/client.js`) and `specularJsLinkDev` to `spliceFast` for
+`specularPreview`.
 """,
       example {
         E.div(A.className("demo"), E.p("Hello from Specular"))

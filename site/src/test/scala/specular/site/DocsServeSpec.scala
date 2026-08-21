@@ -14,13 +14,9 @@ object DocsServeSpec extends ZIOSpecDefault:
       assertTrue(root == explicit)
     },
     test("resolveRoot ignores a blank second argument") {
-      val prop = "specular.site.dir"
-      java.lang.System.clearProperty(prop)
-      val viaProp = Paths.get("/tmp/specular-via-prop")
-      java.lang.System.setProperty(prop, viaProp.toString)
-      val root = DocsServe.resolveRoot(Chunk("8765", "  "))
-      java.lang.System.clearProperty(prop)
-      assertTrue(root == viaProp)
+      val blank = DocsServe.resolveRoot(Chunk("8765", "  "))
+      val none  = DocsServe.resolveRoot(Chunk("8765"))
+      assertTrue(blank == none)
     },
   )
 end DocsServeSpec

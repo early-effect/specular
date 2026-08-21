@@ -12,16 +12,16 @@ object MyVersions extends ZipxVersions:
   val zio        = Lib("dev.zio", "zio", "2.1.26")
   val zioTest    = zio.mod("zio-test")
   val zioTestSbt = zio.mod("zio-test-sbt")
-  val zioHttp    = Lib("dev.zio", "zio-http", "3.11.3")
+  val zioHttp    = Lib("dev.zio", "zio-http", "3.11.4")
 
-  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.4.1")
+  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.5.0")
   val ascentCss     = ascent.mod("ascent-css")
   val ascentJs      = ascent.mod("ascent-js")
   val ascentHtml    = ascent.mod("ascent-html")
   val ascentPreview = ascent.mod("ascent-preview")
 
   val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.6")
-    // 0.0.6 is published against ascent 0.3.1. Drop those so this build's 0.4.1 ascent wins (preview / DevReload).
+    // 0.0.6 is published against ascent 0.3.1. Drop those so this build's ascent wins (preview / DevReload).
     .excluding(
       ZipxExclude.org("rocks.earlyeffect", "ascent-core_3"),
       ZipxExclude.org("rocks.earlyeffect", "ascent-css_3"),
@@ -39,11 +39,11 @@ object MyVersions extends ZipxVersions:
   val commonmarkGfm = Lib("org.commonmark", "commonmark-ext-gfm-tables", "0.30.0").java
   val scalafmtCore  = Lib("org.scalameta", "scalafmt-core", "3.11.5")
 
-  val scalajs   = Plugin("org.scala-js", "sbt-scalajs", "1.22.0")
-  val scalafmt  = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
-  val sbtReload = Plugin("com.jamesward", "sbt-reload", "0.0.7")
-  val dynverCi  = Plugin("rocks.earlyeffect", "sbt-dynver-ci", "0.2.2")
-  val sbtSplice = Plugin("rocks.earlyeffect", "sbt-splice", "0.0.4")
+  val scalajs          = Plugin("org.scala-js", "sbt-scalajs", "1.22.0")
+  val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
+  val dynverCi         = Plugin("rocks.earlyeffect", "sbt-dynver-ci", "0.2.3")
+  val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.1.0")
+  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.5.0")
 
   def zioTests   = library(zioTest.test, zioTestSbt.test)
   def zioLib     = library(zio)
