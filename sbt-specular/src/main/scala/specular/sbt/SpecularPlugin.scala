@@ -1,7 +1,10 @@
 package specular.sbt
 
+import ascent.preview.sbt.AscentPreviewPlugin
+import ascent.preview.sbt.AscentPreviewPlugin.autoImport.*
 import sbt.*
 import sbt.Keys.*
+import sbt.nio.Keys.watchOnTermination
 
 /** Specular site settings for consumer projects.
   *
@@ -10,7 +13,11 @@ import sbt.Keys.*
   *
   * Set `specularMetaProject` to the published module (not the docs project) so `-Dspecular.meta.*` carries product
   * identity. Wire `specularJsLink` to `(jsProj / spliceFull)` (and copy into `assets/client.js`) when you have a
-  * Scala.js client. Wire `specularJsLinkDev` to `spliceFast` for `specularSiteDev` / `docsDev`.
+  * Scala.js client. Wire `specularJsLinkDev` to `spliceFast` for `specularSiteDev` / `specularPreview`.
+  *
+  * Requires [[AscentPreviewPlugin]]. The documented edit loop is `sbt ~docs/specularPreview` (Preview stays up;
+  * rebuilds rewrite `assets/dev-stamp`). That task delegates to `ascentPreview`. `specularServe` is a blocking one-shot
+  * of an already-built tree; do not `~` it.
   *
   * Passes into the forked builder:
   *   - `-Dspecular.meta.*` from `specularMetaProject` (+ `specularArtifactKind`, optional mapped display version)
@@ -67,7 +74,9 @@ object SpecularPlugin extends AutoPlugin:
     val specularSiteDev =
       taskKey[Unit]("Test/compile, spliceFast (if wired), then run specularBuildMain on Test CP")
     val specularServe =
-      taskKey[Unit]("Serve specularSiteDirectory via specularServeMain on Test CP")
+      taskKey[Unit]("Serve specularSiteDirectory via specularServeMain on Test CP (one-shot; do not ~)")
+    val specularPreview =
+      taskKey[Unit]("Rebuild the site and start Preview once. Watch with sbt ~docs/specularPreview")
     val specularMetaProps =
       taskKey[Seq[String]]("JVM -Dspecular.meta.* and -Dspecular.site.* props from specularMetaProject")
   end autoImport
@@ -80,7 +89,7 @@ object SpecularPlugin extends AutoPlugin:
     "--enable-native-access=ALL-UNNAMED",
   )
 
-  override def requires: Plugins      = plugins.JvmPlugin
+  override def requires: Plugins      = AscentPreviewPlugin
   override def trigger: PluginTrigger = noTrigger
 
   override def projectSettings: Seq[Setting[?]] = Seq(
@@ -96,11 +105,18 @@ object SpecularPlugin extends AutoPlugin:
     // .sbt/matrix/<id>, so the builder cannot infer the root from its working directory.
     specularSourceRoot := (ThisBuild / baseDirectory).value,
     // CI / early-effect/.github specular-docs workflow sets these via env when deploying to Pages.
-    specularBasePath       := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
-    specularDocsUrl        := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
-    specularDisplayVersion := identity[String],
-    specularJsLink         := {},
-    specularJsLinkDev      := {},
+    specularBasePath                     := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
+    specularDocsUrl                      := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
+    specularDisplayVersion               := identity[String],
+    specularJsLink                       := {},
+    specularJsLinkDev                    := {},
+    ascentPreviewRoot                    := specularSiteDirectory.value,
+    ascentPreviewRebuild                 := Def.uncached(specularSiteDev.value),
+    ascentPreviewPort                    := AscentPreviewPort.unsafeMake(specularPort.value),
+    ascentPreviewClasspath               := Def.uncached((Test / fullClasspath).value),
+    specularPreview                      := ascentPreview.value,
+    specularPreview / aggregate          := false,
+    specularPreview / watchOnTermination := (ascentPreview / watchOnTermination).value,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     specularMetaProps := Def.uncached {
       Def.taskDyn {

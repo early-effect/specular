@@ -99,6 +99,7 @@ specularBuildMain    := "com.example.docs.BuildSite"
 specularMetaProject  := Some(LocalProject("root")) // published module identity
 specularArtifactKind := "library" // or "plugin"
 specularSourceRoot   := (ThisBuild / baseDirectory).value // exampleDom paths are relative to this
+// edit loop: sbt ~docs/specularPreview
 ```
 
 ```scala
@@ -228,19 +229,17 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 ## Build & dogfood
 
 ```bash
-sbt testFull             # unit + DocSpec tests (plain `test` is testQuick on sbt 2)
-sbt docs/specularSite    # spliceFull JS client + write target/site (incl. metadata.json)
-sbt docsDev              # watch docs: spliceFast + rebuild in place (http://127.0.0.1:8765)
+sbt testFull                  # unit + DocSpec tests (plain `test` is testQuick on sbt 2)
+sbt docs/specularSite         # spliceFull JS client + write target/site (incl. metadata.json)
+sbt ~docs/specularPreview     # watch docs: spliceFast + rebuild in place (http://localhost:8765)
 ./scripts/install-git-hooks   # once per clone: pre-commit runs scalafmtCheckAll
 ```
 
-`docsDev` starts `DocsServe` once (ascent-preview: static files plus SSE reload), then
-`~docs/specularSiteDev`. Each source change runs `spliceFast` and rebuilds HTML; the tab
-reloads when `assets/dev-stamp` changes. Press Enter to leave watch mode.
+`sbt ~docs/specularPreview` rebuilds the site (spliceFast) and starts Preview once. The Preview JVM stays up; each source change rewrites HTML and `assets/dev-stamp`, and the tab reloads over SSE. Press Enter to leave watch mode. `sbt docs/specularServe` is a blocking one-shot of an already-built tree; do not `~` it.
 
 Requires a JDK that can run Scala 3.8 / sbt 2 (CI uses Temurin 25). Interactive examples need
 the docs JS splice (`docsJS/spliceFull` for publish, `spliceFast` for the edit loop), which
-`docs/specularSite` / `docsDev` run for you. Add [sbt-splice](https://github.com/early-effect/sbt-splice)
+`docs/specularSite` / `docs/specularPreview` run for you. Add [sbt-splice](https://github.com/early-effect/sbt-splice)
 when the client uses `@JSImport`; Specular's own client has none, but still ships through splice
 so there is one pipeline.
 

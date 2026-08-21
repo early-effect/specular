@@ -1,3 +1,5 @@
+import sbt.nio.Keys.watchOnTermination
+
 MyVersions.settings
 
 val scala3Version: String = MyVersions.scala
@@ -47,9 +49,6 @@ zipxJavaVersion      := JdkVersion("25")
 zipxWorkflowDispatch := true
 zipxCapabilities += ZipxCentral.release
 zipxCapabilities += ZipxDocs.pages()
-
-/** Watch docs: spliceFast + rebuild in place. Preview starts once. Open http://127.0.0.1:8765; Enter exits. */
-addCommandAlias("docsDev", "; docs/Test/runReload; ~docs/specularSiteDev")
 
 semanticdbEnabled := true
 
@@ -178,7 +177,11 @@ lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
 
 // Dogfood site tasks (mirror sbt-specular: Test CP + meta props). Same-repo cannot load the plugin on itself.
 lazy val specularSite    = taskKey[Unit]("spliceFull + build static site from Test classpath (publish)")
-lazy val specularSiteDev = taskKey[Unit]("spliceFast + build static site from Test classpath (docsDev)")
+lazy val specularSiteDev = taskKey[Unit]("spliceFast + build static site from Test classpath (specularPreview rebuild)")
+lazy val specularPreview =
+  taskKey[Unit]("Rebuild the site and start Preview once. Watch with sbt ~docs/specularPreview")
+lazy val specularServe =
+  taskKey[Unit]("Serve an already-built site via DocsServe (one-shot; do not ~)")
 
 lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
   .settings(
@@ -197,24 +200,61 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           eeDocsTheme.jvm(scala3Version),
           specularMermoid.jvm(scala3Version),
         )
+        .enablePlugins(AscentPreviewPlugin)
         .settings(
           MyVersions.zioTests,
           zioTestSettings,
           testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-          // Preview: specular.site.DocsServe on Test CP after a site build.
-          // `docsDev` starts the server once, then ~docs/specularSiteDev (spliceFast, no restart).
-          Test / mainClass       := Some("specular.site.DocsServe"),
-          Test / run / mainClass := Some("specular.site.DocsServe"),
-          run / fork             := true,
+          run / fork := true,
           run / javaOptions ++= Seq(
             "--sun-misc-unsafe-memory-access=allow",
             "--enable-native-access=ALL-UNNAMED",
           ),
-          Test / runReloadArgs := {
-            val siteDir = (ThisBuild / baseDirectory).value / "target" / "site"
-            Seq("8765", siteDir.getAbsolutePath)
+          ascentPreviewRoot := (ThisBuild / baseDirectory).value / "target" / "site",
+          ascentPreviewPort := AscentPreviewPort(8765),
+          ascentPreviewClasspath := (Test / fullClasspath).value,
+          ascentPreviewRebuild := Def.uncached {
+            specularSiteDev.value
           },
-          Test / runReload := Def.uncached((Test / runReload).dependsOn(specularSiteDev).value),
+          specularPreview := ascentPreview.value,
+          specularPreview / aggregate := false,
+          specularPreview / watchOnTermination := (ascentPreview / watchOnTermination).value,
+          specularServe := Def.uncached {
+            val log       = streams.value.log
+            val mainClass = "specular.site.DocsServe"
+            val dir       = (ThisBuild / baseDirectory).value / "target" / "site"
+            val port      = 8765
+            val converter = fileConverter.value
+            if !dir.exists then sys.error(s"Site directory missing: $dir (run docs/specularSite first)")
+            (Test / compile).value
+            val jars =
+              (Test / fullClasspath).value.map(af => converter.toPath(af.data).toFile.getAbsolutePath)
+            val jvmOpts =
+              (run / javaOptions).value.toVector ++
+                dogfoodMetaProps(
+                  organization.value,
+                  version.value,
+                  scalaVersion.value,
+                  description.value,
+                  homepage.value.map(_.toString).getOrElse(""),
+                  dir,
+                  (ThisBuild / baseDirectory).value.getAbsolutePath,
+                ) ++ Seq(s"-Dspecular.site.port=$port")
+            log.info(s"specularServe: $mainClass → http://127.0.0.1:$port ($dir)")
+            val code = Fork.java(
+              ForkOptions()
+                .withOutputStrategy(Some(LoggedOutput(log)))
+                .withRunJVMOptions(jvmOpts),
+              Seq(
+                "-cp",
+                jars.mkString(java.io.File.pathSeparator),
+                mainClass,
+                port.toString,
+                dir.getAbsolutePath,
+              ),
+            )
+            if code != 0 then sys.error(s"$mainClass failed with exit code $code")
+          },
           specularSite := Def.uncached {
             val js         = (LocalProject("docsJS") / spliceFull).value
             val log        = streams.value.log
@@ -288,6 +328,7 @@ lazy val plugin = project
     // sbt 2.0 plugins compile against Scala 3 and publish with the _sbt2_3 suffix.
     zioTestSettings,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    addSbtPlugin(MyVersions.moduleID(MyVersions.sbtAscentPreview)),
   )
 
 /** Copy spliced JS then fork BuildSite. Callers must already have compiled Test and resolved classpath. */
