@@ -40,8 +40,19 @@ object DocTestInterpreter:
         val assertFn = erased.assertion.get
         Vector(
           test(s"example ${erased.id}") {
-            for value <- ZIO.scoped(erased.body)
-            yield assertFn(value)
+            ZIO.scoped(erased.body).exit.flatMap {
+              case Exit.Success(value) => ZIO.succeed(assertFn(value))
+              case Exit.Failure(cause) =>
+                cause.failureOption match
+                  case Some(e) => ZIO.succeed(assertTrue(false).label(s"example ${erased.id}: $e"))
+                  case None    =>
+                    cause.dieOption match
+                      case Some(e: IllegalStateException) if e.getMessage == ValueExample.ErrorSucceededMessage =>
+                        ZIO.succeed(
+                          assertTrue(false).label(s"exampleError ${erased.id}: effect succeeded")
+                        )
+                      case _ => ZIO.failCause(cause)
+            }
           }
         )
       case fe: FailExample if fe.assertion.isDefined =>

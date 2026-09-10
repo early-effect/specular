@@ -128,6 +128,40 @@ object DocBuildersSpec extends ZIOSpecDefault:
           ex.source.contains("ZIO.succeed"),
         )
       },
+      test("exampleZIO accepts a typed error channel that is not Throwable") {
+        final case class DemoErr(msg: String)
+        val ex = exampleZIO {
+          val n = 21
+          ZIO.succeed(n * 2): ZIO[Scope, DemoErr, Int]
+        }
+        assertTrue(
+          ex.source.contains("val n"),
+          ex.source.contains("ZIO.succeed"),
+          !ex.source.contains(".either"),
+          !ex.source.contains("foldZIO"),
+          ex.assertion.isEmpty,
+        )
+      },
+      test("exampleError captures the fallible call, not a fold") {
+        final case class DemoErr(msg: String)
+        val ex = exampleError {
+          ZIO.fail(DemoErr("bad"))
+        }
+        assertTrue(
+          ex.source.contains("ZIO.fail"),
+          !ex.source.contains(".either"),
+          !ex.source.contains("foldZIO"),
+          ex.assertion.isEmpty,
+        )
+      },
+      test("fluent .assert and .withShow on exampleError take E") {
+        final case class DemoErr(msg: String)
+        val ex = exampleError {
+          ZIO.fail(DemoErr("bad"))
+        }.assert(e => assertTrue(e.msg == "bad")).withShow(_.msg)
+        for e <- ZIO.scoped(ex.body)
+        yield assertTrue(ex.assertion.isDefined, ex.show(e) == "bad", e.msg == "bad")
+      },
       test("expectFail captures source and compile diagnostics") {
         val ex = expectFail("""
           val x: Int = "nope"
@@ -216,6 +250,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
             exampleValue { 1 + 1 },
           ),
           exampleZIO { ZIO.succeed("c") },
+          exampleError { ZIO.fail("e") },
           expectFail("""val bad: Int = "x""""),
           expectCrash { ZIO.fail("e"): ZIO[Scope, String, Nothing] },
         )
@@ -228,8 +263,9 @@ object DocBuildersSpec extends ZIOSpecDefault:
             "getting-started-ex-3",
             "getting-started-ex-4",
             "getting-started-ex-5",
+            "getting-started-ex-6",
           ),
-          ids.distinct.length == 5,
+          ids.distinct.length == 6,
         )
       },
       // One counter for all five kinds: inserting a DomExample renumbers what follows it.

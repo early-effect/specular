@@ -17,9 +17,11 @@ object ShowcaseSourceSpec extends ZIOSpecDefault:
     test("value examples capture plain Scala and ZIO source") {
       val values = collectValues(Showcase.doc.children)
       assertTrue(
-        values.size == 2,
+        values.size == 4,
         values.exists(_.source.contains("List(1, 2, 3, 4)")),
         values.exists(_.source.contains("ZIO.succeed")),
+        values.exists(_.source.contains("invalid transition")),
+        !values.exists(_.source.contains(".either")),
       )
     },
   )

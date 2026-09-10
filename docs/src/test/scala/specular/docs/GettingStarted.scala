@@ -43,6 +43,8 @@ specularArtifactKind := "library" // or "plugin"
 A page is `page` / `section` / `md` / `example`. Prose is markdown; UI examples are ascent
 `UI` values whose full source span is captured for the site panel. Plain Scala and ZIO use
 `exampleValue` / `exampleZIO` (same `ValueExample` node: source + printed result).
+`exampleZIO` accepts `ZIO[Scope, E, A]`; `E` need not be a `Throwable`. Documented typed
+failures use `exampleError` (result is `E`); defects stay on `expectCrash`.
 """,
       example {
         E.ul(E.li("a"), E.li("b"), E.li("c"))
