@@ -9,6 +9,9 @@ import zio.test.*
 /** Dogfood page: markdown, plain Scala/ZIO values, and CSS-in-Scala layouts in one DocSpec. */
 object Showcase extends DocSpec:
 
+  /** Stand-in for a library ADT that is not a `Throwable` (Mechanoid-style). */
+  final case class DemoErr(msg: String)
+
   def doc = page("Showcase")(
     md"""
 Specular authors mix **markdown prose**, **plain Scala / ZIO values**, and **ascent UI** in the
@@ -28,7 +31,7 @@ Emphasis with *italics*, **bold**, and `inline code`. Link out to [ascent](https
 
 - Prose via `md"..."` → commonmark → ascent `UI`
 - UI examples via `example` / `exampleIO` with source capture
-- Values and effects via `exampleValue` / `exampleZIO` (same `ValueExample` node)
+- Values and effects via `exampleValue` / `exampleZIO` / `exampleError` (same `ValueExample` node)
 - Interactive mounts via `.interactive`
 
 1. Write a `DocSpec`
@@ -45,9 +48,9 @@ Emphasis with *italics*, **bold**, and `inline code`. Link out to [ascent](https
 | ----------- | --------------------- | ---------------- |
 | `md"..."`   | `Prose`               | SSR HTML         |
 | `example`   | `Example`             | source + UI snap |
-| `exampleValue` / `exampleZIO` | `ValueExample` | source + result |
+| `exampleValue` / `exampleZIO` / `exampleError` | `ValueExample` | source + result (`A` or `E`) |
 | `expectFail` | `FailExample` | source + diagnostics |
-| `expectCrash` | `CrashExample` | source + failure |
+| `expectCrash` | `CrashExample` | source + `Cause` |
 | `.assert`   | zio-test bridge       | CI green/red     |
 | `.interactive` | client registry    | live mount       |
 
@@ -68,8 +71,9 @@ the printed result. Assert the value the same way you would in zio-test.
     ),
     section("Plain ZIO")(
       md"""
-Effects use the same `ValueExample` node: `exampleZIO` stores a success-typed `URIO`. Site and
-tests run the body under `Scope` and print / assert the result.
+Effects use the same `ValueExample` node: `exampleZIO` stores `ZIO[Scope, E, A]`. `E` need not
+be `Nothing` or a `Throwable`. Site and tests run the body under `Scope` and print / assert the
+result. An unexpected typed `E` fails the doc rather than requiring `orDie` in the snippet.
 """,
       exampleZIO {
         for
@@ -90,12 +94,26 @@ diagnostics; `.assert` fails CI if the snippet unexpectedly typechecks.
     ),
     section("Runtime-fail examples")(
       md"""
-`expectCrash` captures a fallible effect (not `URIO`). The site renders the source plus the
-pretty-printed failure; tests fail if the effect succeeds.
+`expectCrash` captures a fallible effect whose result is `Cause[E]`. The site renders the source
+plus the pretty-printed failure; tests fail if the effect succeeds. Use this for defects and
+`Throwable`.
 """,
       expectCrash {
         ZIO.fail(new IllegalArgumentException("demo failure")): ZIO[Scope, Throwable, Nothing]
       }.assert(c => assertTrue(c.failures.exists(_.getMessage == "demo failure"))),
+    ),
+    section("Typed errors")(
+      md"""
+Libraries whose API is `ZIO[R, E, A]` with a typed `E` that is not a `Throwable` (an ADT, not
+`die`) use `exampleZIO` for success and `exampleError` for a documented failure. The captured
+source is the fallible call, not `.either` / `.fold`. `.assert` on `exampleError` takes `E`.
+""",
+      exampleZIO {
+        ZIO.succeed("published"): ZIO[Scope, DemoErr, String]
+      }.assert(s => assertTrue(s == "published")),
+      exampleError {
+        ZIO.fail(DemoErr("invalid transition"))
+      }.assert(e => assertTrue(e.msg == "invalid transition")),
     ),
     section("CSS-in-Scala layouts")(
       md"Examples are real ascent trees: define `CssClass`es with the typed `S` catalog, then apply them like any other attr:",

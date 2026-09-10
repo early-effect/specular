@@ -297,7 +297,9 @@ object SiteBuilder:
           }
       case ve: ValueExample[?] =>
         val erased = ve.asInstanceOf[ValueExample[Any]]
-        for value <- ZIO.scoped(erased.body)
+        for
+          exit  <- ZIO.scoped(erased.body).exit
+          value <- valueExampleResult(erased.id, exit)
         yield
           val pre = el(
             "pre",
@@ -372,6 +374,22 @@ object SiteBuilder:
             Vector(attr("class", "specular-example")),
           )
         end for
+
+    /** Typed `Fail[E]` is a doc failure that reports `E`; defects stay defects. */
+    private def valueExampleResult(id: String, exit: Exit[Any, Any]): Task[Any] =
+      exit match
+        case Exit.Success(a)     => ZIO.succeed(a)
+        case Exit.Failure(cause) =>
+          cause.failureOption match
+            case Some(e) =>
+              ZIO.fail(IllegalStateException(s"exampleZIO $id: $e"))
+            case None =>
+              cause.dieOption match
+                case Some(e: IllegalStateException) if e.getMessage == ValueExample.ErrorSucceededMessage =>
+                  ZIO.fail(IllegalStateException(s"exampleError $id: effect succeeded during site build"))
+                case Some(t) => ZIO.die(t)
+                case None    =>
+                  ZIO.fail(IllegalStateException(s"exampleZIO $id: ${cause.prettyPrint}"))
   end Live
 end SiteBuilder
 

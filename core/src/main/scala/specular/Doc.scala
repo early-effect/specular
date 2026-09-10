@@ -49,12 +49,16 @@ end Example
 /** A plain Scala / ZIO value example: source + computed result (not an ascent UI tree).
   *
   * Plain values and effects share this node (zio-test style): [[exampleValue]] lifts `A` with `ZIO.succeed`, and
-  * [[exampleZIO]] stores the `URIO` as-is. Same `.assert` and site result panel either way.
+  * [[exampleZIO]] stores the effect as-is. Same `.assert` and site result panel either way.
+  *
+  * The body is `ZIO[Scope, Any, A]` so a typed error channel is legal (`MechanoidError`, similar ADTs). Interpreters
+  * treat an unexpected `Fail[E]` as a doc/test failure that reports `E`, not a `Cause` dump. Defects (`die`) still fail
+  * the site/test. [[exampleError]] inverts a fallible body so the result panel is `E`.
   */
 final case class ValueExample[A](
     id: String,
     source: String,
-    body: URIO[Scope, A],
+    body: ZIO[Scope, Any, A],
     assertion: Option[A => TestResult],
     show: A => String = (a: A) => a.toString,
 ) extends DocNode:
@@ -63,6 +67,10 @@ final case class ValueExample[A](
 
   def withShow(f: A => String): ValueExample[A] = copy(show = f)
 end ValueExample
+
+object ValueExample:
+  /** Die message when [[exampleError]]'s body succeeds. Interpreters match this, then re-label with id. */
+  val ErrorSucceededMessage: String = "exampleError: effect succeeded"
 
 /** A must-not-compile snippet: source string + [[scala.compiletime.testing.typeCheckErrors]] diagnostics.
   *
@@ -83,7 +91,9 @@ end FailExample
 
 /** A must-fail effect: source + real failure for site rendering and CI.
   *
-  * Unlike [[ValueExample]] (`URIO`), the body is intentionally fallible.
+  * Unlike [[ValueExample]] (result is `A`), this node's result is `Cause[E]`: the default panel is `Cause.prettyPrint`,
+  * and `.assert` / `.withShow` take `Cause[E]`. Use this for defects (`die`, `Throwable`). Documented typed `E` (an ADT
+  * that is not a `Throwable`) belongs on [[exampleError]], whose result *is* `E`.
   */
 final case class CrashExample[E, A](
     id: String,
@@ -229,15 +239,29 @@ inline def exampleIO(inline body: URIO[Scope, ascent.ast.UI[Any]]): Example[Any]
 inline def exampleValue[A](inline body: A): ValueExample[A] =
   DocInternal.mkValueExample(capturedSource(body), body)
 
-/** Capture a success-typed ZIO effect as a [[ValueExample]] (same node and `.assert` as plain values). */
-inline def exampleZIO[A](inline body: URIO[Scope, A]): ValueExample[A] =
+/** Capture a ZIO effect as a [[ValueExample]] (same node and `.assert` as plain values).
+  *
+  * `E` need not be `Nothing` or a `Throwable`. If the body fails with a typed `E`, interpreters fail the doc/test and
+  * report `E`; they do not require `orDie` or a fold in the snippet. Defects (`die`) still fail the site/test.
+  */
+inline def exampleZIO[E, A](inline body: ZIO[Scope, E, A]): ValueExample[A] =
   DocInternal.mkValueExampleZIO(capturedSource(body), body)
+
+/** Capture a documented typed failure: source panel + `E` as the result.
+  *
+  * The body is supposed to fail. Success of the body fails the doc/test. Defects (`die`) stay site/test failures, not a
+  * pretty `E`. Captured source is the fallible call, not `.either` / `.fold`.
+  *
+  * `.assert` and `.withShow` take `E`, unlike [[expectCrash]] which takes `Cause[E]`.
+  */
+inline def exampleError[E, A](inline body: ZIO[Scope, E, A]): ValueExample[E] =
+  DocInternal.mkValueExampleError(capturedSource(body), body)
 
 /** Capture a must-not-compile snippet (self-contained string literal for `typeCheckErrors`). */
 inline def expectFail(inline source: String): FailExample =
   DocInternal.mkFailExample(source, scala.compiletime.testing.typeCheckErrors(source))
 
-/** Capture a must-fail effect: source panel + failure output. */
+/** Capture a must-fail effect: source panel + `Cause` pretty-print (defects / `Throwable`). */
 inline def expectCrash[E, A](inline body: ZIO[Scope, E, A]): CrashExample[E, A] =
   DocInternal.mkCrashExample(capturedSource(body), body)
 
@@ -290,11 +314,23 @@ private[specular] object DocInternal:
       assertion = None,
     )
 
-  def mkValueExampleZIO[A](source: String, effect: URIO[Scope, A]): ValueExample[A] =
+  def mkValueExampleZIO[E, A](source: String, effect: ZIO[Scope, E, A]): ValueExample[A] =
     ValueExample(
       id = "",
       source = source,
       body = effect,
+      assertion = None,
+    )
+
+  /** Invert a fallible body so the stored effect succeeds with `E`. Defects are not caught (`foldZIO`). */
+  def mkValueExampleError[E, A](source: String, effect: ZIO[Scope, E, A]): ValueExample[E] =
+    ValueExample(
+      id = "",
+      source = source,
+      body = effect.foldZIO(
+        e => ZIO.succeed(e),
+        _ => ZIO.die(IllegalStateException(ValueExample.ErrorSucceededMessage)),
+      ),
       assertion = None,
     )
 

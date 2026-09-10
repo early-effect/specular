@@ -2,7 +2,7 @@ package specular
 
 import scala.quoted.*
 
-/** Compile-time source capture for [[example]] / [[exampleIO]] / [[exampleValue]] / [[exampleZIO]].
+/** Compile-time source capture for [[example]] / [[exampleIO]] / [[exampleValue]] / [[exampleZIO]] / [[exampleError]].
   *
   * `sourcecode.Text` only records the *last* expression of a block, so local `val`s and `CssClass` objects never
   * appeared in the site source panel. These macros take the full argument span via `Position.sourceCode`.

@@ -112,6 +112,90 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("typed-E exampleZIO success renders A in the result panel") {
+      final case class DemoErr(msg: String)
+      val doc = page("Typed Ok")(
+        exampleZIO {
+          ZIO.succeed("ok"): ZIO[Scope, DemoErr, String]
+        }
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-site-typed-ok"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield assertTrue(
+        html.contains("id=\"typed-ok-ex-1\""),
+        html.contains("specular-result"),
+        !html.contains("specular-crash"),
+        html.contains("ZIO.succeed"),
+        html.contains("ok"),
+      )
+      end for
+    },
+    test("unexpected typed E fails the site build with E in the message") {
+      final case class DemoErr(msg: String)
+      val doc = page("Typed Bad")(
+        exampleZIO {
+          ZIO.fail(DemoErr("nope"))
+        }
+      )
+      for
+        tmp <- ZIO.attempt(Files.createTempDirectory("specular-site-typed-bad"))
+        ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp)).flip
+      yield assertTrue(
+        ex.getMessage.contains("exampleZIO"),
+        ex.getMessage.contains("DemoErr"),
+        ex.getMessage.contains("nope"),
+      )
+    },
+    test("exampleError renders E in the result panel, not a crash dump") {
+      final case class DemoErr(msg: String)
+      val doc = page("Typed Err")(
+        exampleError {
+          ZIO.fail(DemoErr("nope"))
+        }
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-site-typed-err"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield assertTrue(
+        html.contains("id=\"typed-err-ex-1\""),
+        html.contains("specular-result"),
+        !html.contains("specular-crash"),
+        html.contains("ZIO.fail"),
+        !html.contains(".either"),
+        !html.contains("foldZIO"),
+        html.contains("DemoErr"),
+        html.contains("nope"),
+      )
+      end for
+    },
+    test("exampleError whose body succeeds fails the site build") {
+      val doc = page("Typed Oops")(
+        exampleError {
+          ZIO.succeed("ok"): ZIO[Scope, String, String]
+        }
+      )
+      for
+        tmp <- ZIO.attempt(Files.createTempDirectory("specular-site-typed-oops"))
+        ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp)).flip
+      yield assertTrue(
+        ex.getMessage.contains("exampleError"),
+        ex.getMessage.contains("effect succeeded"),
+      )
+    },
+    test("exampleError whose body dies fails the site build as a defect") {
+      val doc = page("Typed Die")(
+        exampleError {
+          ZIO.die(RuntimeException("kaput")): ZIO[Scope, String, Nothing]
+        }
+      )
+      for
+        tmp   <- ZIO.attempt(Files.createTempDirectory("specular-site-typed-die"))
+        cause <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp)).sandbox.flip
+      yield assertTrue(cause.dieOption.exists(_.getMessage.contains("kaput")))
+    },
     test("fail and crash examples render source and diagnostics panels") {
       val doc = page("Failures")(
         expectFail("""

@@ -87,9 +87,9 @@ object InteractiveHtmlSpec extends ZIOSpecDefault:
         val keys = mountAttrValues(html)
         assertTrue(
           // One scan covers both kinds: `.interactive` keys default to the example id.
-          keys.contains("showcase-ex-7"),
+          keys.contains("showcase-ex-9"),
           // Static examples on the same page do not claim mount points.
-          keys == Vector("showcase-ex-7"),
+          keys == Vector("showcase-ex-9"),
         )
     },
     // Keys reach an HTML attribute, so this is a security property, not cosmetics. `MountKey` restricts the
