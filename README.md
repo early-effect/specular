@@ -118,8 +118,9 @@ def section(title: String)(nodes: DocNode*): Section
 def md"""…""": Prose                                          // markdown → ascent UI
 def example { ui }: Example[Any]                              // static UI + source capture
 def exampleIO { urio }: Example[Any]                          // effectful UI (e.g. sq(0), diagramInteractive)
-def exampleValue { a } / exampleZIO { urio }: ValueExample[A]  // plain value / effect + printed result
-def expectFail("…") / expectCrash { zio }                     // must-not-compile / must-fail
+def exampleValue { a } / exampleZIO { zio }: ValueExample[A]   // plain value / effect + printed result
+def exampleError { zio }: ValueExample[E]                      // documented typed failure; result is E
+def expectFail("…") / expectCrash { zio }                     // must-not-compile / must-fail (Cause)
 def exampleDom(key): DomExample                               // interactive mount, any framework
 example.interactive                                           // also mount client-side (ascent)
 example.assert(ui => assertTrue(…))                           // zio-test assertion
