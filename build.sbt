@@ -2,7 +2,13 @@ import sbt.nio.Keys.watchOnTermination
 
 MyVersions.settings
 
+ThisBuild / scalaVersion := (MyVersions.scala: String)
+
 val scala3Version: String = MyVersions.scala
+
+// Take zio-json 1.1.0 from heddle. Older transitives (zio-schema-json via remaining zio-http) still
+// pin 0.10.0; under early-semver that is a hard eviction without a scheme.
+ThisBuild / libraryDependencySchemes += "dev.zio" %% "zio-json" % "always"
 
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
 organization         := "rocks.earlyeffect"
