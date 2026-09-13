@@ -7,12 +7,13 @@ import zipx.*
   */
 object MyVersions extends ZipxVersions:
   val sbt: SbtVersion     = SbtVersion("2.0.7")
-  val scala: ScalaVersion = ScalaVersion("3.8.4")
+  val scala: ScalaVersion = ScalaVersion("3.9.0")
 
   val zio        = Lib("dev.zio", "zio", "2.1.26")
   val zioTest    = zio.mod("zio-test")
   val zioTestSbt = zio.mod("zio-test-sbt")
-  val zioHttp    = Lib("dev.zio", "zio-http", "3.11.4")
+  val zioHttp = Lib("dev.zio", "zio-http", "3.11.4")
+  val heddle  = Lib("rocks.earlyeffect", "heddle", "0.1.0")
 
   val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.5.0")
   val ascentCss     = ascent.mod("ascent-css")
@@ -50,7 +51,7 @@ object MyVersions extends ZipxVersions:
   def coreJvm    = library(zio, zioTest, ascent, ascentCss)
   def coreJs     = library(ascentJs, scalajsDom)
   def javaTime   = library(scalaJavaTime, scalaJavaTimeTzdb)
-  def siteLib    = library(ascentHtml, ascentPreview, zioHttp, commonmark, commonmarkGfm, scalafmtCore)
+  def siteLib    = library(ascentHtml, ascentPreview, heddle, zioHttp, commonmark, commonmarkGfm, scalafmtCore)
   def mermoidLib = library(ascent, ascentCss, mermoidAscent)
   def mermoidJvm = library(ascentHtml)
   def mermoidJs  = library(ascentJs)

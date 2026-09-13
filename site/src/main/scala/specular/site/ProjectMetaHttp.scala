@@ -1,7 +1,7 @@
 package specular.site
 
+import heddle.*
 import zio.*
-import zio.http.*
 
 /** JVM HTTP fetch for published micro-site `metadata.json` (org hub composition).
   *
@@ -20,11 +20,11 @@ object ProjectMetaHttp:
       _ <- ZIO
         .fail(new IllegalArgumentException(s"Refusing non-http(s) metadata URL: $url"))
         .unless(ProjectMeta.isAllowedMetaUrl(url))
-      response <- ZClient
+      response <- Client
         .batched(Request.get(url))
         .timeoutFail(new RuntimeException(s"Timed out fetching $url"))(FetchTimeout)
       _     <- ZIO.fail(new RuntimeException(s"GET $url → ${response.status}")).when(!response.status.isSuccess)
-      chunk <- response.body.asChunk
+      chunk <- response.body.collect
       _     <- ZIO
         .fail(new RuntimeException(s"$url: body exceeds ${ProjectMeta.MaxBodyBytes} bytes"))
         .when(chunk.size > ProjectMeta.MaxBodyBytes)
