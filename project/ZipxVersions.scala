@@ -12,9 +12,9 @@ object MyVersions extends ZipxVersions:
   val zio        = Lib("dev.zio", "zio", "2.1.26")
   val zioTest    = zio.mod("zio-test")
   val zioTestSbt = zio.mod("zio-test-sbt")
-  val zioHttp    = Lib("dev.zio", "zio-http", "3.11.4")
+  val zioHttp    = Lib("dev.zio", "zio-http", "3.11.5")
 
-  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.5.0")
+  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.6.3")
   val ascentCss     = ascent.mod("ascent-css")
   val ascentJs      = ascent.mod("ascent-js")
   val ascentHtml    = ascent.mod("ascent-html")
@@ -43,7 +43,7 @@ object MyVersions extends ZipxVersions:
   val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
   val dynverCi         = Plugin("rocks.earlyeffect", "sbt-dynver-ci", "0.2.3")
   val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.1.0")
-  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.5.0")
+  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.6.3")
 
   def zioTests   = library(zioTest.test, zioTestSbt.test)
   def zioLib     = library(zio)
