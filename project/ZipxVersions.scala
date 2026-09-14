@@ -20,16 +20,7 @@ object MyVersions extends ZipxVersions:
   val ascentHtml    = ascent.mod("ascent-html")
   val ascentPreview = ascent.mod("ascent-preview")
 
-  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.6")
-    // 0.0.6 is published against ascent 0.3.1. Drop those so this build's ascent wins (preview / DevReload).
-    .excluding(
-      ZipxExclude.org("rocks.earlyeffect", "ascent-core_3"),
-      ZipxExclude.org("rocks.earlyeffect", "ascent-css_3"),
-      ZipxExclude.org("rocks.earlyeffect", "ascent-html_3"),
-      ZipxExclude.org("rocks.earlyeffect", "ascent-core_sjs1_3"),
-      ZipxExclude.org("rocks.earlyeffect", "ascent-css_sjs1_3"),
-      ZipxExclude.org("rocks.earlyeffect", "ascent-js_sjs1_3"),
-    )
+  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.7")
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
   val scalaJavaTime     = Lib("io.github.cquiroz", "scala-java-time", "2.7.0")
