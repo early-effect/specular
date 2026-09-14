@@ -6,22 +6,21 @@ ThisBuild / scalaVersion := (MyVersions.scala: String)
 
 val scala3Version: String = MyVersions.scala
 
-// Take zio-json 1.1.0 from heddle. Older transitives (zio-schema-json via remaining zio-http) still
-// pin 0.10.0; under early-semver that is a hard eviction without a scheme.
+// Take zio-json 1.1.0 from heddle. Leftover 0.9/0.10 pins still need a scheme under early-semver.
 ThisBuild / libraryDependencySchemes += "dev.zio" %% "zio-json" % "always"
 
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
 organization         := "rocks.earlyeffect"
 organizationName     := "Early Effect"
-organizationHomepage := Some(url("https://www.earlyeffect.rocks"))
+organizationHomepage := Some(uri("https://www.earlyeffect.rocks"))
 versionScheme        := Some("early-semver")
 // No hardcoded version — sbt-dynver derives it from the git tag (v0.1.0 -> 0.1.0).
 
-homepage := Some(url("https://github.com/early-effect/specular"))
-licenses := Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
+homepage := Some(uri("https://github.com/early-effect/specular"))
+licenses := Seq("Apache-2.0" -> uri("http://www.apache.org/licenses/LICENSE-2.0.txt"))
 scmInfo  := Some(
   ScmInfo(
-    url("https://github.com/early-effect/specular"),
+    uri("https://github.com/early-effect/specular"),
     "scm:git@github.com:early-effect/specular.git",
   )
 )
@@ -30,7 +29,7 @@ developers := List(
     "russwyte",
     "Russ White",
     "356303+russwyte@users.noreply.github.com",
-    url("https://github.com/russwyte"),
+    uri("https://github.com/russwyte"),
   )
 )
 
