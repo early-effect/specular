@@ -6,30 +6,21 @@ import zipx.*
   * already brings it in. Action pins stay on jar defaults.
   */
 object MyVersions extends ZipxVersions:
-  val sbt: SbtVersion     = SbtVersion("2.0.7")
-  val scala: ScalaVersion = ScalaVersion("3.8.4")
+  val sbt: SbtVersion     = SbtVersion("2.1.0-M1")
+  val scala: ScalaVersion = ScalaVersion("3.9.0")
 
   val zio        = Lib("dev.zio", "zio", "2.1.26")
   val zioTest    = zio.mod("zio-test")
   val zioTestSbt = zio.mod("zio-test-sbt")
-  val zioHttp    = Lib("dev.zio", "zio-http", "3.11.5")
+  val heddle     = Lib("rocks.earlyeffect", "heddle", "0.1.0")
 
-  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.6.3")
+  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.7.0")
   val ascentCss     = ascent.mod("ascent-css")
   val ascentJs      = ascent.mod("ascent-js")
   val ascentHtml    = ascent.mod("ascent-html")
   val ascentPreview = ascent.mod("ascent-preview")
 
-  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.6")
-    // 0.0.6 is published against ascent 0.3.1. Drop those so this build's ascent wins (preview / DevReload).
-    .excluding(
-      ZipxExclude.org("rocks.earlyeffect", "ascent-core_3"),
-      ZipxExclude.org("rocks.earlyeffect", "ascent-css_3"),
-      ZipxExclude.org("rocks.earlyeffect", "ascent-html_3"),
-      ZipxExclude.org("rocks.earlyeffect", "ascent-core_sjs1_3"),
-      ZipxExclude.org("rocks.earlyeffect", "ascent-css_sjs1_3"),
-      ZipxExclude.org("rocks.earlyeffect", "ascent-js_sjs1_3"),
-    )
+  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.7")
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
   val scalaJavaTime     = Lib("io.github.cquiroz", "scala-java-time", "2.7.0")
@@ -43,14 +34,14 @@ object MyVersions extends ZipxVersions:
   val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
   val dynverCi         = Plugin("rocks.earlyeffect", "sbt-dynver-ci", "0.2.3")
   val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.1.0")
-  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.6.3")
+  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.7.0")
 
   def zioTests   = library(zioTest.test, zioTestSbt.test)
   def zioLib     = library(zio)
   def coreJvm    = library(zio, zioTest, ascent, ascentCss)
   def coreJs     = library(ascentJs, scalajsDom)
   def javaTime   = library(scalaJavaTime, scalaJavaTimeTzdb)
-  def siteLib    = library(ascentHtml, ascentPreview, zioHttp, commonmark, commonmarkGfm, scalafmtCore)
+  def siteLib    = library(ascentHtml, ascentPreview, heddle, commonmark, commonmarkGfm, scalafmtCore)
   def mermoidLib = library(ascent, ascentCss, mermoidAscent)
   def mermoidJvm = library(ascentHtml)
   def mermoidJs  = library(ascentJs)

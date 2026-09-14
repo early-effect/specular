@@ -2,7 +2,7 @@ package specular.site
 
 import specular.DocPage
 import zio.*
-import zio.http.Client
+import heddle.Client
 
 /** Configuration for a specular site (docs micro-site or full hub). */
 final case class SiteModel(
