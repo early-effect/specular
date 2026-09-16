@@ -42,3 +42,5 @@ build.sbt.semanticdb
 .playwright-mcp/
 
 node_modules/
+
+.mcp.json
