@@ -59,6 +59,28 @@ object DocBuildersSpec extends ZIOSpecDefault:
         }.interactive
         assertTrue(ex.isInteractive)
       },
+      test("illustration stores the tree and has no source") {
+        val ill = illustration {
+          E.article(E.p("poster"))
+        }
+        assertTrue(
+          !ill.isLive,
+          ill.assertion.isEmpty,
+          ill.mountKey.isEmpty,
+        )
+      },
+      test("fluent .live marks the illustration") {
+        val ill = illustrationIO {
+          sq(0).map(n => E.span(n.map(_.toString)))
+        }.live
+        assertTrue(ill.isLive)
+      },
+      test("Illustration.withMountKey validates the same alphabet") {
+        assertTrue(
+          scala.util.Try(illustration { E.p("x") }.withMountKey("bad key")).isFailure,
+          illustration { E.p("x") }.withMountKey("ok").mountKey.contains("ok"),
+        )
+      },
       test("exampleValue captures locals and lifts the result") {
         val ex = exampleValue {
           val xs = List(1, 2)
@@ -305,6 +327,35 @@ object DocBuildersSpec extends ZIOSpecDefault:
           DocInternal.mountKeys(p.children) == Vector("keys-ex-1")
         )
       },
+      test("illustration shares the one example counter") {
+        val p = page("Mixed")(
+          example { E.div("a") },
+          illustration { E.article("poster") },
+          exampleValue { 1 },
+        )
+        assertTrue(
+          collectExampleIds(p.children) == Vector("mixed-ex-1", "mixed-ex-2", "mixed-ex-3")
+        )
+      },
+      test("page defaults a live illustration's mount key to its id") {
+        val p = page("Keys")(
+          illustration { E.div("a") }.live,
+          illustration { E.div("b") },
+        )
+        assertTrue(
+          DocInternal.mountKeys(p.children) == Vector("keys-ex-1")
+        )
+      },
+      test("an explicit illustration mount key survives id assignment") {
+        val p = page("Keys")(
+          illustration { E.div("a") }.live.withMountKey("chosen")
+        )
+        assertTrue(DocInternal.mountKeys(p.children) == Vector("chosen"))
+      },
+      test("a static illustration declares no mount key") {
+        val p = page("Quiet")(illustration { E.div("a") })
+        assertTrue(DocInternal.mountKeys(p.children).isEmpty)
+      },
       test("an explicit ascent mount key survives id assignment") {
         val p = page("Keys")(
           example { E.div("a") }.interactive.withMountKey("chosen")
@@ -346,6 +397,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
   private def collectExampleIds(nodes: Vector[DocNode]): Vector[String] =
     nodes.flatMap {
       case e: Example[?]         => Vector(e.id)
+      case i: Illustration[?]    => Vector(i.id)
       case v: ValueExample[?]    => Vector(v.id)
       case f: FailExample        => Vector(f.id)
       case c: CrashExample[?, ?] => Vector(c.id)

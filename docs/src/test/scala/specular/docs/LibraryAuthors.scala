@@ -75,12 +75,14 @@ DOM mount, so anything that writes into an element qualifies. [Interactive examp
 is the full guide; the setup is:
 
 1. A Scala.js docs project depending on `specular-core` (plus your own JS modules)
-2. Either `.interactive` on an ascent example, or `exampleDom(key).fromSource(file, marker)` for
-   anything else
+2. Either `.interactive` on an ascent example, `.live` on an illustration, or
+   `exampleDom(key).fromSource(file, marker)` for anything else
 3. A `ClientMain` calling `SpecularClient.mountAll(SpecularClient.fromPages(pages*) ++ yourMounters)`
 4. `specularSite` (or equivalent) splicing `spliceFull` into `assets/client.js`
 
-`fromPages` registers every `.interactive` ascent example for you; `exampleDom` keys are yours to bind,
+Use `illustration` / `illustrationIO` when the region *is* the document (a poster, a host switcher),
+not a copy-paste sample. `fromPages` registers every `.interactive` ascent example and every `.live`
+illustration; `exampleDom` keys are yours to bind,
 since specular cannot import your client code. Guard the two against drift with
 `SpecularClient.requiredKeys(pages*)`.
 

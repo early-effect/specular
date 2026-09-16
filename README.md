@@ -118,11 +118,14 @@ def section(title: String)(nodes: DocNode*): Section
 def md"""…""": Prose                                          // markdown → ascent UI
 def example { ui }: Example[Any]                              // static UI + source capture
 def exampleIO { urio }: Example[Any]                          // effectful UI (e.g. sq(0), diagramInteractive)
+def illustration { ui }: Illustration[Any]                    // SSR tree, no source panel
+def illustrationIO { urio }: Illustration[Any]                // effectful illustration (e.g. sq)
 def exampleValue { a } / exampleZIO { zio }: ValueExample[A]   // plain value / effect + printed result
 def exampleError { zio }: ValueExample[E]                      // documented typed failure; result is E
 def expectFail("…") / expectCrash { zio }                     // must-not-compile / must-fail (Cause)
 def exampleDom(key): DomExample                               // interactive mount, any framework
 example.interactive                                           // also mount client-side (ascent)
+illustration.live                                             // remount an illustration (same path as .interactive)
 example.assert(ui => assertTrue(…))                           // zio-test assertion
 ```
 
@@ -168,7 +171,7 @@ def run = ZIO.scoped {
 `fromSource(path, marker)` shows just the region between `// specular:begin <marker>` and
 `// specular:end`. Paths are repo-relative to `specularSourceRoot` and confined to it.
 
-`fromPages` registers every `.interactive` ascent example; `exampleDom` keys are yours to bind.
+`fromPages` registers every `.interactive` ascent example and every `.live` illustration; `exampleDom` keys are yours to bind.
 Mounters share the **page's** `Scope` (so an `acquireRelease`d listener survives setup), run isolated
 (one failure gets an error box, not a blank page), and are forked (a never-ending mounter cannot
 starve the rest). `exampleDom` is the one node kind that emits a test without `.assert`, so a moved

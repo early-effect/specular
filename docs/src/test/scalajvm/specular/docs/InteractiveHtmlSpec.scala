@@ -81,6 +81,21 @@ object InteractiveHtmlSpec extends ZIOSpecDefault:
           !figure.contains("specular:end"),
         )
     },
+    test("an illustration SSRs without example chrome") {
+      for html <- render(Interactive.doc)
+      yield
+        val at    = html.indexOf("This is the document")
+        val open  = html.lastIndexOf("<div", at)
+        val close = html.indexOf("</div>", at)
+        val wrap  = if at < 0 || open < 0 || close < 0 then "" else html.substring(open, close)
+        assertTrue(
+          wrap.contains("specular-illustration"),
+          wrap.contains("No source panel"),
+          !wrap.contains("specular-example"),
+          !wrap.contains("specular-code"),
+          !wrap.contains("specular-source"),
+        )
+    },
     test("the ascent interactive example on Showcase carries a mount attribute too") {
       for html <- render(Showcase.doc)
       yield

@@ -25,5 +25,12 @@ object ExampleRunnerSpec extends ZIOSpecDefault:
           ui     <- runner.get.run(ex)
         yield assertTrue(ui != null)
       },
+      test("runs a static illustration body") {
+        val ill = illustration { E.article("poster") }
+        for
+          runner <- ExampleRunner.live.build
+          ui     <- runner.get.run(ill)
+        yield assertTrue(ui == E.article("poster"))
+      },
     )
 end ExampleRunnerSpec

@@ -22,11 +22,13 @@ adapter (`Mounter.fromAscent`) over the same hook, wired for you by `.interactiv
       md"""
 | You are documenting | Use | Source panel comes from |
 | ------------------- | --- | ----------------------- |
-| An ascent `UI` value | `example`/`exampleIO` + `.interactive` | the captured expression (macro) |
+| An ascent `UI` sample | `example`/`exampleIO` + `.interactive` | the captured expression (macro) |
+| An ascent `UI` that *is* the page | `illustration`/`illustrationIO` + `.live` | none |
 | Anything else | `exampleDom(key).fromSource(...)` | a real file, read at build time |
 
 `.interactive` is unchanged from before the hook: it assigns the mount key from the example's id, so
-`SpecularClient.fromPages(pages*)` registers it with no work from you.
+`SpecularClient.fromPages(pages*)` registers it with no work from you. `.live` is the same assignment
+for an illustration.
 
 `exampleDom` is the general form. Its body lives in your **Scala.js** project, which the JVM DocSpec
 cannot see (let alone typecheck), so the DocSpec names the file instead of embedding a string. The
@@ -105,12 +107,38 @@ object ClientMain extends ZIOAppDefault:
   }
 ```
 
-`fromPages` handles every `.interactive` ascent example. `exampleDom` keys are yours to register:
+`fromPages` handles every `.interactive` ascent example and every `.live` illustration.
+`exampleDom` keys are yours to register:
 specular cannot invent a mounter for code it does not import.
 
 `ZIO.scoped` around the whole thing on purpose: that scope is the page lifetime the mounters share.
 `ZIO.never` keeps it open.
 """
+    ),
+    section("Illustration, not a sample")(
+      md"""
+`example` always wraps the tree in `figure.specular-example` with a source panel. That is the
+right chrome for a copy-paste sample. It is the wrong chrome for a poster, an anatomy widget, or
+a page that *is* an Ascent document.
+
+`illustration` / `illustrationIO` SSR the tree (and `.live` remounts it) without that chrome: no
+source panel, no copy button, a quiet `div`. Same ids and `data-specular-mount` path as examples.
+`.assert` is still optional. Do not hide `.specular-code` with CSS; that is a leak of Specular
+internals into the library docs.
+""",
+      illustration {
+        E.article(
+          E.h3("This is the document"),
+          E.p("No source panel. No copy button. The tree SSRs as itself."),
+        )
+      },
+      illustrationIO {
+        for n <- sq(0)
+        yield E.div(
+          E.button(Events.onClick(_ => n.update(_ + 1)), "tick"),
+          E.span(" ", n.map(_.toString)),
+        )
+      }.live,
     ),
     section("A live example, with no UI library")(
       md"""

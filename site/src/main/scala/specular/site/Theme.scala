@@ -271,6 +271,7 @@ object Theme:
         Selector(" > nav.specular-page-toc", maxWidth(52.rem)),
         Selector(" > table", maxWidth.none, width.pct(100)),
         Selector(" > figure.specular-example", maxWidth.none, width.pct(100)),
+        Selector(" > .specular-illustration", maxWidth.none, width.pct(100)),
         // Fenced mermaid stays in the prose measure; layout uses Mermoid.proseViewport (52rem).
         Selector(" section > .mermoid-root", maxWidth(52.rem), width.pct(100)),
         Selector(" > .mermoid-ascent", maxWidth.none, width.pct(100)),
@@ -387,6 +388,14 @@ object Theme:
         ),
         Selector(
           " figure.specular-example",
+          width.pct(100),
+          maxWidth.none,
+          margin(1.25.rem, 0.px),
+          padding(0.px),
+        ),
+        // A mount, not a sample: no source panel, no snapshot card. The tree is the document.
+        Selector(
+          " .specular-illustration",
           width.pct(100),
           maxWidth.none,
           margin(1.25.rem, 0.px),

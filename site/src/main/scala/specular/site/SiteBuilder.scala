@@ -264,6 +264,16 @@ object SiteBuilder:
             Vector(attr("class", "specular-example")),
           )
         end for
+      case ill: Illustration[?] =>
+        val erased = ill.asInstanceOf[Illustration[Any]]
+        for ui <- runner.run(erased)
+        yield
+          val mountAttrs = erased.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
+          el(
+            "div",
+            Vector(ui),
+            Vector(attr("id", erased.id), attr("class", "specular-illustration")) ++ mountAttrs,
+          )
       case de: DomExample =>
         // Source comes from a real Scala.js file rather than a captured expression, so an unresolvable
         // ref fails the site build the way `expectCrash` does: a stale path or deleted marker must not

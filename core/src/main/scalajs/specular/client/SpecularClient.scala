@@ -35,15 +35,15 @@ object SpecularClient:
       _ <- ZIO.succeed(DevReload.install())
     yield ()
 
-  /** Ascent adapter: a mounter per interactive `Example` across `pages`, keyed by its mount key.
+  /** Ascent adapter: a mounter per interactive `Example` and live `Illustration` across `pages`.
     *
-    * Replaces the hand-rolled per-repo `ExampleRegistry`: `.interactive` already assigns a key during `page(...)`, so
-    * listing the pages is all a docs client has to do.
+    * Replaces the hand-rolled per-repo `ExampleRegistry`: `.interactive` / `.live` already assign a key during
+    * `page(...)`, so listing the pages is all a docs client has to do.
     */
   def fromPages(pages: DocPage*): Map[String, Mounter] =
     pages.toVector
-      .flatMap(p => interactiveExamples(p.children))
-      .map(ex => ex.mountKey.getOrElse(ex.id) -> Mounter.fromAscent(ex.body))
+      .flatMap(p => liveAscent(p.children))
+      .map((key, body) => key -> Mounter.fromAscent(body))
       .toMap
 
   /** Every mount key `pages` declares, ascent and DOM alike: the expected registry keys, for a drift spec. */
@@ -101,10 +101,15 @@ object SpecularClient:
       }
     }
 
-  private def interactiveExamples(nodes: Vector[DocNode]): Vector[Example[Any]] =
+  private def liveAscent(nodes: Vector[DocNode]): Vector[(String, URIO[Scope, ascent.ast.UI[Any]])] =
     nodes.flatMap {
-      case ex: Example[?] if ex.isInteractive => Vector(ex.asInstanceOf[Example[Any]])
-      case Section(_, kids)                   => interactiveExamples(kids)
-      case _                                  => Vector.empty
+      case ex: Example[?] if ex.isInteractive =>
+        val e = ex.asInstanceOf[Example[Any]]
+        Vector(e.mountKey.getOrElse(e.id) -> e.body)
+      case ill: Illustration[?] if ill.isLive =>
+        val i = ill.asInstanceOf[Illustration[Any]]
+        Vector(i.mountKey.getOrElse(i.id) -> i.body)
+      case Section(_, kids) => liveAscent(kids)
+      case _                => Vector.empty
     }
 end SpecularClient
