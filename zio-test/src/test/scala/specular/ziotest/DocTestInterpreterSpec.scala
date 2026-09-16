@@ -79,6 +79,14 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
         for outcomes <- runTests(page("Dom")(exampleDom("k").fromSource(SelfPath, "no-such-marker")))
         yield assertTrue(outcomes.map(_._2) == Vector(false))
       },
+      test("an unasserted illustration emits no test; an asserted one does") {
+        val doc = page("Ill")(
+          illustration { E.article("quiet") },
+          illustration { E.article("checked") }.assert(_ => assertTrue(true)),
+        )
+        for outcomes <- runTests(doc)
+        yield assertTrue(outcomes == Vector("Ill/illustration ill-ex-2" -> true))
+      },
       test("a DomExample emits exactly one test, and its siblings are unaffected") {
         val doc = page("Mixed")(
           md"prose emits nothing",

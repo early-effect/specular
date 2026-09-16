@@ -13,11 +13,11 @@ import zio.test.*
 object InteractiveContractSpec extends ZIOSpecDefault:
 
   def spec = suite("Interactive contract")(
-    test("every .interactive example declares a mount key equal to its id") {
-      val interactive = collectInteractive(BuildSite.pages)
+    test("every .interactive example and .live illustration declares a mount key equal to its id") {
+      val live = collectLive(BuildSite.pages)
       assertTrue(
-        interactive.nonEmpty,
-        interactive.forall((id, key) => key.contains(id)),
+        live.nonEmpty,
+        live.forall((id, key) => key.contains(id)),
       )
     },
     test("exampleDom keys across the site are exactly the ones ClientMain binds") {
@@ -60,11 +60,12 @@ object InteractiveContractSpec extends ZIOSpecDefault:
     Showcase.doc,
   )
 
-  /** Interactive ascent examples as (id, declared key). */
-  private def collectInteractive(pages: Vector[DocPage]): Vector[(String, Option[String])] =
+  /** Interactive examples and live illustrations as (id, declared key). */
+  private def collectLive(pages: Vector[DocPage]): Vector[(String, Option[String])] =
     def go(nodes: Vector[DocNode]): Vector[(String, Option[String])] =
       nodes.flatMap {
         case ex: Example[?] if ex.isInteractive => Vector(ex.id -> ex.mountKey)
+        case ill: Illustration[?] if ill.isLive => Vector(ill.id -> ill.mountKey)
         case Section(_, kids)                   => go(kids)
         case _                                  => Vector.empty
       }

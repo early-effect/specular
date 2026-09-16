@@ -21,6 +21,7 @@ that fold it into tests or HTML. Everything else (themes, hubs, sbt wiring) hang
 | `Section` | `section(title)(…)` | Nested heading + children |
 | `Prose` | `md"…"` | Markdown → ascent `UI` at build time |
 | `Example` | `example` / `exampleIO` | Source string + UI effect |
+| `Illustration` | `illustration` / `illustrationIO` | UI effect, no source panel (the page *is* the tree) |
 | `ValueExample` | `exampleValue` / `exampleZIO` / `exampleError` | Source string + plain value, effect, or typed `E` |
 | `FailExample` | `expectFail("…")` | Must-not-compile snippet + diagnostics |
 | `CrashExample` | `expectCrash { … }` | Must-fail effect + `Cause` output |
@@ -30,6 +31,7 @@ Examples carry optional flags:
 - `.assert(…)`: zio-test `TestResult` (gates CI); UI examples assert on the tree, value examples on `A`,
   `exampleError` on `E`, fail examples on `typeCheckErrors`, crash examples on `Cause[E]`
 - `.interactive`: UI examples only; register for client remount after SSR
+- `.live`: illustrations only; same remount path as `.interactive`, without sample chrome
 
 Ids (`<page-slug>-ex-1`, …) are assigned when you call `page`, so SSR wrappers and the JS
 registry stay aligned across pages without colliding.
@@ -49,7 +51,7 @@ report; `exampleError` asserts on `E` itself.
 **SiteBuilder** (`specular-site`) walks the same tree for HTML:
 
 1. Markdown → UI via commonmark
-2. UI examples → source panel + SSR snapshot (`ascent-html`)
+2. UI examples → source panel + SSR snapshot (`ascent-html`); illustrations → the tree only, no chrome
 3. Value examples → source panel + printed result (`A`, or `E` for `exampleError`)
 4. Fail examples → source panel + real compiler diagnostics
 5. Crash examples → source panel + pretty-printed `Cause`
@@ -73,8 +75,9 @@ SSR gives readers a first paint. `.interactive` examples then remount into `#<sl
 wrappers via a Scala.js client that shares the DocSpec sources (cross-compiled or
 duplicated page list).
 
-In this dogfood site, `ExampleRegistry.fromPages(…)` collects interactive bodies and
-`ClientMain` mounts each into its SSR node. Prefer that pattern over hand-written IDs.
+In this dogfood site, `SpecularClient.fromPages(…)` collects interactive examples and live
+illustrations and `ClientMain` mounts each into its SSR node. Prefer that pattern over
+hand-written IDs.
 """,
       exampleIO {
         for n <- sq(0)

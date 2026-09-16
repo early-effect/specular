@@ -237,6 +237,19 @@ object SpecularClientSpec extends ZIOSpecDefault:
       },
       // fromPages covers ascent only; a DomExample's mounter is the author's to register, which is
       // exactly the drift `requiredKeys` is compared against.
+      test("fromPages registers a live illustration and skips a static one") {
+        val p = page("Alpha")(
+          illustration { E.div("static") },
+          illustration { E.div("live") }.live,
+          section("S")(illustrationIO { ZIO.succeed(E.div("nested")) }.live),
+        )
+        val mounters = SpecularClient.fromPages(p)
+        assertTrue(mounters.keySet == Set("alpha-ex-2", "alpha-ex-3"))
+      },
+      test("fromPages honors an explicit illustration mount key") {
+        val p = page("Alpha")(illustration { E.div("live") }.live.withMountKey("chosen"))
+        assertTrue(SpecularClient.fromPages(p).keySet == Set("chosen"))
+      },
       test("fromPages does not invent a mounter for a DomExample") {
         val p = page("Alpha")(exampleDom("dom-one").fromSource("a/A.scala"))
         assertTrue(

@@ -46,6 +46,28 @@ final case class Example[R](
     copy(mountKey = Some(MountKey.validated(key)))
 end Example
 
+/** An ascent tree that is the page (or a region of it), not a copy-paste sample.
+  *
+  * Same SSR and optional JS remount as [[Example]], without a source panel, copy button, or `figure.specular-example`
+  * chrome. Use this for a poster, an anatomy widget, a host switcher: anything that *is* the document rather than a
+  * snippet of it. [[live]] remounts through `SpecularClient.fromPages` the way `.interactive` does for samples.
+  */
+final case class Illustration[R](
+    id: String,
+    body: URIO[R & Scope, ascent.ast.UI[R]],
+    isLive: Boolean,
+    assertion: Option[ascent.ast.UI[R] => TestResult],
+    mountKey: Option[String] = None,
+) extends DocNode:
+
+  def live: Illustration[R] = copy(isLive = true)
+
+  def assert(f: ascent.ast.UI[R] => TestResult): Illustration[R] = copy(assertion = Some(f))
+
+  def withMountKey(key: String): Illustration[R] =
+    copy(mountKey = Some(MountKey.validated(key)))
+end Illustration
+
 /** A plain Scala / ZIO value example: source + computed result (not an ascent UI tree).
   *
   * Plain values and effects share this node (zio-test style): [[exampleValue]] lifts `A` with `ZIO.succeed`, and
@@ -187,7 +209,8 @@ object DocMounts:
     pages.toVector.flatMap(p => DocInternal.domExamples(p.children))
 end DocMounts
 
-/** Validation for browser mount keys, shared by [[DomExample]] and [[Example.withMountKey]].
+/** Validation for browser mount keys, shared by [[DomExample]], [[Example.withMountKey]], and
+  * [[Illustration.withMountKey]].
   *
   * A key becomes an HTML attribute value and a client-side map key, so it is constrained to an unambiguous, injection-
   * proof alphabet. Rejection is an exception at *construction* rather than a build-time diagnostic on purpose: DocSpecs
@@ -234,6 +257,14 @@ inline def example(inline body: ascent.ast.UI[Any]): Example[Any] =
 /** Capture an effectful UI-building example (e.g. allocating a Source via `sq`). */
 inline def exampleIO(inline body: URIO[Scope, ascent.ast.UI[Any]]): Example[Any] =
   DocInternal.mkExampleIO(capturedSource(body), body)
+
+/** SSR an ascent tree with no source panel. The page (or a region) *is* this tree, not a sample of it. */
+def illustration(body: ascent.ast.UI[Any]): Illustration[Any] =
+  DocInternal.mkIllustration(body)
+
+/** Effectful illustration (e.g. `sq`). [[Illustration.live]] remounts it through `fromPages` like `.interactive`. */
+def illustrationIO(body: URIO[Scope, ascent.ast.UI[Any]]): Illustration[Any] =
+  DocInternal.mkIllustrationIO(body)
 
 /** Capture a plain Scala value: source panel + printed result. Same [[ValueExample]] as effects. */
 inline def exampleValue[A](inline body: A): ValueExample[A] =
@@ -303,6 +334,22 @@ private[specular] object DocInternal:
       source = source,
       body = effect,
       isInteractive = false,
+      assertion = None,
+    )
+
+  def mkIllustration(ui: ascent.ast.UI[Any]): Illustration[Any] =
+    Illustration(
+      id = "",
+      body = ZIO.succeed(ui),
+      isLive = false,
+      assertion = None,
+    )
+
+  def mkIllustrationIO(effect: URIO[Scope, ascent.ast.UI[Any]]): Illustration[Any] =
+    Illustration(
+      id = "",
+      body = effect,
+      isLive = false,
       assertion = None,
     )
 
@@ -377,6 +424,11 @@ private[specular] object DocInternal:
           // keep writing plain `.interactive` while the client sees one uniform keyed mount.
           val key = if e.isInteractive then Some(e.mountKey.getOrElse(id)) else e.mountKey
           e.copy(id = id, mountKey = key)
+        case i: Illustration[?] =>
+          n += 1
+          val id  = s"$pageSlug-ex-$n"
+          val key = if i.isLive then Some(i.mountKey.getOrElse(id)) else i.mountKey
+          i.copy(id = id, mountKey = key)
         case v: ValueExample[?] =>
           n += 1
           v.copy(id = s"$pageSlug-ex-$n")
@@ -399,10 +451,11 @@ private[specular] object DocInternal:
   /** Every browser mount key declared on a page, in document order (duplicates preserved for validation). */
   def mountKeys(nodes: Vector[DocNode]): Vector[String] =
     nodes.flatMap {
-      case e: Example[?]    => e.mountKey.toVector
-      case d: DomExample    => Vector(d.mountKey)
-      case Section(_, kids) => mountKeys(kids)
-      case _                => Vector.empty
+      case e: Example[?]      => e.mountKey.toVector
+      case i: Illustration[?] => i.mountKey.toVector
+      case d: DomExample      => Vector(d.mountKey)
+      case Section(_, kids)   => mountKeys(kids)
+      case _                  => Vector.empty
     }
 
   /** Every [[DomExample]] on a page, in document order. */

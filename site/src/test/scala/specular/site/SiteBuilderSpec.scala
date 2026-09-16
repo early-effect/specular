@@ -686,6 +686,46 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("an illustration SSRs the tree with no example chrome") {
+      val doc = page("Poster")(
+        illustration { E.article(E.p("this is the document")) }
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-illustration"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield
+        val at    = html.indexOf("id=\"poster-ex-1\"")
+        val open  = html.lastIndexOf("<div", at)
+        val close = html.indexOf("</div>", at)
+        val wrap  = if at < 0 || open < 0 || close < 0 then "" else html.substring(open, close)
+        assertTrue(
+          wrap.contains("class=\"specular-illustration\""),
+          wrap.contains("this is the document"),
+          !wrap.contains("specular-example"),
+          !wrap.contains("specular-code"),
+          !wrap.contains("specular-source"),
+          !wrap.contains("specular-snapshot"),
+          !wrap.contains(MountPoint.Attr),
+        )
+      end for
+    },
+    test("a live illustration carries a mount attribute and still has no source panel") {
+      val doc = page("Live")(
+        illustration { E.div("static") },
+        illustrationIO { ZIO.succeed(E.div("live tree")) }.live,
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-illustration-live"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield assertTrue(
+        html.contains(s"""${MountPoint.Attr}="live-ex-2""""),
+        !html.contains(s"""${MountPoint.Attr}="live-ex-1""""),
+        !html.contains("specular-code"),
+      )
+      end for
+    },
     // One scan covers both kinds: an ascent `.interactive` example is keyed the same way.
     test("an interactive ascent example also carries a mount attribute") {
       val doc = page("Mixed")(
