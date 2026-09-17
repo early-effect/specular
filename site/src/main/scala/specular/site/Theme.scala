@@ -85,6 +85,9 @@ object Theme:
   private val vRadius  = "var(--specular-radius)"
   private val vFont    = "var(--specular-font-sans)"
 
+  /** Sidebar leaves the grid below this width; PageTemplate's checkbox drawer takes over. */
+  private val narrowViewport = Media.maxWidth.px(720)
+
   /** Docs layout + chrome, driven by CSS variables from tokens. */
   object Layout
       extends CssClass(
@@ -98,6 +101,18 @@ object Theme:
         fontFamily(vFont),
         color(vText),
         background(vBg),
+        MediaQuery(
+          narrowViewport,
+          gridTemplateColumns(GridTrack.list(GridTrack.fr(1))),
+          Selector(
+            ":has(.specular-nav-toggle:checked) .specular-sidebar",
+            transform.none,
+          ),
+          Selector(
+            ":has(.specular-nav-toggle:checked) .specular-nav-backdrop",
+            display.block,
+          ),
+        ),
       )
 
   object Header
@@ -199,6 +214,98 @@ object Theme:
           Declaration("-webkit-mask", "url(../images/github.svg) center / contain no-repeat"),
           Declaration("mask", "url(../images/github.svg) center / contain no-repeat"),
         ),
+        Selector(
+          " .specular-sr-only",
+          position.absolute,
+          width.px(1),
+          height.px(1),
+          padding.zero,
+          overflow.hidden,
+          clip.rect(0.px, 0.px, 0.px, 0.px),
+          whiteSpace.nowrap,
+          Declaration("border", "0"),
+        ),
+        Selector(
+          " .specular-nav-toggle",
+          display.none,
+        ),
+        Selector(
+          " .specular-nav-open",
+          display.none,
+          alignItems.center,
+          justifyContent.center,
+          flexShrink(0),
+          width(2.5.rem),
+          height(2.5.rem),
+          padding.zero,
+          border.none,
+          background("transparent"),
+          color(vMuted),
+          cursor.pointer,
+        ),
+        Selector(
+          " .specular-nav-open:hover",
+          color(vAccent),
+        ),
+        Selector(
+          " .specular-nav-toggle:focus-visible + .specular-nav-open",
+          color(vAccent),
+          outline("2px solid var(--specular-accent)"),
+          outlineOffset.px(2),
+        ),
+        Selector(
+          " .specular-nav-icon-close",
+          display.none,
+        ),
+        Selector(
+          " .specular-nav-backdrop",
+          display.none,
+          position.fixed,
+          inset.px(0),
+          zIndex(20),
+          background(Color.keyword("color-mix(in srgb, #000 42%, transparent)")),
+          cursor.pointer,
+        ),
+        Selector(
+          ":has(.specular-nav-toggle:checked) .specular-nav-icon-menu",
+          display.none,
+        ),
+        Selector(
+          ":has(.specular-nav-toggle:checked) .specular-nav-icon-close",
+          display.block,
+        ),
+        MediaQuery(
+          narrowViewport,
+          padding(0.75.rem, 1.rem),
+          gap(0.75.rem),
+          Selector(
+            " .specular-nav-toggle",
+            display.block,
+            appearance.none,
+            position.absolute,
+            width.px(1),
+            height.px(1),
+            padding.zero,
+            overflow.hidden,
+            clip.rect(0.px, 0.px, 0.px, 0.px),
+            whiteSpace.nowrap,
+            Declaration("border", "0"),
+          ),
+          Selector(
+            " .specular-nav-open",
+            display.inlineFlex,
+            position.relative,
+            zIndex(40),
+          ),
+          Selector(
+            " .specular-header-link-label",
+            display.none,
+          ),
+          Selector(
+            " .specular-brand-logo",
+            height(2.25.rem),
+          ),
+        ),
       )
 
   object Sidebar
@@ -208,6 +315,7 @@ object Theme:
         padding(1.25.rem),
         borderRight(Border.solid(1.px, vBorder)),
         background(vSurface),
+        transition("transform 0.2s ease"),
         Selector(
           " a",
           display.block,
@@ -254,6 +362,19 @@ object Theme:
           margin(0.15.rem, 0.px, 0.px, 0.65.rem),
           padding(0.px),
         ),
+        MediaQuery(
+          narrowViewport,
+          position.fixed,
+          top(4.rem),
+          left.px(0),
+          bottom.px(0),
+          width(17.5.rem),
+          maxWidth.pct(82),
+          zIndex(30),
+          transform.translateX(Length.pct(-100)),
+          boxShadow("0.75rem 0 2rem color-mix(in srgb, #000 28%, transparent)"),
+        ),
+        MediaQuery(Media.prefersReducedMotion.reduce, transition.none),
       )
 
   object Content
@@ -513,7 +634,8 @@ object Theme:
           fontSize(0.85.em),
         ),
         MediaQuery(
-          Media.maxWidth.px(720),
+          narrowViewport,
+          padding(1.25.rem, 1.rem),
           Selector(" table", display.block, overflowX.auto),
         ),
       )

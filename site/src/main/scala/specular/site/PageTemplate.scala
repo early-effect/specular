@@ -75,6 +75,68 @@ object PageTemplate:
       ),
     )
 
+  private def strokeIcon(className: String, paths: String*): UI[Any] =
+    el(
+      "svg",
+      paths
+        .map(d => el("path", Vector.empty, Vector(attr("d", d))))
+        .toVector,
+      Vector(
+        attr("xmlns", "http://www.w3.org/2000/svg"),
+        attr("width", "20"),
+        attr("height", "20"),
+        attr("viewBox", "0 0 24 24"),
+        attr("fill", "none"),
+        attr("stroke", "currentColor"),
+        attr("stroke-width", "2"),
+        attr("stroke-linecap", "round"),
+        attr("stroke-linejoin", "round"),
+        attr("class", className),
+        attr("aria-hidden", "true"),
+      ),
+    )
+
+  private def srOnly(text: String): UI[Any] =
+    el("span", Vector(UI.Text(text)), Vector(attr("class", "specular-sr-only")))
+
+  /** CSS-only drawer: Theme hides the sidebar below 720px and opens it via `:has(:checked)`. */
+  private val navToggle: UI[Any] =
+    el(
+      "input",
+      Vector.empty,
+      Vector(
+        attr("type", "checkbox"),
+        attr("id", "specular-nav-toggle"),
+        attr("class", "specular-nav-toggle"),
+        attr("aria-controls", "specular-sidebar"),
+      ),
+    )
+
+  private val navOpen: UI[Any] =
+    el(
+      "label",
+      Vector(
+        strokeIcon("specular-nav-icon-menu", "M4 7h16", "M4 12h16", "M4 17h16"),
+        strokeIcon("specular-nav-icon-close", "M6 6l12 12", "M18 6L6 18"),
+        srOnly("Site navigation"),
+      ),
+      Vector(
+        attr("for", "specular-nav-toggle"),
+        attr("class", "specular-nav-open"),
+      ),
+    )
+
+  private val navBackdrop: UI[Any] =
+    el(
+      "label",
+      Vector.empty,
+      Vector(
+        attr("for", "specular-nav-toggle"),
+        attr("class", "specular-nav-backdrop"),
+        attr("aria-hidden", "true"),
+      ),
+    )
+
   /** Favicon from [[SiteModel.logo]] when branded. */
   private[site] def faviconLinks(model: SiteModel): Vector[UI[Any]] =
     model.logo.toVector.map { src =>
@@ -99,8 +161,9 @@ object PageTemplate:
       SiteModel.sourceLinkLabel(link.href) == "GitHub"
 
   private def headerLinkChildren(link: BrandLink): Vector[UI[Any]] =
-    if isGitHubLink(link) then Vector(githubIcon, UI.Text(link.label))
-    else Vector(UI.Text(link.label))
+    val label = el("span", Vector(UI.Text(link.label)), Vector(attr("class", "specular-header-link-label")))
+    if isGitHubLink(link) then Vector(githubIcon, label)
+    else Vector(label)
 
   /** Wrap a `pre.specular-source` block with an optional copy button. */
   def codeBlock(pre: UI[Any], copyCode: Boolean): UI[Any] =
@@ -180,13 +243,10 @@ object PageTemplate:
             ),
           )
         }
-        headerChildren =
-          if linkEls.isEmpty then Vector(brand)
-          else
-            Vector(
-              brand,
-              el("nav", linkEls, Vector(attr("class", "specular-header-links"))),
-            )
+        headerLinks =
+          if linkEls.isEmpty then Vector.empty
+          else Vector(el("nav", linkEls, Vector(attr("class", "specular-header-links"))))
+        headerChildren = Vector(navToggle, navOpen, navBackdrop, brand) ++ headerLinks
       yield el(
         "html",
         Vector(
@@ -212,7 +272,14 @@ object PageTemplate:
                 "div",
                 Vector(
                   el("header", headerChildren, Vector(attr("class", classes.header))),
-                  el("aside", Vector(sidebar), Vector(attr("class", classes.sidebar))),
+                  el(
+                    "aside",
+                    Vector(sidebar),
+                    Vector(
+                      attr("id", "specular-sidebar"),
+                      attr("class", s"${classes.sidebar} specular-sidebar"),
+                    ),
+                  ),
                   el(
                     "main",
                     Vector(

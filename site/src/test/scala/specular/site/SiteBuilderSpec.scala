@@ -319,6 +319,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         index.contains("images/logo.png"),
         index.contains("specular-hero-image"),
         !index.contains("nav-item"),
+        !index.contains("specular-nav-toggle"),
         meta.contains("early-effect"),
         meta.contains("1.0.0"),
       )
@@ -582,6 +583,40 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         page.contains("https://example.com/zipx"),
         page.contains(">Source<") || page.contains("Source"),
         !page.contains("https://github.com/early-effect/zipx"),
+      )
+      end for
+    },
+    test("docs chrome ships a CSS-only mobile nav drawer") {
+      val model = SiteModel(
+        title = "Docs",
+        pages = Vector(page("Intro")(md"hi")),
+        brand = Some(
+          Brand("Docs", links = Vector(BrandLink("GitHub", "https://github.com/early-effect/specular")))
+        ),
+      )
+      for
+        tmp   <- ZIO.attempt(Files.createTempDirectory("specular-nav-drawer"))
+        _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        html  <- ZIO.attempt(Files.readString(tmp.resolve("intro.html")))
+        theme <- ZIO.attempt(Files.readString(tmp.resolve("assets/theme.css")))
+      yield assertTrue(
+        html.contains("""id="specular-nav-toggle""""),
+        html.contains("""type="checkbox""""),
+        html.contains("""for="specular-nav-toggle""""),
+        html.contains("""aria-controls="specular-sidebar""""),
+        html.contains("""id="specular-sidebar""""),
+        html.contains("specular-sidebar"),
+        html.contains("specular-nav-open"),
+        html.contains("specular-nav-backdrop"),
+        html.contains("specular-nav-icon-menu"),
+        html.contains("specular-nav-icon-close"),
+        html.contains("Site navigation"),
+        html.contains("specular-header-link-label"),
+        theme.contains("specular-nav-toggle"),
+        theme.contains(":has(.specular-nav-toggle:checked)"),
+        theme.contains("specular-sidebar"),
+        theme.contains("position: fixed"),
+        theme.contains("translateX(-100"),
       )
       end for
     },
