@@ -4,20 +4,24 @@ import ascent.preview.sbt.AscentPreviewPlugin
 import ascent.preview.sbt.AscentPreviewPlugin.autoImport.*
 import sbt.*
 import sbt.Keys.*
-import sbt.nio.Keys.watchOnTermination
+import sbt.nio.Keys.{fileInputs, watchOnTermination}
+import sbt.nio.file.Glob
 
 /** Specular site settings for consumer projects.
   *
-  * Convention: DocSpecs and [[specularBuildMain]] live on the **Test** classpath. `specularSite` compiles Test, links
-  * JS (if wired), and forks the builder with `(Test / fullClasspath)`.
+  * Convention: DocSpecs, [[specularBuildMain]], and demo UI live on **Compile**. Thin `DocSpecSuite` wrappers live on
+  * Test so `sbt test` discovers them. `specularSite` still compiles Test and forks `(Test / fullClasspath)` (Test
+  * includes Compile), so a Test-only layout still builds.
   *
   * Set `specularMetaProject` to the published module (not the docs project) so `-Dspecular.meta.*` carries product
   * identity. Wire `specularJsLink` to `(jsProj / spliceFull)` (and copy into `assets/client.js`) when you have a
-  * Scala.js client. Wire `specularJsLinkDev` to `spliceFast` for `specularSiteDev` / `specularPreview`.
+  * Scala.js client. Wire `specularJsLinkDev` to `spliceFast` for `specularSiteDev` / `specularPreview`, and set
+  * [[specularJsProject]] so the preview poller watches that client's Compile sources.
   *
-  * Requires [[AscentPreviewPlugin]]. The documented edit loop is `sbt ~docs/specularPreview` (Preview stays up;
-  * rebuilds rewrite `assets/dev-stamp`). That task delegates to `ascentPreview`. `specularServe` is a blocking one-shot
-  * of an already-built tree; do not `~` it.
+  * Requires [[AscentPreviewPlugin]]. The documented edit loop is `sbt docs/specularPreview` (no `~`): Preview stays up;
+  * a poller watches Compile + Test sources (and the JS client when [[specularJsProject]] is set); rebuilds rewrite
+  * `assets/dev-stamp`. That task delegates to `ascentPreview`. `specularPreviewOnce` is start-and-return.
+  * `specularServe` is a blocking one-shot of an already-built tree. Do not `~` any of these.
   *
   * Passes into the forked builder:
   *   - `-Dspecular.meta.*` from `specularMetaProject` (+ `specularArtifactKind`, optional mapped display version)
@@ -34,7 +38,7 @@ object SpecularPlugin extends AutoPlugin:
     val specularPort =
       settingKey[Int]("Preview port for specularServe (default 8765)")
     val specularBuildMain =
-      settingKey[String]("Fully-qualified DocsSite / site-builder main (Test classpath)")
+      settingKey[String]("Fully-qualified DocsSite / site-builder main (Compile; Test CP fork still finds it)")
     val specularServeMain =
       settingKey[String]("Fully-qualified preview main (default specular.site.DocsServe)")
     val specularBasePath =
@@ -69,6 +73,10 @@ object SpecularPlugin extends AutoPlugin:
       taskKey[Unit]("Optional Scala.js spliceFull before specularSite (no-op by default)")
     val specularJsLinkDev =
       taskKey[Unit]("Optional Scala.js spliceFast before specularSiteDev (no-op by default)")
+    val specularJsProject =
+      settingKey[Option[ProjectReference]](
+        "Scala.js client whose Compile sources the preview poller watches (set with specularJsLinkDev)"
+      )
     val specularSite =
       taskKey[Unit]("Test/compile, spliceFull (if wired), then run specularBuildMain on Test CP")
     val specularSiteDev =
@@ -76,7 +84,9 @@ object SpecularPlugin extends AutoPlugin:
     val specularServe =
       taskKey[Unit]("Serve specularSiteDirectory via specularServeMain on Test CP (one-shot; do not ~)")
     val specularPreview =
-      taskKey[Unit]("Rebuild the site and start Preview once. Watch with sbt ~docs/specularPreview")
+      taskKey[StateTransform]("Rebuild, start Preview, then watch sources until Enter (do not ~)")
+    val specularPreviewOnce =
+      taskKey[Unit]("Rebuild and start Preview once, then return")
     val specularMetaProps =
       taskKey[Seq[String]]("JVM -Dspecular.meta.* and -Dspecular.site.* props from specularMetaProject")
   end autoImport
@@ -105,17 +115,29 @@ object SpecularPlugin extends AutoPlugin:
     // .sbt/matrix/<id>, so the builder cannot infer the root from its working directory.
     specularSourceRoot := (ThisBuild / baseDirectory).value,
     // CI / early-effect/.github specular-docs workflow sets these via env when deploying to Pages.
-    specularBasePath                     := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
-    specularDocsUrl                      := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
-    specularDisplayVersion               := identity[String],
-    specularJsLink                       := {},
-    specularJsLinkDev                    := {},
-    ascentPreviewRoot                    := specularSiteDirectory.value,
-    ascentPreviewRebuild                 := Def.uncached(specularSiteDev.value),
+    specularBasePath       := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
+    specularDocsUrl        := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
+    specularDisplayVersion := identity[String],
+    specularJsLink         := {},
+    specularJsLinkDev      := {},
+    specularJsProject      := None,
+    ascentPreviewRoot      := specularSiteDirectory.value,
+    // Poller reads ascentPreview / fileInputs (not sbt ~). Ascent already unions Compile
+    // unmanagedSources; add Test and the optional JS client. Do not set watchTriggers.
+    ascentPreview / fileInputs ++= (Test / unmanagedSources / fileInputs).value,
+    ascentPreviewRebuild / fileInputs ++= (Test / unmanagedSources / fileInputs).value,
+    ascentPreview / fileInputs ++= jsClientFileInputs.value,
+    ascentPreviewRebuild / fileInputs ++= jsClientFileInputs.value,
+    ascentPreviewRebuild := Def.uncached {
+      val _ = (ascentPreviewRebuild / fileInputs).value
+      specularSiteDev.value
+    },
     ascentPreviewPort                    := AscentPreviewPort.unsafeMake(specularPort.value),
     ascentPreviewClasspath               := Def.uncached((Test / fullClasspath).value),
-    specularPreview                      := ascentPreview.value,
+    specularPreview                      := Def.uncached(ascentPreview.value),
+    specularPreviewOnce                  := Def.uncached(ascentPreviewOnce.value),
     specularPreview / aggregate          := false,
+    specularPreviewOnce / aggregate      := false,
     specularPreview / watchOnTermination := (ascentPreview / watchOnTermination).value,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     specularMetaProps := Def.uncached {
@@ -241,7 +263,7 @@ object SpecularPlugin extends AutoPlugin:
       jars: Seq[String],
       jvmOpts: Vector[String],
   ): Unit =
-    log.info(s"specularSite: running $mainClass → $dir (Test classpath)")
+    log.info(s"specularSite: running $mainClass → $dir (Test classpath includes Compile)")
     log.debug(s"specularSite: meta props ${jvmOpts.filter(_.startsWith("-Dspecular")).mkString(" ")}")
     val code = Fork.java(
       ForkOptions()
@@ -255,4 +277,11 @@ object SpecularPlugin extends AutoPlugin:
     if metaFile.exists then log.info(s"specularSite: wrote ${metaFile.getName}")
     log.info(s"specularSite: ready at $dir")
   end runBuildMain
+
+  /** Compile sources of [[autoImport.specularJsProject]], or empty when unset. */
+  private def jsClientFileInputs: Def.Initialize[Seq[Glob]] = Def.settingDyn {
+    specularJsProject.value match
+      case Some(ref) => Def.setting((ref / Compile / unmanagedSources / fileInputs).value)
+      case None      => Def.setting(Seq.empty[Glob])
+  }
 end SpecularPlugin

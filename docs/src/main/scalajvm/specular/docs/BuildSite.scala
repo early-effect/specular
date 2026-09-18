@@ -7,7 +7,7 @@ import zio.*
 
 import java.nio.file.Path
 
-/** Dogfood DocsSite: Test classpath main invoked by `docs/specularSite`. */
+/** Dogfood DocsSite: Compile main invoked by `docs/specularSite`. */
 object BuildSite extends DocsSite:
 
   @navLabel("Start here")

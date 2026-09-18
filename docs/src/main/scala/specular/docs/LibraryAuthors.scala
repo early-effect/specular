@@ -16,22 +16,23 @@ interactive optional extras, release cadence, and hub registration.
     section("Recommended module layout")(
       md"""
 Keep docs next to the library, not in a separate repo. **Docs-as-tests** means DocSpecs and
-`DocsSite` live under Test; `sbt docs/specularSite` builds from the Test classpath.
+`DocsSite` live on Compile; thin `DocSpecSuite` wrappers live on Test. `sbt docs/specularSite`
+forks the builder from the Test classpath (which includes Compile).
 
 | Piece | Typical location |
 | ----- | ---------------- |
-| `DocSpec` / `DocSpecSuite` | `docs/src/test/scala/…` |
-| `DocsSite` (`BuildSite`) | `docs/src/test/scalajvm/…` (or `src/test/scala`) |
+| `DocSpec` (pages) | `docs/src/main/scala/…` |
+| `DocSpecSuite` wrappers | `docs/src/test/scalajvm/…` (or `src/test/scala`) |
+| `DocsSite` (`BuildSite`) | `docs/src/main/scalajvm/…` (or `src/main/scala`) |
 | `ClientMain` (optional) | `docs/src/main/scalajs/…` (linker-only JS project) |
-| Shared DocSpecs for JS | same `src/test/scala` added to JS `Compile` sources |
 | Caller workflow | zipx `ZipxDocs.pages()` (or a `docs.yml` caller of `specular-docs.yml`) |
 
-Without interactives, extend `DocSpecSuite` once per page (page = suite). With interactives,
-keep shared pages as `DocSpec` and add thin JVM `DocSpecSuite` wrappers so the JS client does
-not pull zio-test into the browser bundle.
+Without interactives, a single `DocSpecSuite` under Test still works (page = suite). With
+interactives, keep shared pages as `DocSpec` on Compile and add thin JVM `DocSpecSuite` wrappers.
 
-Depend the docs project on `specular-core`, `specular-zio-test`, and `specular-site` (**Test**
-scope), plus your library modules so examples import the real public API.
+Depend the docs project on `specular-core` and `specular-site` (Compile) plus
+`specular-zio-test` (**Test** scope), and on your library modules so examples import the real
+public API.
 
 Early Effect libraries should also take `early-effect-docs-theme` for hub-matched colors and
 the shared logo. Branding is three one-liners on the `DocsSite`: `EarlyEffectTheme.brand(super.site)`,
@@ -39,8 +40,8 @@ the shared logo. Branding is three one-liners on the `DocsSite`: `EarlyEffectThe
 """,
       example {
         E.ol(
-          E.li("docs Test asserts DocSpecs"),
-          E.li("docs/specularSite SSR from Test CP"),
+          E.li("docs Test discovers DocSpecSuites"),
+          E.li("docs/specularSite SSR (Test CP includes Compile)"),
           E.li("docs JS (optional) splices client.js"),
         )
       }.assert(_ => assertTrue(true)),
@@ -78,7 +79,8 @@ is the full guide; the setup is:
 2. Either `.interactive` on an ascent example, `.live` on an illustration, or
    `exampleDom(key).fromSource(file, marker)` for anything else
 3. A `ClientMain` calling `SpecularClient.mountAll(SpecularClient.fromPages(pages*) ++ yourMounters)`
-4. `specularSite` (or equivalent) splicing `spliceFull` into `assets/client.js`
+4. `specularSite` splicing `spliceFull` into `assets/client.js`, plus `specularJsProject` so
+   `docs/specularPreview` watches that client's Compile sources
 
 Use `illustration` / `illustrationIO` when the region *is* the document (a poster, a host switcher),
 not a copy-paste sample. `fromPages` registers every `.interactive` ascent example and every `.live`

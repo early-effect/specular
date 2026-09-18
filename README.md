@@ -40,9 +40,9 @@ object GettingStarted extends DocSpecSuite:
   )
 ```
 
-Put DocSpecs under `src/test`. The same page is a zio-test suite (`DocSpecSuite`) and feeds
-the static site via `DocsSite`. Interactive examples mount in the browser via a Scala.js
-client bundle (optional).
+Put DocSpecs on **Compile**. Thin `DocSpecSuite` wrappers live under `src/test` so `sbt test`
+discovers them; the same page feeds the static site via `DocsSite`. Interactive examples mount
+in the browser via a Scala.js client bundle (optional).
 
 ---
 
@@ -80,14 +80,14 @@ tags via sbt-dynver (`v0.1.0` → `0.1.0`).
 
 ```scala
 libraryDependencies ++= Seq(
-  "rocks.earlyeffect" %% "specular-core"     % "<version>" % Test,
+  "rocks.earlyeffect" %% "specular-core"     % "<version>",
+  "rocks.earlyeffect" %% "specular-site"     % "<version>", // includes mermaid Prose fences
   "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
-  "rocks.earlyeffect" %% "specular-site"     % "<version>" % Test, // includes mermaid Prose fences
 )
 // docs JS client (when you remount interactive diagrams):
 // libraryDependencies += "rocks.earlyeffect" %%% "specular-mermoid" % "<version>"
 
-// sbt plugin: injects product meta and runs specularSite from the Test classpath
+// sbt plugin: injects product meta and runs specularSite (Test CP includes Compile)
 addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "<version>")
 ```
 
@@ -99,11 +99,12 @@ specularBuildMain    := "com.example.docs.BuildSite"
 specularMetaProject  := Some(LocalProject("root")) // published module identity
 specularArtifactKind := "library" // or "plugin"
 specularSourceRoot   := (ThisBuild / baseDirectory).value // exampleDom paths are relative to this
-// edit loop: sbt ~docs/specularPreview
+specularJsProject    := Some(LocalProject("docsJS")) // preview poller watches the JS client
+// edit loop: sbt docs/specularPreview (do not ~)
 ```
 
 ```scala
-// docs/src/test/scala/.../BuildSite.scala
+// docs/src/main/scalajvm/.../BuildSite.scala
 object BuildSite extends specular.site.DocsSite:
   def pages = Vector(GettingStarted.doc, Concepts.doc)
 ```
@@ -144,7 +145,7 @@ object BuildSite extends DocsSite:
 ```
 
 `sbt test` discovers DocSpecSuites; `sbt docs/specularSite` forks `BuildSite` on the Test
-classpath with `-Dspecular.meta.*` from `specularMetaProject`.
+classpath (which includes Compile) with `-Dspecular.meta.*` from `specularMetaProject`.
 
 ### Interactive examples in any framework
 
@@ -235,11 +236,15 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 ```bash
 sbt testFull                  # unit + DocSpec tests (plain `test` is testQuick on sbt 2)
 sbt docs/specularSite         # spliceFull JS client + write target/site (incl. metadata.json)
-sbt ~docs/specularPreview     # watch docs: spliceFast + rebuild in place (http://localhost:8765)
+sbt docs/specularPreview      # watch docs: spliceFast + rebuild in place (http://localhost:8765)
 ./scripts/install-git-hooks   # once per clone: pre-commit runs scalafmtCheckAll
 ```
 
-`sbt ~docs/specularPreview` rebuilds the site (spliceFast) and starts Preview once. The Preview JVM stays up; each source change rewrites HTML and `assets/dev-stamp`, and the tab reloads over SSE. Press Enter to leave watch mode. `sbt docs/specularServe` is a blocking one-shot of an already-built tree; do not `~` it.
+`sbt docs/specularPreview` rebuilds the site (spliceFast), starts Preview, and stays up. A poller
+(not sbt `~`) watches Compile and Test sources plus the JS client; each change rewrites HTML and
+`assets/dev-stamp`, and the tab reloads over SSE. Press Enter to leave. `sbt docs/specularPreviewOnce`
+starts Preview and returns. `sbt docs/specularServe` is a blocking one-shot of an already-built tree.
+Do not `~` these tasks.
 
 Requires a JDK that can run Scala 3.8 / sbt 2 (CI uses Temurin 25). Interactive examples need
 the docs JS splice (`docsJS/spliceFull` for publish, `spliceFast` for the edit loop), which
