@@ -1,4 +1,4 @@
-import sbt.nio.Keys.watchOnTermination
+import sbt.nio.Keys.{fileInputs, watchOnTermination}
 
 MyVersions.settings
 
@@ -180,11 +180,13 @@ lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
   )
   .jvmPlatform(scalaVersions = scalaVersions)
 
-// Dogfood site tasks (mirror sbt-specular: Test CP + meta props). Same-repo cannot load the plugin on itself.
+// Dogfood site tasks (mirror sbt-specular: Test CP includes Compile + meta props). Same-repo cannot load the plugin on itself.
 lazy val specularSite    = taskKey[Unit]("spliceFull + build static site from Test classpath (publish)")
 lazy val specularSiteDev = taskKey[Unit]("spliceFast + build static site from Test classpath (specularPreview rebuild)")
 lazy val specularPreview =
-  taskKey[Unit]("Rebuild the site and start Preview once. Watch with sbt ~docs/specularPreview")
+  taskKey[StateTransform]("Rebuild, start Preview, then watch sources until Enter (do not ~)")
+lazy val specularPreviewOnce =
+  taskKey[Unit]("Rebuild and start Preview once, then return")
 lazy val specularServe =
   taskKey[Unit]("Serve an already-built site via DocsServe (one-shot; do not ~)")
 
@@ -218,11 +220,20 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           ascentPreviewRoot := (ThisBuild / baseDirectory).value / "target" / "site",
           ascentPreviewPort := AscentPreviewPort(8765),
           ascentPreviewClasspath := (Test / fullClasspath).value,
+          ascentPreview / fileInputs ++= (Test / unmanagedSources / fileInputs).value,
+          ascentPreview / fileInputs ++=
+            (LocalProject("docsJS") / Compile / unmanagedSources / fileInputs).value,
+          ascentPreviewRebuild / fileInputs ++= (Test / unmanagedSources / fileInputs).value,
+          ascentPreviewRebuild / fileInputs ++=
+            (LocalProject("docsJS") / Compile / unmanagedSources / fileInputs).value,
           ascentPreviewRebuild := Def.uncached {
+            val _ = (ascentPreviewRebuild / fileInputs).value
             specularSiteDev.value
           },
-          specularPreview := ascentPreview.value,
+          specularPreview := Def.uncached(ascentPreview.value),
+          specularPreviewOnce := Def.uncached(ascentPreviewOnce.value),
           specularPreview / aggregate := false,
+          specularPreviewOnce / aggregate := false,
           specularPreview / watchOnTermination := (ascentPreview / watchOnTermination).value,
           specularServe := Def.uncached {
             val log       = streams.value.log
@@ -316,9 +327,6 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
         .settings(
           MyVersions.javaTime,
           MyVersions.docsJs,
-          // Linker-only: share DocSpec sources from Test so ClientMain can register interactives.
-          Compile / unmanagedSourceDirectories +=
-            (ThisBuild / baseDirectory).value / "docs" / "src" / "test" / "scala",
           scalaJSUseMainModuleInitializer := true,
           Compile / mainClass := Some("specular.docs.ClientMain"),
         ),
@@ -350,7 +358,7 @@ def copyJsAndForkBuild(
   IO.copyFile(js, dest)
   log.info(s"specularSite: copied $js → $dest")
   val mainClass = "specular.docs.BuildSite"
-  log.info(s"specularSite: running $mainClass → $siteDir (Test classpath)")
+  log.info(s"specularSite: running $mainClass → $siteDir (Test classpath includes Compile)")
   val code = Fork.java(
     ForkOptions()
       .withOutputStrategy(Some(LoggedOutput(log)))

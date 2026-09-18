@@ -17,7 +17,8 @@ library.
     section("1. Add the artifacts")(
       md"""
 Publish line is Maven Central under `rocks.earlyeffect` (see the README badge for the
-current version). Docs live on the **Test** classpath by convention:
+current version). DocSpecs and `BuildSite` live on **Compile**. Thin `DocSpecSuite` wrappers
+live on Test so `sbt test` discovers them:
 
 ```scala
 // project/plugins.sbt
@@ -26,9 +27,9 @@ addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "<version>")
 // build.sbt (docs project)
 enablePlugins(SpecularPlugin)
 libraryDependencies ++= Seq(
-  "rocks.earlyeffect" %% "specular-core"     % "<version>" % Test,
+  "rocks.earlyeffect" %% "specular-core"     % "<version>",
+  "rocks.earlyeffect" %% "specular-site"     % "<version>",
   "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
-  "rocks.earlyeffect" %% "specular-site"     % "<version>" % Test,
 )
 specularBuildMain   := "com.example.docs.BuildSite"
 specularMetaProject := Some(LocalProject("root")) // product identity, not the docs module
@@ -83,11 +84,12 @@ object GettingStarted extends DocSpecSuite:
   )
 ```
 
-Put that under `docs/src/test/scala`. `sbt test` discovers it like any other zio-test suite.
-Unasserted snapshots still render on the site; they just do not gate CI.
+Put a JVM-only `DocSpecSuite` under `docs/src/test/scala` (or keep shared pages as `DocSpec` on
+Compile and add thin wrappers; see Library authors). `sbt test` discovers it like any other
+zio-test suite. Unasserted snapshots still render on the site; they just do not gate CI.
 
 If you also need a Scala.js client for `.interactive` examples, keep shared pages as
-`DocSpec` and add thin `DocSpecSuite` wrappers on the JVM only (see Library authors).
+`DocSpec` on Compile and add thin `DocSpecSuite` wrappers on the JVM only (see Library authors).
 """,
       example {
         E.ul(
@@ -109,20 +111,23 @@ object BuildSite extends DocsSite:
   // optional: override site / layers / afterBuild
 ```
 
-Also under `src/test`. `sbt docs/specularSite` compiles Test, splices the JS client (`spliceFull`),
+Also under `src/main` (`docs/src/main/scalajvm` when the docs module is cross-built).
+`sbt docs/specularSite` compiles Test (which includes Compile), splices the JS client (`spliceFull`),
 forks that main with product meta from `specularMetaProject`, and writes HTML plus `metadata.json`.
 
 Local loop:
 
 ```bash
-sbt ~docs/specularPreview   # edit loop: spliceFast, Preview stays up, tab reload
-sbt docs/specularSite       # publish-quality: spliceFull (what Pages deploys)
-sbt docs/specularServe      # one-shot preview of an already-built site (do not ~)
+sbt docs/specularPreview       # edit loop: spliceFast, Preview stays up, tab reload (do not ~)
+sbt docs/specularPreviewOnce   # start Preview once and return
+sbt docs/specularSite          # publish-quality: spliceFull (what Pages deploys)
+sbt docs/specularServe         # one-shot preview of an already-built site (do not ~)
 ```
 
 A Scala.js client is optional. When you have one, add `sbt-splice` and wire `specularJsLink` to
-`spliceFull` (copy into `assets/client.js`) and `specularJsLinkDev` to `spliceFast` for
-`specularPreview`.
+`spliceFull` (copy into `assets/client.js`), `specularJsLinkDev` to `spliceFast`, and
+`specularJsProject := Some(LocalProject("docsJS"))` so the preview poller watches that client's
+Compile sources.
 """,
       example {
         E.div(A.className("demo"), E.p("Hello from Specular"))

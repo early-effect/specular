@@ -7,8 +7,9 @@ import java.nio.file.{Path, Paths}
 
 /** Stock docs-site main: read fail-loud meta from sbt-specular, build HTML from [[pages]].
   *
-  * By convention the subclass lives on the **Test** classpath and is invoked via `docs/specularSite`. Override
-  * [[site]], [[layers]], or [[afterBuild]] when defaults are not enough.
+  * By convention the subclass lives on **Compile** and is invoked via `docs/specularSite`. A Test-only layout still
+  * works because the plugin forks `(Test / fullClasspath)`. Override [[site]], [[layers]], or [[afterBuild]] when
+  * defaults are not enough.
   */
 trait DocsSite extends ZIOAppDefault:
 

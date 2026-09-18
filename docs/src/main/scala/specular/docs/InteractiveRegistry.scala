@@ -6,8 +6,7 @@ package specular.docs
   * (Scala.js) binds a `Mounter` to it, and [[InteractiveContractSpec]] (JVM) checks the declared set matches. Naming it
   * once here means a rename cannot half-land; the alternative is three string literals and a silent no-mount.
   *
-  * Lives in `src/test/scala` because that directory is shared into `docsJS`'s `Compile` sources, so both platforms see
-  * it.
+  * Lives in `src/main/scala` so JVM and JS Compile both see it (`projectMatrix` shares that tree).
   */
 object InteractiveRegistry:
 
