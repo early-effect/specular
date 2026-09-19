@@ -184,9 +184,13 @@ lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
 lazy val specularSite    = taskKey[Unit]("spliceFull + build static site from Test classpath (publish)")
 lazy val specularSiteDev = taskKey[Unit]("spliceFast + build static site from Test classpath (specularPreview rebuild)")
 lazy val specularPreview =
-  taskKey[StateTransform]("Rebuild, start Preview, then watch sources until Enter (do not ~)")
+  taskKey[StateTransform](
+    "Rebuild, start Preview, and watch. Foreground until interrupt when last command; otherwise return"
+  )
 lazy val specularPreviewOnce =
-  taskKey[Unit]("Rebuild and start Preview once, then return")
+  taskKey[Unit]("Rebuild and start Preview once, then return (no watch)")
+lazy val specularPreviewStop =
+  taskKey[Unit]("Stop this project's preview watch and Preview JVM")
 lazy val specularServe =
   taskKey[Unit]("Serve an already-built site via DocsServe (one-shot; do not ~)")
 
@@ -232,8 +236,10 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           },
           specularPreview := Def.uncached(ascentPreview.value),
           specularPreviewOnce := Def.uncached(ascentPreviewOnce.value),
+          specularPreviewStop := Def.uncached(ascentPreviewStop.value),
           specularPreview / aggregate := false,
           specularPreviewOnce / aggregate := false,
+          specularPreviewStop / aggregate := false,
           specularPreview / watchOnTermination := (ascentPreview / watchOnTermination).value,
           specularServe := Def.uncached {
             val log       = streams.value.log
