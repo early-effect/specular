@@ -118,8 +118,9 @@ forks that main with product meta from `specularMetaProject`, and writes HTML pl
 Local loop:
 
 ```bash
-sbt docs/specularPreview       # edit loop: spliceFast, Preview stays up, tab reload (do not ~)
-sbt docs/specularPreviewOnce   # start Preview once and return
+sbt docs/specularPreview       # edit loop: spliceFast, Preview stays up (do not ~)
+sbt docs/specularPreviewStop   # stop the watch and Preview JVM (sbt prompt)
+sbt docs/specularPreviewOnce   # start Preview once, no watch
 sbt docs/specularSite          # publish-quality: spliceFull (what Pages deploys)
 sbt docs/specularServe         # one-shot preview of an already-built site (do not ~)
 ```

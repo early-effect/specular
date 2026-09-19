@@ -18,10 +18,11 @@ import sbt.nio.file.Glob
   * Scala.js client. Wire `specularJsLinkDev` to `spliceFast` for `specularSiteDev` / `specularPreview`, and set
   * [[specularJsProject]] so the preview poller watches that client's Compile sources.
   *
-  * Requires [[AscentPreviewPlugin]]. The documented edit loop is `sbt docs/specularPreview` (no `~`): Preview stays up;
-  * a poller watches Compile + Test sources (and the JS client when [[specularJsProject]] is set); rebuilds rewrite
-  * `assets/dev-stamp`. That task delegates to `ascentPreview`. `specularPreviewOnce` is start-and-return.
-  * `specularServe` is a blocking one-shot of an already-built tree. Do not `~` any of these.
+  * Requires [[AscentPreviewPlugin]]. The documented edit loop is `sbt docs/specularPreview` (no `~`): rebuild, start
+  * Preview, watch Compile + Test sources (and the JS client when [[specularJsProject]] is set). From a terminal it
+  * stays in the foreground until interrupt. At an sbt prompt it returns so tests still run; stop with
+  * `docs/specularPreviewStop`. That task delegates to `ascentPreview`. `specularPreviewOnce` is start-and-return, no
+  * watch. `specularServe` is a blocking one-shot of an already-built tree. Do not `~` any of these.
   *
   * Passes into the forked builder:
   *   - `-Dspecular.meta.*` from `specularMetaProject` (+ `specularArtifactKind`, optional mapped display version)
@@ -84,9 +85,13 @@ object SpecularPlugin extends AutoPlugin:
     val specularServe =
       taskKey[Unit]("Serve specularSiteDirectory via specularServeMain on Test CP (one-shot; do not ~)")
     val specularPreview =
-      taskKey[StateTransform]("Rebuild, start Preview, then watch sources until Enter (do not ~)")
+      taskKey[StateTransform](
+        "Rebuild, start Preview, and watch. Foreground until interrupt when last command; otherwise return"
+      )
     val specularPreviewOnce =
-      taskKey[Unit]("Rebuild and start Preview once, then return")
+      taskKey[Unit]("Rebuild and start Preview once, then return (no watch)")
+    val specularPreviewStop =
+      taskKey[Unit]("Stop this project's preview watch and Preview JVM")
     val specularMetaProps =
       taskKey[Seq[String]]("JVM -Dspecular.meta.* and -Dspecular.site.* props from specularMetaProject")
   end autoImport
@@ -136,8 +141,10 @@ object SpecularPlugin extends AutoPlugin:
     ascentPreviewClasspath               := Def.uncached((Test / fullClasspath).value),
     specularPreview                      := Def.uncached(ascentPreview.value),
     specularPreviewOnce                  := Def.uncached(ascentPreviewOnce.value),
+    specularPreviewStop                  := Def.uncached(ascentPreviewStop.value),
     specularPreview / aggregate          := false,
     specularPreviewOnce / aggregate      := false,
+    specularPreviewStop / aggregate      := false,
     specularPreview / watchOnTermination := (ascentPreview / watchOnTermination).value,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     specularMetaProps := Def.uncached {

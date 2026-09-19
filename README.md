@@ -237,14 +237,16 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 sbt testFull                  # unit + DocSpec tests (plain `test` is testQuick on sbt 2)
 sbt docs/specularSite         # spliceFull JS client + write target/site (incl. metadata.json)
 sbt docs/specularPreview      # watch docs: spliceFast + rebuild in place (http://localhost:8765)
+sbt docs/specularPreviewStop  # stop the watch and Preview JVM (sbt prompt)
 ./scripts/install-git-hooks   # once per clone: pre-commit runs scalafmtCheckAll
 ```
 
-`sbt docs/specularPreview` rebuilds the site (spliceFast), starts Preview, and stays up. A poller
-(not sbt `~`) watches Compile and Test sources plus the JS client; each change rewrites HTML and
-`assets/dev-stamp`, and the tab reloads over SSE. Press Enter to leave. `sbt docs/specularPreviewOnce`
-starts Preview and returns. `sbt docs/specularServe` is a blocking one-shot of an already-built tree.
-Do not `~` these tasks.
+`sbt docs/specularPreview` rebuilds the site (spliceFast), starts Preview, and watches sources. From a
+terminal it stays in the foreground until interrupt. At an sbt prompt it returns so `test` / `compile`
+still run; stop with `docs/specularPreviewStop`. A poller (not sbt `~`) watches Compile and Test
+sources plus the JS client; each change rewrites HTML and `assets/dev-stamp`, and the tab reloads over
+SSE. `sbt docs/specularPreviewOnce` starts Preview with no watch. `sbt docs/specularServe` is a
+blocking one-shot of an already-built tree. Do not `~` these tasks.
 
 Requires a JDK that can run Scala 3.8 / sbt 2 (CI uses Temurin 25). Interactive examples need
 the docs JS splice (`docsJS/spliceFull` for publish, `spliceFast` for the edit loop), which
