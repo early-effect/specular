@@ -77,6 +77,10 @@ An org hub (like [earlyeffect.rocks](https://www.earlyeffect.rocks)) fetches tho
 manifests and composes a catalog of live cards: title, description, version, docs URL.
 Libraries stay independently releaseable; the hub stays a thin composition layer.
 
+A **monorepo** that wants one Pages tree instead (hub at `/`, members at `/<segment>/`)
+is a plugin setting: `specularHub` plus `.aggregate` of member docs projects. See
+[Library authors](library-authors.html) for both hub kinds.
+
 That is the Specular story end-to-end: **honest pages locally**, **publishable sites per
 library**, **composable discovery for the org**.
 """,

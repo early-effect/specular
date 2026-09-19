@@ -26,5 +26,14 @@ object SitePathsSpec extends ZIOSpecDefault:
       java.lang.System.clearProperty(prop)
       assertTrue(unset == ".", set == "/specular")
     },
+    test("parentHref uses -Dspecular.site.parentHref when set") {
+      val prop = "specular.site.parentHref"
+      java.lang.System.clearProperty(prop)
+      val unset = SitePaths.parentHref
+      java.lang.System.setProperty(prop, "../index.html")
+      val set = SitePaths.parentHref
+      java.lang.System.clearProperty(prop)
+      assertTrue(unset.isEmpty, set.contains("../index.html"))
+    },
   )
 end SitePathsSpec

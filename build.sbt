@@ -52,6 +52,7 @@ usePgpKeyHex(sys.env.getOrElse("PGP_KEY_HEX", "MISSING_KEY_HEX"))
 // Builtin Verify is parallel: fmt, workflow-check, advisories, test (zipxTestTask default testFull).
 zipxJavaVersion      := JdkVersion("25")
 zipxWorkflowDispatch := true
+zipxTestTask         := zipxTasks.session(testFull, LocalProject("plugin") / scripted)
 zipxCapabilities += ZipxCentral.release
 zipxCapabilities += ZipxDocs.pages()
 
@@ -348,6 +349,8 @@ lazy val plugin = project
     zioTestSettings,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     addSbtPlugin(MyVersions.moduleID(MyVersions.sbtAscentPreview)),
+    scriptedLaunchOpts ++= Seq("-Xmx1g", s"-Dplugin.version=${version.value}"),
+    scriptedBufferLog := false,
   )
 
 /** Copy spliced JS then fork BuildSite. Callers must already have compiled Test and resolved classpath. */

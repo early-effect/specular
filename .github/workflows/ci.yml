@@ -100,9 +100,9 @@ jobs:
       - name: test
         run: |
           if [ "$ZIPX_VERIFY_CLEAN_FULL" = "true" ]; then
-            sbt 'cleanFull; testFull'
+            sbt 'cleanFull; testFull; plugin/scripted'
           else
-            sbt 'testFull'
+            sbt 'testFull; plugin/scripted'
           fi
         env:
           ZIPX_VERIFY_CLEAN_FULL: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'clean') }}
