@@ -5,8 +5,9 @@ import java.nio.file.{Path, Paths}
 /** JVM system properties passed by sbt-specular / CI into site builder mains. */
 object SitePaths:
 
-  private val DirProp      = "specular.site.dir"
-  private val BasePathProp = "specular.site.basePath"
+  private val DirProp        = "specular.site.dir"
+  private val BasePathProp   = "specular.site.basePath"
+  private val ParentHrefProp = "specular.site.parentHref"
 
   /** Output directory (`-Dspecular.site.dir`), or `default` when unset. */
   def outDir(default: Path): Path =
@@ -27,4 +28,10 @@ object SitePaths:
       .map(_.nn)
       .filter(_.nonEmpty)
       .getOrElse(default)
+
+  /** Optional parent chrome href (`-Dspecular.site.parentHref`), e.g. `../index.html` for a nested sub-site. */
+  def parentHref: Option[String] =
+    Option(java.lang.System.getProperty(ParentHrefProp))
+      .map(_.nn)
+      .filter(_.nonEmpty)
 end SitePaths

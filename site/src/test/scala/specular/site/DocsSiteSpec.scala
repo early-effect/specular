@@ -15,6 +15,7 @@ object DocsSiteSpec extends ZIOSpecDefault:
     metaKeys.foreach(k => java.lang.System.clearProperty(s"specular.meta.$k"))
     java.lang.System.clearProperty("specular.site.dir")
     java.lang.System.clearProperty("specular.site.basePath")
+    java.lang.System.clearProperty("specular.site.parentHref")
 
   private def setMeta(): Unit =
     java.lang.System.setProperty("specular.meta.name", "demo-lib")
@@ -96,7 +97,12 @@ object DocsSiteSpec extends ZIOSpecDefault:
         css.contains(s"--specular-radius: ${ThemeTokens.default.radius};"),
         // the stock theme declares no light-scheme overrides
         !css.contains("prefers-color-scheme"),
+        // Host box for mermoid-fit: illustrations must shrink so 100cqi is the pane, not the scene.
+        css.contains(".specular-illustration"),
+        css.contains("min-width: 0.0px"),
+        css.contains(".specular-illustration > .mermoid-root"),
       )
+      end for
     },
     test("themedStack takes the caller's theme instead") {
       val tmp    = Files.createTempDirectory("docs-site-custom-theme")
@@ -113,6 +119,26 @@ object DocsSiteSpec extends ZIOSpecDefault:
           !css.contains(s"--specular-bg: ${ThemeTokens.default.bg};"),
         )
       }
+    },
+    test("parentHref fills logoLink and the header logo href") {
+      clearMeta()
+      setMeta()
+      java.lang.System.setProperty("specular.site.parentHref", "../index.html")
+      val tmp = Files.createTempDirectory("docs-site-parent")
+      java.lang.System.setProperty("specular.site.dir", tmp.toString)
+      val app =
+        new DocsSite:
+          def pages         = Vector(page("Overview")(md"Hi"))
+          override def site = super.site.copy(logo = Some("images/logo.png"))
+      val model = app.site
+      for
+        _    <- app.build
+        html <- ZIO.attempt(Files.readString(tmp.resolve("overview.html")))
+        _    <- ZIO.succeed(clearMeta())
+      yield assertTrue(
+        model.logoLink.contains("../index.html"),
+        html.contains("href=\"../index.html\""),
+      )
     },
     test("empty pages fail the build") {
       clearMeta()

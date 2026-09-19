@@ -30,6 +30,12 @@ import sbt.nio.file.Glob
   *   - `-Dspecular.site.basePath` from `specularBasePath` (or `SPECULAR_BASE_PATH`)
   *   - `-Dspecular.meta.docsUrl` from `specularDocsUrl` (or `SPECULAR_DOCS_URL`)
   *   - `-Dspecular.source.root` from `specularSourceRoot` (source panels of `exampleDom`)
+  *   - `-Dspecular.site.parentHref` from `specularParentHref` (sub-site back-to-hub chrome)
+  *
+  * A monorepo hub is `specularHub := true` on a SpecularPlugin project that `.aggregate`s member docs projects. Each
+  * member sets `specularSiteSegment`. `specularSite` on the hub builds those members into their own directories, copies
+  * them under the hub site dir, then writes the hub. Preview (`specularSiteDev`) stays hub-only. Aggregate the member
+  * **docs** JVM id, not a product umbrella.
   */
 object SpecularPlugin extends AutoPlugin:
 
@@ -94,6 +100,20 @@ object SpecularPlugin extends AutoPlugin:
       taskKey[Unit]("Stop this project's preview watch and Preview JVM")
     val specularMetaProps =
       taskKey[Seq[String]]("JVM -Dspecular.meta.* and -Dspecular.site.* props from specularMetaProject")
+    val specularHub =
+      settingKey[Boolean](
+        "When true, specularSite nests aggregated SpecularPlugin members under this site directory"
+      )
+    val specularSiteSegment =
+      settingKey[String](
+        "URL segment when this site is nested under a hub (empty = not a sub-site)"
+      )
+    val specularParentHref =
+      settingKey[String](
+        "Parent chrome href passed as -Dspecular.site.parentHref. Default ../index.html when segment is set"
+      )
+    val specularNest =
+      taskKey[Unit]("Build aggregated sub-sites and copy them under this hub site directory")
   end autoImport
 
   import autoImport.*
@@ -120,13 +140,19 @@ object SpecularPlugin extends AutoPlugin:
     // .sbt/matrix/<id>, so the builder cannot infer the root from its working directory.
     specularSourceRoot := (ThisBuild / baseDirectory).value,
     // CI / early-effect/.github specular-docs workflow sets these via env when deploying to Pages.
-    specularBasePath       := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
-    specularDocsUrl        := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
-    specularDisplayVersion := identity[String],
-    specularJsLink         := {},
-    specularJsLinkDev      := {},
-    specularJsProject      := None,
-    ascentPreviewRoot      := specularSiteDirectory.value,
+    specularBasePath            := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
+    specularDocsUrl             := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
+    specularDisplayVersion      := identity[String],
+    specularJsLink              := {},
+    specularJsLinkDev           := {},
+    specularJsProject           := None,
+    specularHub                 := false,
+    specularSiteSegment         := "",
+    specularParentHref          := HubNest.parentHref(specularSiteSegment.value),
+    specularSite / aggregate    := false,
+    specularSiteDev / aggregate := false,
+    specularNest / aggregate    := false,
+    ascentPreviewRoot           := specularSiteDirectory.value,
     // Poller reads ascentPreview / fileInputs (not sbt ~). Ascent already unions Compile
     // unmanagedSources; add Test and the optional JS client. Do not set watchTriggers.
     ascentPreview / fileInputs ++= (Test / unmanagedSources / fileInputs).value,
@@ -171,6 +197,7 @@ object SpecularPlugin extends AutoPlugin:
           val nm             = (ref / name).value
           val buildVersion   = (ref / version).value
           val displayVersion = DisplayVersion.displayProp(buildVersion, displayMap)
+          val parent         = specularParentHref.value
           opt("name", nm) ++
             opt("organization", (ref / organization).value) ++
             opt("version", buildVersion) ++
@@ -185,49 +212,62 @@ object SpecularPlugin extends AutoPlugin:
               s"-Dspecular.site.dir=$dir",
               s"-Dspecular.site.basePath=$base",
               s"-Dspecular.source.root=$sourceRoot",
-            )
+            ) ++
+            (if parent.isBlank then Nil else Seq(s"-Dspecular.site.parentHref=$parent"))
         }
       }.value
     },
+    specularNest := Def.uncached {
+      Def.taskDyn {
+        val hub  = specularHub.value
+        val refs = thisProject.value.aggregate
+        if !hub then Def.task(())
+        else
+          val extracted  = Project.extract(state.value)
+          val candidates = hubCandidates(extracted, refs)
+          HubNest.members(candidates) match
+            case Left(err)      => sys.error(err)
+            case Right(Nil)     => Def.task(())
+            case Right(members) =>
+              Def
+                .task {
+                  val hubDir = specularSiteDirectory.value
+                  val log    = streams.value.log
+                  if hubDir.exists then IO.delete(hubDir)
+                  HubNest.copies(hubDir, members).foreach { c =>
+                    if !c.from.exists then
+                      sys.error(
+                        s"Member site directory missing: ${c.from} (did ${c.project}/specularSite write there?)"
+                      )
+                    IO.copyDirectory(c.from, c.to)
+                    log.info(s"specularSite: nested ${c.project} → ${c.to}")
+                  }
+                }
+                .dependsOn(members.map(m => LocalProject(m.project) / specularSite)*)
+          end match
+        end if
+      }.value
+    },
     specularSite := Def.uncached {
+      specularNest.value
       val log       = streams.value.log
       val mainClass = specularBuildMain.value.trim
       val dir       = specularSiteDirectory.value
       val converter = fileConverter.value
       val metaProps = specularMetaProps.value
-
       if mainClass.isEmpty then
         sys.error(
           "specularBuildMain is not set. Example: specularBuildMain := \"com.example.docs.BuildSite\""
         )
-
-      (Test / compile).value
-      specularJsLink.value
-
+      val _    = (Test / compile).value
+      val _    = specularJsLink.value
       val jars =
         (Test / fullClasspath).value
           .map(af => converter.toPath(af.data).toFile.getAbsolutePath)
       runBuildMain(log, mainClass, dir, jars, (run / javaOptions).value.toVector ++ metaProps)
     },
     specularSiteDev := Def.uncached {
-      val log       = streams.value.log
-      val mainClass = specularBuildMain.value.trim
-      val dir       = specularSiteDirectory.value
-      val converter = fileConverter.value
-      val metaProps = specularMetaProps.value
-
-      if mainClass.isEmpty then
-        sys.error(
-          "specularBuildMain is not set. Example: specularBuildMain := \"com.example.docs.BuildSite\""
-        )
-
-      (Test / compile).value
-      specularJsLinkDev.value
-
-      val jars =
-        (Test / fullClasspath).value
-          .map(af => converter.toPath(af.data).toFile.getAbsolutePath)
-      runBuildMain(log, mainClass, dir, jars, (run / javaOptions).value.toVector ++ metaProps)
+      buildSiteTask(specularJsLinkDev).value
     },
     specularServe := Def.uncached {
       val log       = streams.value.log
@@ -262,6 +302,40 @@ object SpecularPlugin extends AutoPlugin:
       if code != 0 then sys.error(s"$mainClass failed with exit code $code")
     },
   )
+
+  private def buildSiteTask(jsLink: TaskKey[Unit]): Def.Initialize[Task[Unit]] = Def.task {
+    val log       = streams.value.log
+    val mainClass = specularBuildMain.value.trim
+    val dir       = specularSiteDirectory.value
+    val converter = fileConverter.value
+    val metaProps = specularMetaProps.value
+
+    if mainClass.isEmpty then
+      sys.error(
+        "specularBuildMain is not set. Example: specularBuildMain := \"com.example.docs.BuildSite\""
+      )
+
+    (Test / compile).value
+    jsLink.value
+
+    val jars =
+      (Test / fullClasspath).value
+        .map(af => converter.toPath(af.data).toFile.getAbsolutePath)
+    runBuildMain(log, mainClass, dir, jars, (run / javaOptions).value.toVector ++ metaProps)
+  }
+
+  private def hubCandidates(extracted: Extracted, refs: Seq[ProjectRef]): Seq[HubNest.Candidate] =
+    refs.map { ref =>
+      extracted.getOpt(ref / specularSiteSegment) match
+        case None      => HubNest.Candidate(ref.project, None, new File(""), isHub = false)
+        case Some(seg) =>
+          HubNest.Candidate(
+            project = ref.project,
+            segment = Some(seg),
+            from = extracted.get(ref / specularSiteDirectory),
+            isHub = extracted.getOpt(ref / specularHub).getOrElse(false),
+          )
+    }
 
   private def runBuildMain(
       log: Logger,

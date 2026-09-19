@@ -383,6 +383,7 @@ object Theme:
         // Prose keeps a readable measure; tables / examples break out to the full content
         // pane (Content's horizontal padding is the only side margin).
         minHeight(0.px),
+        minWidth(0.px),
         overflowY.auto,
         width.pct(100),
         padding(1.5.rem, 2.rem),
@@ -392,9 +393,11 @@ object Theme:
         Selector(" > nav.specular-page-toc", maxWidth(52.rem)),
         Selector(" > table", maxWidth.none, width.pct(100)),
         Selector(" > figure.specular-example", maxWidth.none, width.pct(100)),
-        Selector(" > .specular-illustration", maxWidth.none, width.pct(100)),
+        Selector(" > .specular-illustration", maxWidth.none, width.pct(100), minWidth(0.px)),
+        Selector(" section > .specular-illustration", maxWidth.none, width.pct(100), minWidth(0.px)),
         // Fenced mermaid stays in the prose measure; layout uses Mermoid.proseViewport (52rem).
-        Selector(" section > .mermoid-root", maxWidth(52.rem), width.pct(100)),
+        // min-width:0 so mermoid-fit's container query can scale below the scene's intrinsic size.
+        Selector(" section > .mermoid-root", maxWidth(52.rem), width.pct(100), minWidth(0.px)),
         Selector(" > .mermoid-ascent", maxWidth.none, width.pct(100)),
         Selector(" section > p", maxWidth(52.rem)),
         Selector(" section > h1", maxWidth(52.rem)),
@@ -518,9 +521,23 @@ object Theme:
         Selector(
           " .specular-illustration",
           width.pct(100),
-          maxWidth.none,
+          maxWidth.pct(100),
+          minWidth(0.px),
           margin(1.25.rem, 0.px),
           padding(0.px),
+        ),
+        Selector(
+          " .specular-illustration > .mermoid-root",
+          width.pct(100),
+          maxWidth.pct(100),
+          minWidth(0.px),
+        ),
+        // Firefox drops mermoid-fit's `scale(100cqi / scene)` as a used value (computes to none).
+        // A more specific `scale(1)` restores identity; phone width uses a fitted scale.
+        Selector(
+          " .specular-illustration > .mermoid-root.mermoid-fit .mermoid-diagram-scaler",
+          Declaration("transform", "scale(1)").important,
+          Declaration("transform-origin", "top left"),
         ),
         Selector(
           " .specular-snapshot",
@@ -637,6 +654,19 @@ object Theme:
           narrowViewport,
           padding(1.25.rem, 1.rem),
           Selector(" table", display.block, overflowX.auto),
+        ),
+        // Phone content pane is ~343px; nest scene is 608px. Firefox cannot compute
+        // mermoid-fit's 100cqi scale, so fit with a literal (proven in headed Firefox).
+        MediaQuery(
+          Media.maxWidth.px(420),
+          Selector(
+            " .specular-illustration > .mermoid-root.mermoid-fit .mermoid-diagram-scaler",
+            Declaration("transform", "scale(0.56)").important,
+          ),
+          Selector(
+            " .specular-illustration > .mermoid-root.mermoid-fit",
+            height("calc(var(--mermoid-scene-height) * 0.56)"),
+          ),
         ),
       )
 

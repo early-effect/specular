@@ -43,6 +43,7 @@ trait DocsSite extends ZIOAppDefault:
       clientScript = None,
       meta = Some(m),
       description = m.description,
+      logoLink = SitePaths.parentHref,
     )
   end site
 

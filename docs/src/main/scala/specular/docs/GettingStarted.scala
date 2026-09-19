@@ -166,7 +166,8 @@ Set `SPECULAR_BASE_PATH` and `SPECULAR_DOCS_URL` in CI so nav and `metadata.json
 the published project-site URL (for example `/my-lib` under `*.github.io`).
 
 Next: [Concepts](concepts.html) for the AST and interpreters, or
-[Library authors](library-authors.html) for a full cookbook.
+[Library authors](library-authors.html) for a full cookbook, including HTTP catalog hubs and
+nested monorepo sub-sites.
 """
     ),
   )

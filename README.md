@@ -186,6 +186,7 @@ See the [Interactive examples](https://early-effect.github.io/specular/interacti
 |------|-----------|--------|
 | **Docs-only** | `SiteModel(title, pages)` (+ optional theme / meta) | Sidebar docs + index + `metadata.json` |
 | **Full site** | `brand`, `home` (hero, `ProjectCatalog`, …) | Landing page + optional deep links to micro-sites |
+| **Nested hub** | `specularHub := true` + `.aggregate` member docs; each member `specularSiteSegment` | One artifact: hub at the site root, members under `/<segment>/` |
 
 Themes: `Theme.default` or `Theme.fromTokens(...)`. `DocsSite.standardLayers` is the stock
 stack; `DocsSite.themedStack` is the same stack with `Theme` left as an environment hole, so

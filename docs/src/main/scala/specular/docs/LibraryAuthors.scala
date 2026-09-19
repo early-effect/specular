@@ -3,6 +3,7 @@ package specular.docs
 import ascent.*
 import ascent.dsl.*
 import specular.*
+import specular.mermoid.Mermoid
 import zio.test.*
 
 /** Cookbook for Scala library maintainers adopting Specular end-to-end. */
@@ -137,10 +138,18 @@ Enable GitHub Pages (Actions source) before the first tag deploy if that is your
     ),
     section("Optional: compose into a hub")(
       md"""
-A hub is just another Specular site that composes a `ProjectCatalog` from published
-`metadata.json` URLs. Your library does not need one; the micro-site stands alone.
+There are two hub shapes. Pick the one that matches how the sites are published.
 
-If your org (or you) keeps a hub:
+| | HTTP catalog | Nested monorepo |
+| --- | --- | --- |
+| When | Independently released libraries | One repo, one Pages artifact |
+| How | Hub fetches each `metadata.json` over HTTPS | Hub `.aggregate`s member docs projects |
+| Rebuild | When the URL allowlist changes | `docs/specularSite` (already what zipx runs) |
+
+A library micro-site does not need either. The HTTP catalog is this section; nested sites are
+the next.
+
+If your org (or you) keeps a catalog hub:
 
 1. Publish the library docs so `metadata.json` is reachable over HTTPS
 2. Add that URL to the hub's catalog allowlist (often a plain text list of URLs)
@@ -156,7 +165,59 @@ Cards render remote strings as text nodes and links through `SafeHref` (no `java
 
 Early Effect's hub at [earlyeffect.rocks](https://www.earlyeffect.rocks) is built this way:
 published library `metadata.json` URLs feed a Specular catalog site.
-"""
+""",
+      illustration {
+        Mermoid.diagram(HubNestDoc.httpCatalog)
+      }.assert(ui => assertTrue(ui != null)),
+    ),
+    section("Optional: nest member sites in a monorepo")(
+      md"""
+A monorepo that wants **one** static artifact (hub at the site root, member sites in
+subdirectories) is a plugin setting. Membership is sbt `.aggregate`. Do not keep a parallel
+nest list, and do not steal `specularJsLink` to run a member build.
+
+The hub is a SpecularPlugin project with `specularHub := true` that aggregates member
+**docs** JVM ids (not a product umbrella). Each member sets `specularSiteSegment`. Members
+keep their own site directory and relative `specularBasePath` (`"."`). `docs/specularSite`
+builds those members, copies them under `hubDir/<segment>/`, then writes the hub.
+`ZipxDocs.pages` already runs that task.
+""",
+      illustration {
+        Mermoid.diagram(HubNestDoc.artifact)
+      }.assert(ui => assertTrue(ui != null)),
+      md"""
+```scala
+lazy val docs = (project in file("docs"))
+  .enablePlugins(SpecularPlugin)
+  .aggregate(LocalProject("paymentsDocs"))
+  .settings(
+    specularHub := true,
+    specularBuildMain := "com.example.docs.BuildSite",
+    specularMetaProject := Some(LocalProject("root")),
+  )
+
+lazy val paymentsDocs = (project in file("payments/docs"))
+  .enablePlugins(SpecularPlugin)
+  .settings(
+    specularSiteSegment := "payments",
+    specularBuildMain := "com.example.payments.docs.BuildSite",
+    specularMetaProject := Some(LocalProject("payments")),
+  )
+```
+
+`docs/specularPreview` stays hub-only: it does not rebuild members. A full local tree is
+`docs/specularSite` then preview. Member-only edits stay `paymentsDocs/specularPreview`.
+Sub-site chrome gets `-Dspecular.site.parentHref=../index.html` unless you set
+`specularParentHref`. Segments matching `assets` or `images` are reserved. Nested hubs and
+aggregated projects that do not enable SpecularPlugin fail the hub build.
+""",
+      exampleValue(HubNestDoc.reserved).assert { reserved =>
+        assertTrue(
+          HubNestDoc.hubKey == "specularHub",
+          HubNestDoc.segmentKey == "specularSiteSegment",
+          reserved == Set("assets", "images"),
+        )
+      },
     ),
     section("Migration from markdown docs")(
       md"""
@@ -173,3 +234,26 @@ middle.
     ),
   )
 end LibraryAuthors
+
+/** Public nest-key names asserted on the library-authors page (docs cannot load the sbt plugin). */
+object HubNestDoc:
+  val hubKey: String        = "specularHub"
+  val segmentKey: String    = "specularSiteSegment"
+  val reserved: Set[String] = Set("assets", "images")
+
+  val httpCatalog: String =
+    """flowchart TB
+      |    a["library A"] --> hub["org hub"]
+      |    b["library B"] --> hub
+      |""".stripMargin
+
+  val artifact: String =
+    """flowchart TB
+      |    root["target/site"]
+      |    root --> hubIndex["index.html"]
+      |    root --> hubMeta["metadata.json"]
+      |    root --> payments["payments/"]
+      |    payments --> pIndex["index.html"]
+      |    payments --> pMeta["metadata.json"]
+      |""".stripMargin
+end HubNestDoc

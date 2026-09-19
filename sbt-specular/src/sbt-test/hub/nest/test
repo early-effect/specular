@@ -1,0 +1,18 @@
+# Preview does not nest members.
+> docs/specularSiteDev
+$ exists target/site/index.html
+$ absent target/site/atlas/index.html
+
+# Ghosts in the hub tree must not survive a nest.
+$ exec chmod +x plant-ghosts.sh
+$ exec ./plant-ghosts.sh
+
+> docs/specularSite
+
+$ exists target/site/index.html
+$ exists target/site/atlas/index.html
+$ absent target/site/ghost.txt
+$ absent target/site/atlas/stale.txt
+$ exec grep -q name=hub target/site/index.html
+$ exec grep -q name=member-lib target/site/atlas/index.html
+$ exec grep -q parent=../index.html target/site/atlas/index.html
