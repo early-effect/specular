@@ -19,7 +19,7 @@ object MyVersions extends ZipxVersions:
   val ascentHtml    = ascent.mod("ascent-html")
   val ascentPreview = ascent.mod("ascent-preview")
 
-  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.7")
+  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.8")
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
   val scalaJavaTime     = Lib("io.github.cquiroz", "scala-java-time", "2.7.0")
