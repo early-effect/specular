@@ -137,7 +137,7 @@ object ProjectCatalog:
     )
 
   /** Build a catalog by fetching each micro-site's published `metadata.json` (SSR / build-time). */
-  def fromMetadataUrls(urls: Vector[String]): RIO[Client, ProjectCatalog] =
+  def fromMetadataUrls(urls: Vector[String]): ZIO[Client, MetaFetchError, ProjectCatalog] =
     ProjectMetaHttp.fetchAll(urls).map(ps => ProjectCatalog(projects = ps))
 end ProjectCatalog
 
