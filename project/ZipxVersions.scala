@@ -13,7 +13,7 @@ object MyVersions extends ZipxVersions:
   val zioTest    = zio.mod("zio-test")
   val zioTestSbt = zio.mod("zio-test-sbt")
 
-  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.8.0")
+  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.9.0")
   val ascentCss     = ascent.mod("ascent-css")
   val ascentJs      = ascent.mod("ascent-js")
   val ascentHtml    = ascent.mod("ascent-html")
@@ -22,7 +22,7 @@ object MyVersions extends ZipxVersions:
   val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.9")
 
   /** specular-site calls heddle's client itself, so it names heddle rather than taking it through ascent-preview. */
-  val heddle = Lib("rocks.earlyeffect", "heddle", "0.6.0")
+  val heddle = Lib("rocks.earlyeffect", "heddle", "0.7.1")
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
   val scalaJavaTime     = Lib("io.github.cquiroz", "scala-java-time", "2.7.0")
@@ -36,7 +36,7 @@ object MyVersions extends ZipxVersions:
   val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
   val dynverCi         = Plugin("rocks.earlyeffect", "sbt-dynver-ci", "0.2.3")
   val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.3.0")
-  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.8.0")
+  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.9.0")
 
   def zioTests   = library(zioTest.test, zioTestSbt.test)
   def zioLib     = library(zio)
