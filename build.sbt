@@ -411,16 +411,3 @@ def dogfoodMetaProps(
         s"-Dspecular.source.root=$sourceRoot",
       )
   ).toVector
-
-// TEMPORARY, until mermoid-ascent 0.0.10 (on ascent 0.9.0) is on Maven Central: 0.0.9 pins ascent 0.8, and this
-// build takes 0.9.0, which early-semver calls a hard eviction. It is safe: 0.9.0 left ascent-core, -css, -html, and
-// -js unchanged. Replace mermoid-ascent with 0.0.10 and delete these rows before releasing specular: this build's
-// override does not reach a project that uses specular.
-ThisBuild / libraryDependencySchemes ++= Seq(
-  "rocks.earlyeffect" %% "ascent-core"      % "always",
-  "rocks.earlyeffect" %% "ascent-css"       % "always",
-  "rocks.earlyeffect" %% "ascent-html"      % "always",
-  "rocks.earlyeffect" %% "ascent-core_sjs1" % "always",
-  "rocks.earlyeffect" %% "ascent-css_sjs1"  % "always",
-  "rocks.earlyeffect" %% "ascent-js_sjs1"   % "always",
-)
