@@ -6,8 +6,10 @@ import zipx.*
   * already brings it in. Action pins stay on jar defaults.
   */
 object MyVersions extends ZipxVersions:
-  val sbt: SbtVersion     = SbtVersion("2.1.0-M2")
+  val sbt: SbtVersion     = SbtVersion("2.1.0-M3")
   val scala: ScalaVersion = ScalaVersion("3.9.0")
+
+  val release = ShipGroup("specular", "0.18.2")("core", "zioTest", "site", "specularMermoid", "eeDocsTheme", "plugin")
 
   val zio        = Lib("dev.zio", "zio", "2.1.26")
   val zioTest    = zio.mod("zio-test")
@@ -34,7 +36,6 @@ object MyVersions extends ZipxVersions:
 
   val scalajs          = Plugin("org.scala-js", "sbt-scalajs", "1.22.0")
   val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
-  val dynverCi         = Plugin("rocks.earlyeffect", "sbt-dynver-ci", "0.2.3")
   val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.3.0")
   val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.9.0")
 

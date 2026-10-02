@@ -14,7 +14,6 @@ organization         := "rocks.earlyeffect"
 organizationName     := "Early Effect"
 organizationHomepage := Some(uri("https://www.earlyeffect.rocks"))
 versionScheme        := Some("early-semver")
-// No hardcoded version — sbt-dynver derives it from the git tag (v0.1.0 -> 0.1.0).
 
 homepage := Some(uri("https://github.com/early-effect/specular"))
 licenses := Seq("Apache-2.0" -> uri("http://www.apache.org/licenses/LICENSE-2.0.txt"))
@@ -53,8 +52,10 @@ usePgpKeyHex(sys.env.getOrElse("PGP_KEY_HEX", "MISSING_KEY_HEX"))
 zipxJavaVersion      := JdkVersion("25")
 zipxWorkflowDispatch := true
 zipxTestTask         := zipxTasks.session(testFull, LocalProject("plugin") / scripted)
-zipxCapabilities += ZipxCentral.release
+zipxCapabilities += ZipxCentral.snapshots
+zipxCapabilities += ZipxCentral.pullRequestSnapshots("snapshots")
 zipxCapabilities += ZipxDocs.pages()
+zipxReleaseWorkflow := Some(ZipxCentral.releases)
 
 semanticdbEnabled := true
 
