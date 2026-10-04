@@ -13,6 +13,9 @@ object InteractiveRegistry:
   /** The raw-DOM counter on the Interactive page; bound to `RawDomDemo.mounter` in `ClientMain`. */
   val RawDomCounter: String = "raw-dom-counter"
 
-  /** Every `exampleDom` key these docs declare. `ClientMain` must bind a mounter for each. */
-  val domKeys: Set[String] = Set(RawDomCounter)
+  /** The DOM illustration on the Diagrams page; bound to `DiagramPoster.mounter` in `ClientMain`. */
+  val DiagramPoster: String = "diagram-poster"
+
+  /** Every hand-bound mount key these docs declare (`exampleDom` and `illustrationDom`). */
+  val domKeys: Set[String] = Set(RawDomCounter, DiagramPoster)
 end InteractiveRegistry

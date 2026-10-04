@@ -86,7 +86,7 @@ addCommandAlias("release", "; publishSigned; sonaRelease")
 
 lazy val root = (project in file("."))
   .aggregate(
-    (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++ specularMermoid.projectRefs ++
+    (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++
       eeDocsTheme.projectRefs ++ docs.projectRefs ++ Seq[ProjectReference](plugin))*
   )
   .settings(
@@ -132,7 +132,7 @@ lazy val zioTest = (projectMatrix in file("zio-test"))
   .jvmPlatform(scalaVersions = scalaVersions)
 
 lazy val site = (projectMatrix in file("site"))
-  .dependsOn(core, specularMermoid)
+  .dependsOn(core)
   .settings(
     name := "specular-site",
     scalacOptions ++= commonScalacOptions,
@@ -140,38 +140,6 @@ lazy val site = (projectMatrix in file("site"))
     zioTestSettings,
   )
   .jvmPlatform(scalaVersions = scalaVersions)
-
-/** mermoid diagrams → ascent UI for Specular doc pages (see early-effect/specular#35).
-  *
-  * Cross-built for JVM (SSR / docs-as-tests) and Scala.js (interactive remount in the browser).
-  */
-lazy val specularMermoid = (projectMatrix in file("mermoid"))
-  .settings(
-    name := "specular-mermoid",
-    scalacOptions ++= commonScalacOptions,
-    MyVersions.mermoidLib,
-  )
-  .jvmPlatform(
-    scalaVersions,
-    Nil,
-    (p: Project) =>
-      p.settings(
-        zioTestSettings,
-        MyVersions.mermoidJvm,
-        libraryDependencies += MyVersions.moduleID(MyVersions.ascentHtml.test),
-      ),
-  )
-  .jsPlatform(
-    scalaVersions,
-    Nil,
-    (p: Project) =>
-      p.settings(
-        MyVersions.mermoidJs,
-        // SSR round-trip specs need ascent-html (JVM-only).
-        Test / skip    := true,
-        Test / sources := Nil,
-      ),
-  )
 
 /** Early Effect org brand pack (theme tokens + logo). Published; Specular core stays brand-agnostic. */
 lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
@@ -211,12 +179,13 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           zioTest.jvm(scala3Version),
           site.jvm(scala3Version),
           eeDocsTheme.jvm(scala3Version),
-          specularMermoid.jvm(scala3Version),
         )
         .enablePlugins(AscentPreviewPlugin)
         .settings(
           MyVersions.zioTests,
           zioTestSettings,
+          // Diagrams in these docs call mermoid-ascent directly. site does not depend on mermoid.
+          libraryDependencies += MyVersions.moduleID(MyVersions.mermoidAscent),
           testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
           run / fork := true,
           run / javaOptions ++= Seq(
@@ -331,10 +300,12 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
     scalaVersions,
     Nil,
     (p: Project) =>
-      p.dependsOn(core.js(scala3Version), specularMermoid.js(scala3Version))
+      p.dependsOn(core.js(scala3Version))
         .settings(
           MyVersions.javaTime,
           MyVersions.docsJs,
+          // DocSpecs are shared. The JS client compiles the same static diagram body; it does not remount it.
+          libraryDependencies += MyVersions.moduleID(MyVersions.mermoidAscent),
           scalaJSUseMainModuleInitializer := true,
           Compile / mainClass := Some("specular.docs.ClientMain"),
         ),

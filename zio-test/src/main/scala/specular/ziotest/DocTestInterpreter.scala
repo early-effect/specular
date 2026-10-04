@@ -35,17 +35,20 @@ object DocTestInterpreter:
             yield assertFn(ui)
           }
         )
-      case ill: Illustration[?] if ill.assertion.isDefined =>
-        val erased   = ill.asInstanceOf[Illustration[Any]]
-        val assertFn = erased.assertion.get
-        Vector(
-          test(s"illustration ${erased.id}") {
-            for
-              runner <- ZIO.service[ExampleRunner]
-              ui     <- runner.run(erased)
-            yield assertFn(ui)
-          }
-        )
+      case ill: AscentIllustration[?] =>
+        ill.assertion match
+          case Some(assertFn) =>
+            val erased = ill.asInstanceOf[AscentIllustration[Any]]
+            Vector(
+              test(s"illustration ${erased.id}") {
+                for
+                  runner <- ZIO.service[ExampleRunner]
+                  ui     <- runner.run(erased)
+                yield assertFn(ui)
+              }
+            )
+          case None =>
+            Vector.empty
       case ve: ValueExample[?] if ve.assertion.isDefined =>
         val erased   = ve.asInstanceOf[ValueExample[Any]]
         val assertFn = erased.assertion.get

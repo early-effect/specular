@@ -35,10 +35,11 @@ object SpecularClient:
       _ <- ZIO.succeed(DevReload.install())
     yield ()
 
-  /** Ascent adapter: a mounter per interactive `Example` and live `Illustration` across `pages`.
+  /** Ascent adapter: a mounter per interactive `Example` and live [[AscentIllustration]] across `pages`.
     *
     * Replaces the hand-rolled per-repo `ExampleRegistry`: `.interactive` / `.live` already assign a key during
-    * `page(...)`, so listing the pages is all a docs client has to do.
+    * `page(...)`, so listing the pages is all a docs client has to do. A [[DomIllustration]] has no ascent body, so its
+    * mounter stays the author's to register, the same as `exampleDom`.
     */
   def fromPages(pages: DocPage*): Map[String, Mounter] =
     pages.toVector
@@ -106,8 +107,8 @@ object SpecularClient:
       case ex: Example[?] if ex.isInteractive =>
         val e = ex.asInstanceOf[Example[Any]]
         Vector(e.mountKey.getOrElse(e.id) -> e.body)
-      case ill: Illustration[?] if ill.isLive =>
-        val i = ill.asInstanceOf[Illustration[Any]]
+      case ill: AscentIllustration[?] if ill.isLive =>
+        val i = ill.asInstanceOf[AscentIllustration[Any]]
         Vector(i.mountKey.getOrElse(i.id) -> i.body)
       case Section(_, kids) => liveAscent(kids)
       case _                => Vector.empty

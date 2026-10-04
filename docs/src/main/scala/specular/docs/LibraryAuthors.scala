@@ -3,7 +3,7 @@ package specular.docs
 import ascent.*
 import ascent.dsl.*
 import specular.*
-import specular.mermoid.Mermoid
+import mermoid.ascent.MermoidAscent
 import zio.test.*
 
 /** Cookbook for Scala library maintainers adopting Specular end-to-end. */
@@ -77,15 +77,16 @@ DOM mount, so anything that writes into an element qualifies. [Interactive examp
 is the full guide; the setup is:
 
 1. A Scala.js docs project depending on `specular-core` (plus your own JS modules)
-2. Either `.interactive` on an ascent example, `.live` on an illustration, or
-   `exampleDom(key).fromSource(file, marker)` for anything else
+2. Either `.interactive` on an ascent example, `.live` on an illustration,
+   `illustrationDom(key)` for a DOM figure with no source panel, or
+   `exampleDom(key).fromSource(file, marker)` for a sample
 3. A `ClientMain` calling `SpecularClient.mountAll(SpecularClient.fromPages(pages*) ++ yourMounters)`
 4. `specularSite` splicing `spliceFull` into `assets/client.js`, plus `specularJsProject` so
    `docs/specularPreview` watches that client's Compile sources
 
 Use `illustration` / `illustrationIO` when the region *is* the document (a poster, a host switcher),
 not a copy-paste sample. `fromPages` registers every `.interactive` ascent example and every `.live`
-illustration; `exampleDom` keys are yours to bind,
+illustration; `exampleDom` and `illustrationDom` keys are yours to bind,
 since specular cannot import your client code. Guard the two against drift with
 `SpecularClient.requiredKeys(pages*)`.
 
@@ -167,8 +168,8 @@ Early Effect's hub at [earlyeffect.rocks](https://www.earlyeffect.rocks) is buil
 published library `metadata.json` URLs feed a Specular catalog site.
 """,
       illustration {
-        Mermoid.diagram(HubNestDoc.httpCatalog)
-      }.assert(ui => assertTrue(ui != null)),
+        MermoidAscent.diagram(HubNestDoc.httpCatalog)
+      }.assert(ui => assertTrue(ui.toString.contains("org hub"))),
     ),
     section("Optional: nest member sites in a monorepo")(
       md"""
@@ -183,8 +184,8 @@ builds those members, copies them under `hubDir/<segment>/`, then writes the hub
 `ZipxDocs.pages` already runs that task.
 """,
       illustration {
-        Mermoid.diagram(HubNestDoc.artifact)
-      }.assert(ui => assertTrue(ui != null)),
+        MermoidAscent.diagram(HubNestDoc.artifact)
+      }.assert(ui => assertTrue(ui.toString.contains("target/site"))),
       md"""
 ```scala
 lazy val docs = (project in file("docs"))

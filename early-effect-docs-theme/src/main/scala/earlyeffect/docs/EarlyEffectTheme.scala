@@ -1,7 +1,5 @@
 package earlyeffect.docs
 
-import mermoid.RenderConfig
-import specular.mermoid.Mermoid
 import specular.site.{BrandLink, DocsSite, SiteBuilder, SiteModel, Theme, ThemeTokens}
 import zio.*
 
@@ -20,9 +18,6 @@ import java.nio.file.{Files, Path, StandardCopyOption}
   * override def layers = EarlyEffectTheme.layers
   * override def afterBuild(out: Path, result: SiteOutput) = EarlyEffectTheme.writeLogo(out)
   * }}}
-  *
-  * To retint diagrams only, copy [[tokens]] with a different `diagramConfig` and
-  * `Theme.fromTokens(…) >>> DocsSite.themedStack`.
   */
 object EarlyEffectTheme:
 
@@ -105,13 +100,9 @@ object EarlyEffectTheme:
       )
     ),
     extraCss = chalkTextureCss,
-    diagramConfig = Mermoid.chalkboard,
   )
 
   val live: ULayer[Theme] = Theme.fromTokens(tokens)
-
-  /** Mermaid diagrams for this brand (also set on [[tokens]].diagramConfig). */
-  val diagramConfig: RenderConfig = tokens.diagramConfig
 
   /** Full `DocsSite` stack on the EE theme — use as `override def layers`. */
   val layers: ZLayer[Any, Nothing, SiteBuilder] = live >>> DocsSite.themedStack

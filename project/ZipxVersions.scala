@@ -9,7 +9,7 @@ object MyVersions extends ZipxVersions:
   val sbt: SbtVersion     = SbtVersion("2.1.0-M3")
   val scala: ScalaVersion = ScalaVersion("3.9.0")
 
-  val release = ShipGroup("specular", "0.18.2")("core", "zioTest", "site", "specularMermoid", "eeDocsTheme", "plugin")
+  val release = ShipGroup("specular", "0.18.2")("core", "zioTest", "site", "eeDocsTheme", "plugin")
 
   val zio        = Lib("dev.zio", "zio", "2.1.26")
   val zioTest    = zio.mod("zio-test")
@@ -45,9 +45,6 @@ object MyVersions extends ZipxVersions:
   def coreJs     = library(ascentJs, scalajsDom)
   def javaTime   = library(scalaJavaTime, scalaJavaTimeTzdb)
   def siteLib    = library(ascentHtml, ascentPreview, heddle, commonmark, commonmarkGfm, scalafmtCore)
-  def mermoidLib = library(ascent, ascentCss, mermoidAscent)
-  def mermoidJvm = library(ascentHtml)
-  def mermoidJs  = library(ascentJs)
   def zioTestLib = library(zioTest, zioTestSbt)
   def docsJs     = library(ascentJs, ascentCss, zioTest)
 end MyVersions

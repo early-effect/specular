@@ -7,8 +7,9 @@ import zio.test.*
   *
   * `ClientMain` is Scala.js, so this JVM spec cannot read its registry directly. It checks the two things it can, which
   * together pin the contract: the site map's keys are exactly the pages' keys (no page dropped from the nav or the
-  * client list), and the `exampleDom` keys are exactly [[InteractiveRegistry.domKeys]], the set `ClientMain` binds
-  * mounters for. Ascent keys need no such list, since `SpecularClient.fromPages` derives them from these same pages.
+  * client list), and the client-bound keys (`exampleDom` and `illustrationDom`) are exactly
+  * [[InteractiveRegistry.domKeys]], the set `ClientMain` binds mounters for. Ascent keys need no such list, since
+  * `SpecularClient.fromPages` derives them from these same pages.
   */
 object InteractiveContractSpec extends ZIOSpecDefault:
 
@@ -20,7 +21,7 @@ object InteractiveContractSpec extends ZIOSpecDefault:
         live.forall((id, key) => key.contains(id)),
       )
     },
-    test("exampleDom keys across the site are exactly the ones ClientMain binds") {
+    test("client-bound keys across the site are exactly the ones ClientMain binds") {
       assertTrue(DocMounts.domKeys(BuildSite.pages*) == InteractiveRegistry.domKeys)
     },
     // Catches a page added to the nav but not to ClientMain.pages (or the reverse): its keys would be
@@ -64,10 +65,10 @@ object InteractiveContractSpec extends ZIOSpecDefault:
   private def collectLive(pages: Vector[DocPage]): Vector[(String, Option[String])] =
     def go(nodes: Vector[DocNode]): Vector[(String, Option[String])] =
       nodes.flatMap {
-        case ex: Example[?] if ex.isInteractive => Vector(ex.id -> ex.mountKey)
-        case ill: Illustration[?] if ill.isLive => Vector(ill.id -> ill.mountKey)
-        case Section(_, kids)                   => go(kids)
-        case _                                  => Vector.empty
+        case ex: Example[?] if ex.isInteractive       => Vector(ex.id -> ex.mountKey)
+        case ill: AscentIllustration[?] if ill.isLive => Vector(ill.id -> ill.mountKey)
+        case Section(_, kids)                         => go(kids)
+        case _                                        => Vector.empty
       }
     pages.flatMap(p => go(p.children))
 end InteractiveContractSpec

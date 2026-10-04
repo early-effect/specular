@@ -18,12 +18,13 @@ That is the entire contract, so anything that can write into a DOM node is a fir
 example: preact, laminar, slinky, tyrian, raw DOM, or ascent. Ascent is not special: it is one
 adapter (`Mounter.fromAscent`) over the same hook, wired for you by `.interactive`.
 """,
-    section("The two authoring forms")(
+    section("The authoring forms")(
       md"""
 | You are documenting | Use | Source panel comes from |
 | ------------------- | --- | ----------------------- |
 | An ascent `UI` sample | `example`/`exampleIO` + `.interactive` | the captured expression (macro) |
 | An ascent `UI` that *is* the page | `illustration`/`illustrationIO` + `.live` | none |
+| A DOM element that *is* the page | `illustrationDom(key)` | none |
 | Anything else | `exampleDom(key).fromSource(...)` | a real file, read at build time |
 
 `.interactive` is unchanged from before the hook: it assigns the mount key from the example's id, so
@@ -108,7 +109,7 @@ object ClientMain extends ZIOAppDefault:
 ```
 
 `fromPages` handles every `.interactive` ascent example and every `.live` illustration.
-`exampleDom` keys are yours to register:
+`exampleDom` and `illustrationDom` keys are yours to register:
 specular cannot invent a mounter for code it does not import.
 
 `ZIO.scoped` around the whole thing on purpose: that scope is the page lifetime the mounters share.
@@ -123,8 +124,9 @@ a page that *is* an Ascent document.
 
 `illustration` / `illustrationIO` SSR the tree (and `.live` remounts it) without that chrome: no
 source panel, no copy button, a quiet `div`. Same ids and `data-specular-mount` path as examples.
-`.assert` is still optional. Do not hide `.specular-code` with CSS; that is a leak of Specular
-internals into the library docs.
+`.assert` is still optional. A picture that is not a sample uses `illustrationDom`: the same quiet
+`div`, no source file, and a `Mounter` you bind. `exampleDom` stays the sample, with a source panel.
+Do not hide `.specular-code` with CSS; that is a leak of Specular internals into the library docs.
 """,
       illustration {
         E.article(

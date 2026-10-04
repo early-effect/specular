@@ -81,6 +81,22 @@ object DocBuildersSpec extends ZIOSpecDefault:
           illustration { E.p("x") }.withMountKey("ok").mountKey.contains("ok"),
         )
       },
+      test("illustrationDom keeps the author key and rejects a bad one") {
+        val ill = illustrationDom("cycle")
+        val p   = page("Keys")(example { E.div("a") }, ill)
+        assertTrue(
+          scala.util.Try(illustrationDom("bad key")).isFailure,
+          ill.key == "cycle",
+          ill.fallback == DomIllustration.defaultFallback,
+          DocMounts.domKeys(p) == Set("cycle"),
+          DocInternal.mountKeys(p.children) == Vector("cycle"),
+        )
+      },
+      test("illustrationDom.withFallback replaces the no-JS placeholder") {
+        val custom = E.p("custom figure")
+        val ill    = illustrationDom("cycle").withFallback(custom)
+        assertTrue(ill.fallback == custom)
+      },
       test("exampleValue captures locals and lifts the result") {
         val ex = exampleValue {
           val xs = List(1, 2)
@@ -397,7 +413,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
   private def collectExampleIds(nodes: Vector[DocNode]): Vector[String] =
     nodes.flatMap {
       case e: Example[?]         => Vector(e.id)
-      case i: Illustration[?]    => Vector(i.id)
+      case i: Illustration       => Vector(i.id)
       case v: ValueExample[?]    => Vector(v.id)
       case f: FailExample        => Vector(f.id)
       case c: CrashExample[?, ?] => Vector(c.id)

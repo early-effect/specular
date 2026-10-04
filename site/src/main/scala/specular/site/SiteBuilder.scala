@@ -264,8 +264,8 @@ object SiteBuilder:
             Vector(attr("class", "specular-example")),
           )
         end for
-      case ill: Illustration[?] =>
-        val erased = ill.asInstanceOf[Illustration[Any]]
+      case ill: AscentIllustration[?] =>
+        val erased = ill.asInstanceOf[AscentIllustration[Any]]
         for ui <- runner.run(erased)
         yield
           val mountAttrs = erased.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
@@ -274,6 +274,19 @@ object SiteBuilder:
             Vector(ui),
             Vector(attr("id", erased.id), attr("class", "specular-illustration")) ++ mountAttrs,
           )
+      case dom: DomIllustration =>
+        // Placeholder only. The client clears it and hands the element to the registered Mounter.
+        ZIO.succeed(
+          el(
+            "div",
+            Vector(dom.fallback),
+            Vector(
+              attr("id", dom.id),
+              attr("class", "specular-illustration"),
+              attr(MountPoint.Attr, dom.key),
+            ),
+          )
+        )
       case de: DomExample =>
         // Source comes from a real Scala.js file rather than a captured expression, so an unresolvable
         // ref fails the site build the way `expectCrash` does: a stale path or deleted marker must not
