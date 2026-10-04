@@ -97,10 +97,9 @@ object DocsSiteSpec extends ZIOSpecDefault:
         css.contains(s"--specular-radius: ${ThemeTokens.default.radius};"),
         // the stock theme declares no light-scheme overrides
         !css.contains("prefers-color-scheme"),
-        // Host box for mermoid-fit: illustrations must shrink so 100cqi is the pane, not the scene.
         css.contains(".specular-illustration"),
         css.contains("min-width: 0.0px"),
-        css.contains(".specular-illustration > .mermoid-root"),
+        !css.contains(".mermoid-"),
       )
       end for
     },

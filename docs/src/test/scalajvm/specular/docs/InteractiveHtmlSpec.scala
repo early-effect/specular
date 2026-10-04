@@ -81,6 +81,23 @@ object InteractiveHtmlSpec extends ZIOSpecDefault:
           !figure.contains("specular:end"),
         )
     },
+    test("a DOM illustration SSRs a quiet mount point and no example chrome") {
+      for html <- render(Diagrams.doc)
+      yield
+        val needle = s"""${MountPoint.Attr}="${InteractiveRegistry.DiagramPoster}""""
+        val at     = html.indexOf(needle)
+        val open   = html.lastIndexOf("<div", at)
+        val close  = html.indexOf("</div>", at)
+        val wrap   = if at < 0 || open < 0 || close < 0 then "" else html.substring(open, close)
+        assertTrue(
+          wrap.contains("class=\"specular-illustration\""),
+          wrap.contains(MountPoint.FallbackClass),
+          wrap.contains("This figure runs in your browser"),
+          !wrap.contains("specular-example"),
+          !wrap.contains("specular-source"),
+          !wrap.contains("<figure"),
+        )
+    },
     test("an illustration SSRs without example chrome") {
       for html <- render(Interactive.doc)
       yield

@@ -6,8 +6,8 @@ import zio.*
 /** Browser entry: hand every SSR mount point on the current page to its registered [[Mounter]].
   *
   * Both example kinds travel one path. `fromPages` supplies a mounter for each `.interactive` ascent example, and
-  * [[extraMounters]] covers the `exampleDom` keys, whose code specular does not import and therefore cannot register on
-  * its own.
+  * [[extraMounters]] covers `exampleDom` and `illustrationDom` keys, whose code specular does not import and therefore
+  * cannot register on its own.
   *
   * The whole run sits inside one `ZIO.scoped`: that scope is the page lifetime the mounters share, so a listener a
   * mounter acquires stays alive. `ZIO.never` holds it open. Only mount points present in the current document are
@@ -26,9 +26,12 @@ object ClientMain extends ZIOAppDefault:
     Showcase.doc,
   )
 
-  /** Mounters for the `exampleDom` keys these pages declare. */
+  /** Mounters for the keys these pages declare and `fromPages` cannot derive. */
   val extraMounters: Map[String, Mounter] =
-    Map(InteractiveRegistry.RawDomCounter -> RawDomDemo.mounter)
+    Map(
+      InteractiveRegistry.RawDomCounter -> RawDomDemo.mounter,
+      InteractiveRegistry.DiagramPoster -> DiagramPoster.mounter,
+    )
 
   def run = ZIO.scoped {
     SpecularClient.mountAll(SpecularClient.fromPages(pages*) ++ extraMounters) *> ZIO.never

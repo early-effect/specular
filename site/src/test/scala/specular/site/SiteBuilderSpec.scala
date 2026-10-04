@@ -680,6 +680,30 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("a DOM illustration SSRs a quiet mount point and no example chrome") {
+      val doc = page("Figure")(
+        illustrationDom("cycle").withFallback(E.p("custom figure"))
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-dom-illustration"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield
+        val at    = html.indexOf("custom figure")
+        val open  = html.lastIndexOf("<div", at)
+        val close = html.indexOf("</div>", at)
+        val wrap  = if at < 0 || open < 0 || close < 0 then "" else html.substring(open, close)
+        assertTrue(
+          wrap.contains("class=\"specular-illustration\""),
+          wrap.contains("id=\"figure-ex-1\""),
+          wrap.contains(s"""${MountPoint.Attr}="cycle""""),
+          wrap.contains("custom figure"),
+          !wrap.contains("specular-example"),
+          !wrap.contains("specular-source"),
+          !wrap.contains("<figure"),
+        )
+      end for
+    },
     test("a DomExample can override the no-JS fallback") {
       val doc = page("Fallback")(
         exampleDom("k").fromSource(FixturePath, "greeting").withFallback(E.div("custom placeholder"))

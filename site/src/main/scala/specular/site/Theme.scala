@@ -2,8 +2,6 @@ package specular.site
 
 import ascent.*
 import ascent.css.Styles.*
-import mermoid.RenderConfig
-import specular.mermoid.Mermoid
 import zio.*
 
 /** Design tokens for a specular theme. */
@@ -23,8 +21,6 @@ final case class ThemeTokens(
     light: Option[ThemeTokens] = None,
     /** Extra CSS appended after chrome classes (brand textures, etc.). */
     extraCss: String = "",
-    /** Mermaid / mermoid config for fenced `mermaid` blocks in Prose (build-time). */
-    diagramConfig: RenderConfig = Mermoid.chalkboard,
 )
 
 object ThemeTokens:
@@ -47,7 +43,6 @@ end ThemeTokens
 trait Theme:
   def cssText: UIO[String]
   def classNames: UIO[ThemeClasses]
-  def diagramConfig: UIO[RenderConfig]
 
 final case class ThemeClasses(
     layout: String,
@@ -395,10 +390,6 @@ object Theme:
         Selector(" > figure.specular-example", maxWidth.none, width.pct(100)),
         Selector(" > .specular-illustration", maxWidth.none, width.pct(100), minWidth(0.px)),
         Selector(" section > .specular-illustration", maxWidth.none, width.pct(100), minWidth(0.px)),
-        // Fenced mermaid stays in the prose measure; layout uses Mermoid.proseViewport (52rem).
-        // min-width:0 so mermoid-fit's container query can scale below the scene's intrinsic size.
-        Selector(" section > .mermoid-root", maxWidth(52.rem), width.pct(100), minWidth(0.px)),
-        Selector(" > .mermoid-ascent", maxWidth.none, width.pct(100)),
         Selector(" section > p", maxWidth(52.rem)),
         Selector(" section > h1", maxWidth(52.rem)),
         Selector(" section > h2", maxWidth(52.rem)),
@@ -527,19 +518,6 @@ object Theme:
           padding(0.px),
         ),
         Selector(
-          " .specular-illustration > .mermoid-root",
-          width.pct(100),
-          maxWidth.pct(100),
-          minWidth(0.px),
-        ),
-        // Firefox drops mermoid-fit's `scale(100cqi / scene)` as a used value (computes to none).
-        // A more specific `scale(1)` restores identity; phone width uses a fitted scale.
-        Selector(
-          " .specular-illustration > .mermoid-root.mermoid-fit .mermoid-diagram-scaler",
-          Declaration("transform", "scale(1)").important,
-          Declaration("transform-origin", "top left"),
-        ),
-        Selector(
           " .specular-snapshot",
           marginTop(0.75.rem),
           padding(1.rem),
@@ -654,19 +632,6 @@ object Theme:
           narrowViewport,
           padding(1.25.rem, 1.rem),
           Selector(" table", display.block, overflowX.auto),
-        ),
-        // Phone content pane is ~343px; nest scene is 608px. Firefox cannot compute
-        // mermoid-fit's 100cqi scale, so fit with a literal (proven in headed Firefox).
-        MediaQuery(
-          Media.maxWidth.px(420),
-          Selector(
-            " .specular-illustration > .mermoid-root.mermoid-fit .mermoid-diagram-scaler",
-            Declaration("transform", "scale(0.56)").important,
-          ),
-          Selector(
-            " .specular-illustration > .mermoid-root.mermoid-fit",
-            height("calc(var(--mermoid-scene-height) * 0.56)"),
-          ),
         ),
       )
 
@@ -880,8 +845,5 @@ object Theme:
           card = Card.className,
         )
       )
-
-    def diagramConfig: UIO[RenderConfig] =
-      ZIO.succeed(tokens.diagramConfig)
   end Live
 end Theme

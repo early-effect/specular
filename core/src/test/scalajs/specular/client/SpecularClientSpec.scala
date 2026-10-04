@@ -257,6 +257,13 @@ object SpecularClientSpec extends ZIOSpecDefault:
           SpecularClient.requiredKeys(p) == Set("dom-one"),
         )
       },
+      test("fromPages does not invent a mounter for a DOM illustration") {
+        val p = page("Alpha")(illustrationDom("cycle"))
+        assertTrue(
+          SpecularClient.fromPages(p).isEmpty,
+          SpecularClient.requiredKeys(p) == Set("cycle"),
+        )
+      },
       test("presentKeys reports the document's mount points, skipping blank ones") {
         val doc = FakeDom.install()
         val _   = FakeDom.mountPoint(doc, "one")

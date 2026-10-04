@@ -53,7 +53,7 @@ Emphasis with *italics*, **bold**, and `inline code`. Link out to [ascent](https
 | `expectCrash` | `CrashExample` | source + `Cause` |
 | `.assert`   | zio-test bridge       | CI green/red     |
 | `.interactive` | client registry    | live mount       |
-| `illustration` | `Illustration`     | UI, no source    |
+| `illustration` / `illustrationDom` | `Illustration` | UI or DOM mount, no source |
 | `.live`        | client registry    | illustration remount |
 
 ---
