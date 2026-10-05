@@ -14,32 +14,28 @@ import scala.scalajs.js
 object LiveCatalog:
 
   def bootstrap: UIO[Unit] =
-    val root = Dom.document.getElementById(LiveCatalogIds.MountId)
-    if root == null then ZIO.unit
-    else
-      val cardClass = Option(root.getAttribute("data-card-class")).filter(_.nn.nonEmpty).getOrElse("")
-      for
-        urls     <- readAllowlist
-        projects <- fetchProjects(urls)
-        _        <- ZIO.succeed(clearChildren(root))
-        // Mount cards into the existing `#specular-live-catalog` grid. Do not wrap in
-        // another `.specular-catalog-grid` or CSS `auto-fill` collapses to one 280px column.
-        _ <- AscentApp.mount(CatalogCards.cardFragment(projects, cardClass), root)
-      yield ()
-    end if
+    Dom.document.getElementById(LiveCatalogIds.MountId) match
+      case None       => ZIO.unit
+      case Some(root) =>
+        val cardClass = root.getAttribute("data-card-class").filter(_.nonEmpty).getOrElse("")
+        for
+          urls     <- readAllowlist
+          projects <- fetchProjects(urls)
+          _        <- ZIO.succeed(clearChildren(root))
+          // Mount into the existing grid: wrapping in another `.specular-catalog-grid` collapses `auto-fill`.
+          _ <- AscentApp.mount(CatalogCards.cardFragment(projects, cardClass), root)
+        yield ()
   end bootstrap
 
   private def readAllowlist: UIO[Vector[String]] =
     ZIO.succeed:
-      val nodes = Dom.document.querySelectorAll(s"""link[rel="${LiveCatalogIds.MetaLinkRel}"]""")
-      val urls  = (0 until nodes.length).toVector.flatMap { i =>
-        val node = nodes.item(i)
-        if node == null then None
-        else
-          val href = node.asInstanceOf[dom.Element].getAttribute("href")
-          Option(href).map(_.nn.trim).filter(_.nonEmpty)
-      }
-      urls.filter(ProjectMeta.isAllowedMetaUrl)
+      val links = Dom.document.querySelectorAll(s"""link[rel="${LiveCatalogIds.MetaLinkRel}"]""")
+      (0 until links.length).toVector
+        .flatMap(links.item)
+        .collect { case link: dom.Element => link }
+        .flatMap(_.getAttribute("href"))
+        .map(_.trim)
+        .filter(href => href.nonEmpty && ProjectMeta.isAllowedMetaUrl(href))
 
   private def fetchProjects(urls: Vector[String]): UIO[Vector[ProjectMeta]] =
     ZIO
