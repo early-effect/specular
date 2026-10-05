@@ -15,16 +15,16 @@ object MyVersions extends ZipxVersions:
   val zioTest    = zio.mod("zio-test")
   val zioTestSbt = zio.mod("zio-test-sbt")
 
-  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.9.0")
+  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.10.0-19667f3cf23f-SNAPSHOT")
   val ascentCss     = ascent.mod("ascent-css")
-  val ascentJs      = ascent.mod("ascent-js")
+  val ascentJs      = Lib("rocks.earlyeffect", "ascent-js", "0.11.0-19667f3cf23f-SNAPSHOT")
   val ascentHtml    = ascent.mod("ascent-html")
   val ascentPreview = ascent.mod("ascent-preview")
 
   val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.10")
 
   /** specular-site calls heddle's client itself, so it names heddle rather than taking it through ascent-preview. */
-  val heddle = Lib("rocks.earlyeffect", "heddle", "0.7.1")
+  val heddle = Lib("rocks.earlyeffect", "heddle", "0.9.0-dedb55f4b1cc-SNAPSHOT")
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
   val scalaJavaTime     = Lib("io.github.cquiroz", "scala-java-time", "2.7.0")
@@ -36,8 +36,8 @@ object MyVersions extends ZipxVersions:
 
   val scalajs          = Plugin("org.scala-js", "sbt-scalajs", "1.22.0")
   val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
-  val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.3.0")
-  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.9.0")
+  val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.3.2-8464547dc109-SNAPSHOT")
+  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.10.0-19667f3cf23f-SNAPSHOT")
 
   def zioTests   = library(zioTest.test, zioTestSbt.test)
   def zioLib     = library(zio)

@@ -1,3 +1,5 @@
+resolvers += Resolver.sonatypeCentralSnapshots
+
 sys.props.get("plugin.version") match
   case Some(v) => addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % v)
   case _       =>

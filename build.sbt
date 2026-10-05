@@ -6,9 +6,6 @@ ThisBuild / scalaVersion := (MyVersions.scala: String)
 
 val scala3Version: String = (MyVersions.scala: String)
 
-// Take zio-json 1.1.0 from heddle. Leftover 0.9/0.10 pins still need a scheme under early-semver.
-ThisBuild / libraryDependencySchemes += "dev.zio" %% "zio-json" % "always"
-
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
 organization         := "rocks.earlyeffect"
 organizationName     := "Early Effect"
