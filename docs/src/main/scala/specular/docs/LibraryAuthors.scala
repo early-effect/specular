@@ -3,6 +3,7 @@ package specular.docs
 import ascent.*
 import ascent.dsl.*
 import specular.*
+import mermoid.Mermaid
 import mermoid.ascent.MermoidAscent
 import zio.test.*
 
@@ -242,19 +243,19 @@ object HubNestDoc:
   val segmentKey: String    = "specularSiteSegment"
   val reserved: Set[String] = Set("assets", "images")
 
-  val httpCatalog: String =
-    """flowchart TB
+  val httpCatalog: Mermaid =
+    Mermaid("""flowchart TB
       |    a["library A"] --> hub["org hub"]
       |    b["library B"] --> hub
-      |""".stripMargin
+      |""".stripMargin)
 
-  val artifact: String =
-    """flowchart TB
+  val artifact: Mermaid =
+    Mermaid("""flowchart TB
       |    root["target/site"]
       |    root --> hubIndex["index.html"]
       |    root --> hubMeta["metadata.json"]
       |    root --> payments["payments/"]
       |    payments --> pIndex["index.html"]
       |    payments --> pMeta["metadata.json"]
-      |""".stripMargin
+      |""".stripMargin)
 end HubNestDoc

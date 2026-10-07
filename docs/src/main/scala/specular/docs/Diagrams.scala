@@ -1,5 +1,6 @@
 package specular.docs
 
+import mermoid.Mermaid
 import mermoid.ascent.MermoidAscent
 import specular.*
 import zio.test.*
@@ -7,10 +8,9 @@ import zio.test.*
 /** Two ways to put a picture on a page. Specular does not know what the picture is. */
 object Diagrams extends DocSpec:
 
-  private val flow =
-    """flowchart LR
-      |    md["md prose"] --> page["the page"]
-      |""".stripMargin
+  private val flow = Mermaid("""flowchart LR
+    |    md["md prose"] --> page["the page"]
+    |""".stripMargin)
 
   def doc = page("Diagrams")(
     md"""
@@ -22,11 +22,15 @@ placeholder, and the client passes the live element to a `Mounter`. `exampleDom`
 sample, with a source panel. Palette, width, and breakpoints are arguments to the tool, not
 theme tokens and not specular CSS.
 
+The figure below is [mermoid](https://www.earlyeffect.rocks/mermoid/specular-illustrations.html),
+a docs-only dependency of these pages. `Mermaid("...")` parses the diagram at compile time, so a
+broken figure fails the build before it reaches a reader:
+
 ```scala
-// docs project depends on mermoid-ascent, not on anything in specular
+// the docs project, never a published module
 libraryDependencies += "rocks.earlyeffect" %%% "mermoid-ascent" % "<version>"
 
-illustration { MermoidAscent.diagram(src) }
+illustration { MermoidAscent.diagram(Mermaid("flowchart LR\n  a --> b")) }
 
 illustrationDom("poster")
 // client:

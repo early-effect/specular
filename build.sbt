@@ -180,8 +180,8 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
         .settings(
           MyVersions.zioTests,
           zioTestSettings,
-          // Diagrams in these docs call mermoid-ascent directly. site does not depend on mermoid.
-          libraryDependencies += MyVersions.moduleID(MyVersions.mermoidAscent),
+          // The docs' own figures. No published module depends on mermoid.
+          MyVersions.docsFigures,
           testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
           run / fork := true,
           run / javaOptions ++= Seq(
@@ -300,7 +300,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
         .settings(
           MyVersions.docsJs,
           // DocSpecs are shared. The JS client compiles the same static diagram body; it does not remount it.
-          libraryDependencies += MyVersions.moduleID(MyVersions.mermoidAscent),
+          MyVersions.docsFigures,
           scalaJSUseMainModuleInitializer := true,
           Compile / mainClass := Some("specular.docs.ClientMain"),
         ),
