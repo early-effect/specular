@@ -28,11 +28,10 @@ object BuildSite extends DocsSite:
 
   def pages: Vector[DocPage] = siteNav.pages
 
-  override def site: SiteModel =
-    val m       = meta
-    val version = m.docsVersion
-    val org     = m.organization
-    val branded = EarlyEffectTheme.brand(super.site)
+  override def site(settings: DocsSettings): SiteModel =
+    val version = settings.meta.docsVersion
+    val org     = settings.meta.organization
+    val branded = EarlyEffectTheme.brand(super.site(settings))
     branded.copy(
       nav = Some(siteNav),
       pages = siteNav.pages,

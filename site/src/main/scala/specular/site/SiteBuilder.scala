@@ -137,7 +137,7 @@ object SiteBuilder:
       }
       val fallbackSnippets =
         if model.installSnippets.nonEmpty then model.installSnippets
-        else model.meta.toVector.map(m => ArtifactKind.defaultInstall(m))
+        else model.meta.toVector.map(m => ArtifactKind.defaultInstall(m, model.artifactKind))
       val installSections = fallbackSnippets.map { snip =>
         val pre = el(
           "pre",
@@ -292,7 +292,7 @@ object SiteBuilder:
         // ref fails the site build the way `expectCrash` does: a stale path or deleted marker must not
         // degrade into an example with an empty source panel.
         DomSourceLoader
-          .resolve(de.source, DomSourceLoader.sourceRoot)
+          .resolve(de.source)
           .mapError(SiteError.DomSource(de.id, _))
           .map { excerpt =>
             val pre = el(

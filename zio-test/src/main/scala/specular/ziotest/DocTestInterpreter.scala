@@ -75,7 +75,7 @@ object DocTestInterpreter:
         Vector(
           test(s"example ${de.id} source") {
             DomSourceLoader
-              .resolve(de.source, DomSourceLoader.sourceRoot)
+              .resolve(de.source)
               .fold(
                 error => assertTrue(false).label(s"DomExample ${de.id}: ${error.message}"),
                 excerpt => assertTrue(excerpt.nonEmpty),

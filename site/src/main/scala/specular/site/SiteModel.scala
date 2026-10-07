@@ -22,6 +22,8 @@ final case class SiteModel(
     summaryMarkdown: Option[String] = None,
     /** Install / usage snippets on the docs index (plugin-first sites set these explicitly). */
     installSnippets: Vector[CodeSnippet] = Vector.empty,
+    /** Shape of the default install snippet when [[installSnippets]] is empty. */
+    artifactKind: ArtifactKind = ArtifactKind.Library,
     /** When true, source panels and fenced code blocks get a copy-to-clipboard control. */
     copyCode: Boolean = true,
     /** Optional nested sidebar; when set, [[NavBuilder]] renders the tree (pages still drive routing). */

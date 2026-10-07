@@ -201,8 +201,8 @@ logo PNGs — it pre-composes the stack, so branding is three one-liners:
 ```scala
 libraryDependencies += "rocks.earlyeffect" %% "early-effect-docs-theme" % "<version>"
 
-override def site   = EarlyEffectTheme.brand(super.site)   // header logo + hub link
-override def layers = EarlyEffectTheme.layers              // EE tokens >>> DocsSite.themedStack
+override def site(settings: DocsSettings) = EarlyEffectTheme.brand(super.site(settings)) // header logo + hub link
+override def layers = EarlyEffectTheme.layers // EE tokens >>> DocsSite.themedStack
 override def afterBuild(out: Path, result: SiteOutput) = EarlyEffectTheme.writeLogo(out)
 ```
 

@@ -13,23 +13,28 @@ import java.nio.file.{Path, Paths}
   */
 object DocsServe extends ZIOAppDefault:
 
+  private val DefaultPort = 8765
+
+  /** `-Dspecular.site.port` and `-Dspecular.site.dir`, both optional. */
+  private val settings: Config[(Option[Int], Option[String])] =
+    (Config.int("port").optional ++ Config.string("dir").optional).nested("site").nested("specular")
+
   def run =
     for
-      args <- getArgs
-      port = args.headOption
-        .map(_.toInt)
-        .orElse(Option(java.lang.System.getProperty("specular.site.port")).map(_.nn.toInt))
-        .getOrElse(8765)
-      root = resolveRoot(args)
+      args                <- getArgs
+      (propPort, propDir) <- ZIO.config(settings)
+      port = args.headOption.flatMap(_.trim.toIntOption).orElse(propPort).getOrElse(DefaultPort)
+      root = resolveRoot(args, propDir)
       _ <- Preview.serveForever(PreviewConfig(root = root, port = port))
     yield ()
 
   /** `args(1)` if present, else `-Dspecular.site.dir`, else cwd-relative `target/site`. */
-  private[site] def resolveRoot(args: Chunk[String]): Path =
-    args
-      .lift(1)
-      .map(_.nn.trim)
-      .filter(_.nonEmpty)
-      .map(p => Paths.get(p).nn.toAbsolutePath.normalize)
-      .getOrElse(SitePaths.outDir(Paths.get("target/site").toAbsolutePath.nn))
+  private[site] def resolveRoot(args: Chunk[String], propDir: Option[String]): Path =
+    def present(raw: Option[String]) = raw.map(_.trim).filter(_.nonEmpty)
+    present(args.lift(1))
+      .orElse(present(propDir))
+      .map(Paths.get(_).nn)
+      .getOrElse(Paths.get("target/site").nn)
+      .toAbsolutePath
+      .normalize
 end DocsServe

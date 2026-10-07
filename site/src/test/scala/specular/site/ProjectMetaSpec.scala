@@ -1,5 +1,6 @@
 package specular.site
 
+import zio.*
 import zio.test.*
 
 object ProjectMetaSpec extends ZIOSpecDefault:
@@ -108,24 +109,25 @@ object ProjectMetaSpec extends ZIOSpecDefault:
           """addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "0.2.0")""",
       )
     },
-    test("fromSystemProperties reads -Dspecular.meta.*") {
-      val keys = Vector("name", "organization", "version", "scalaVersion", "title", "displayVersion")
-      keys.foreach(k => java.lang.System.clearProperty(s"specular.meta.$k"))
-      java.lang.System.setProperty("specular.meta.name", "specular")
-      java.lang.System.setProperty("specular.meta.organization", "io.github.russwyte")
-      java.lang.System.setProperty("specular.meta.version", "0.1.0-SNAPSHOT")
-      java.lang.System.setProperty("specular.meta.scalaVersion", "3.8.4")
-      java.lang.System.setProperty("specular.meta.title", "Specular")
-      java.lang.System.setProperty("specular.meta.displayVersion", "0.1.0")
-      val meta = ProjectMeta.fromSystemProperties
-      keys.foreach(k => java.lang.System.clearProperty(s"specular.meta.$k"))
-      assertTrue(
-        meta.isDefined,
-        meta.get.name == "specular",
-        meta.get.version == "0.1.0-SNAPSHOT",
-        meta.get.displayVersion.contains("0.1.0"),
-        meta.get.docsVersion == "0.1.0",
-        meta.get.title.contains("Specular"),
+    test("config reads specular.meta.* and treats blank optional fields as absent") {
+      val props = Map(
+        "specular.meta.name"           -> "specular",
+        "specular.meta.organization"   -> "io.github.russwyte",
+        "specular.meta.version"        -> "0.1.0-SNAPSHOT",
+        "specular.meta.scalaVersion"   -> "3.8.4",
+        "specular.meta.title"          -> "Specular",
+        "specular.meta.description"    -> "  ",
+        "specular.meta.displayVersion" -> "0.1.0",
+      )
+      for meta <- ZIO.withConfigProvider(ConfigProvider.fromMap(props))(
+          ZIO.config(ProjectMeta.config.nested("meta").nested("specular"))
+        )
+      yield assertTrue(
+        meta.name == "specular",
+        meta.version == "0.1.0-SNAPSHOT",
+        meta.docsVersion == "0.1.0",
+        meta.title.contains("Specular"),
+        meta.description.isEmpty,
       )
     },
     test("isAllowedMetaUrl accepts only http(s) with host") {

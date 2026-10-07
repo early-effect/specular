@@ -103,8 +103,9 @@ more top-level `section`s (`pageToc = Some(true/false)` to force).
 
 `ProjectMeta` is what hubs care about: name, organization, version, Scala version, title,
 description, docs URL, page list, and optional `displayVersion` (install / chrome when it
-should differ from the build version). Prefer `ProjectMeta.fromSystemProperties` so
-`sbt-specular` (or CI) fills fields from sbt keys / env:
+should differ from the build version). `DocsSite` reads it, with the `-Dspecular.site.*` paths, as
+`DocsSettings` through ZIO `Config`, so `sbt-specular` (or CI) fills fields from sbt keys / env and an
+override of `site(settings)` sees them:
 
 - `-Dspecular.meta.name=…`
 - `-Dspecular.meta.version=…`

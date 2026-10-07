@@ -8,22 +8,21 @@ import java.nio.file.Files
 
 object DocsSiteSpec extends ZIOSpecDefault:
 
-  private val metaKeys =
-    Vector("name", "organization", "version", "scalaVersion", "title", "description", "artifactKind")
+  private val demoMeta: Map[String, String] = Map(
+    "specular.meta.name"         -> "demo-lib",
+    "specular.meta.organization" -> "rocks.earlyeffect",
+    "specular.meta.version"      -> "1.2.3",
+    "specular.meta.scalaVersion" -> "3.8.4",
+    "specular.meta.title"        -> "Demo Lib",
+    "specular.meta.description"  -> "A demo library",
+  )
 
-  private def clearMeta(): Unit =
-    metaKeys.foreach(k => java.lang.System.clearProperty(s"specular.meta.$k"))
-    java.lang.System.clearProperty("specular.site.dir")
-    java.lang.System.clearProperty("specular.site.basePath")
-    java.lang.System.clearProperty("specular.site.parentHref")
+  /** Settings the way sbt-specular passes them, without touching JVM properties. */
+  private def withSettings[R, E, A](props: Map[String, String])(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.withConfigProvider(ConfigProvider.fromMap(props))(zio)
 
-  private def setMeta(): Unit =
-    java.lang.System.setProperty("specular.meta.name", "demo-lib")
-    java.lang.System.setProperty("specular.meta.organization", "rocks.earlyeffect")
-    java.lang.System.setProperty("specular.meta.version", "1.2.3")
-    java.lang.System.setProperty("specular.meta.scalaVersion", "3.8.4")
-    java.lang.System.setProperty("specular.meta.title", "Demo Lib")
-    java.lang.System.setProperty("specular.meta.description", "A demo library")
+  private def settings(props: Map[String, String]): IO[Config.Error, DocsSettings] =
+    withSettings(props)(ZIO.config(DocsSettings.config))
 
   /** Site model built without `specular.meta.*`, so theme assertions do not depend on prop ordering. */
   private val themeProbeSite: SiteModel =
@@ -35,21 +34,14 @@ object DocsSiteSpec extends ZIOSpecDefault:
 
   def spec = suite("DocsSite")(
     test("fails when meta props are missing") {
-      clearMeta()
-      val site    = sampleSite(Vector(page("Hi")(md"x")))
-      val crashed =
-        try
-          val _ = site.meta
-          false
-        catch case _: IllegalStateException => true
-      assertTrue(crashed)
+      for error <- withSettings(Map.empty)(sampleSite(Vector(page("Hi")(md"x"))).build).flip
+      yield assertTrue(error match
+        case SiteError.Settings(_) => true
+        case _                     => false)
     },
     test("site model uses meta title and description") {
-      clearMeta()
-      setMeta()
-      val model = sampleSite(Vector(page("Overview")(md"Hello"))).site
-      clearMeta()
-      assertTrue(
+      for model <- settings(demoMeta).map(sampleSite(Vector(page("Overview")(md"Hello"))).site)
+      yield assertTrue(
         model.title == "Demo Lib",
         model.description.contains("A demo library"),
         model.pages.size == 1,
@@ -57,15 +49,12 @@ object DocsSiteSpec extends ZIOSpecDefault:
       )
     },
     test("builds with standardLayers and default library install") {
-      clearMeta()
-      setMeta()
-      val tmp   = Files.createTempDirectory("docs-site-spec")
-      val model = sampleSite(Vector(page("Overview")(md"Hello **docs**."))).site
+      val tmp = Files.createTempDirectory("docs-site-spec")
       for
+        model <- settings(demoMeta).map(sampleSite(Vector(page("Overview")(md"Hello **docs**."))).site)
         _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
         index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
         meta  <- ZIO.attempt(Files.readString(tmp.resolve("metadata.json")))
-        _     <- ZIO.succeed(clearMeta())
       yield assertTrue(
         index.contains("Overview") || index.contains("overview"),
         index.contains("libraryDependencies"),
@@ -75,16 +64,12 @@ object DocsSiteSpec extends ZIOSpecDefault:
       end for
     },
     test("plugin artifactKind changes default install snippet") {
-      clearMeta()
-      setMeta()
-      java.lang.System.setProperty("specular.meta.name", "specular")
-      java.lang.System.setProperty("specular.meta.artifactKind", "plugin")
+      val props = demoMeta ++ Map("specular.meta.name" -> "specular", "specular.meta.artifactKind" -> "plugin")
       val tmp   = Files.createTempDirectory("docs-site-plugin")
-      val model = sampleSite(Vector(page("Usage")(md"plugin docs"))).site
       for
+        model <- settings(props).map(sampleSite(Vector(page("Usage")(md"plugin docs"))).site)
         _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
         index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
-        _     <- ZIO.succeed(clearMeta())
       yield assertTrue(index.contains("addSbtPlugin"), index.contains("sbt-specular"))
     },
     test("standardLayers keeps the stock unbranded theme") {
@@ -120,35 +105,26 @@ object DocsSiteSpec extends ZIOSpecDefault:
       }
     },
     test("parentHref fills logoLink and the header logo href") {
-      clearMeta()
-      setMeta()
-      java.lang.System.setProperty("specular.site.parentHref", "../index.html")
-      val tmp = Files.createTempDirectory("docs-site-parent")
-      java.lang.System.setProperty("specular.site.dir", tmp.toString)
-      val app =
+      val tmp   = Files.createTempDirectory("docs-site-parent")
+      val props = demoMeta ++ Map("specular.site.parentHref" -> "../index.html", "specular.site.dir" -> tmp.toString)
+      val app   =
         new DocsSite:
-          def pages         = Vector(page("Overview")(md"Hi"))
-          override def site = super.site.copy(logo = Some("images/logo.png"))
-      val model = app.site
+          def pages                                 = Vector(page("Overview")(md"Hi"))
+          override def site(settings: DocsSettings) = super.site(settings).copy(logo = Some("images/logo.png"))
       for
-        _    <- app.build
-        html <- ZIO.attempt(Files.readString(tmp.resolve("overview.html")))
-        _    <- ZIO.succeed(clearMeta())
+        model <- settings(props).map(app.site)
+        _     <- withSettings(props)(app.build)
+        html  <- ZIO.attempt(Files.readString(tmp.resolve("overview.html")))
       yield assertTrue(
         model.logoLink.contains("../index.html"),
         html.contains("href=\"../index.html\""),
       )
     },
     test("empty pages fail the build") {
-      clearMeta()
-      setMeta()
       val tmp = Files.createTempDirectory("docs-site-empty")
-      java.lang.System.setProperty("specular.site.dir", tmp.toString)
       val app = sampleSite(Vector.empty)
-      for
-        ex <- app.build.flip
-        _  <- ZIO.succeed(clearMeta())
+      for ex <- withSettings(demoMeta + ("specular.site.dir" -> tmp.toString))(app.build).flip
       yield assertTrue(ex == SiteError.NoPages)
     },
-  ).provide(DocsSite.standardLayers) @@ TestAspect.sequential
+  ).provide(DocsSite.standardLayers)
 end DocsSiteSpec

@@ -36,7 +36,7 @@ Depend the docs project on `specular-core` and `specular-site` (Compile) plus
 public API.
 
 Early Effect libraries should also take `early-effect-docs-theme` for hub-matched colors and
-the shared logo. Branding is three one-liners on the `DocsSite`: `EarlyEffectTheme.brand(super.site)`,
+the shared logo. Branding is three one-liners on the `DocsSite`: `EarlyEffectTheme.brand(super.site(settings))`,
 `override def layers = EarlyEffectTheme.layers`, and `EarlyEffectTheme.writeLogo(out)` in `afterBuild`.
 """,
       example {
