@@ -16,17 +16,17 @@ object MyVersions extends ZipxVersions:
   val zioTestSbt = zio.mod("zio-test-sbt")
   val zioJson: Lib = Lib("dev.zio", "zio-json", "1.1.0")
 
-  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.10.0-19667f3cf23f-SNAPSHOT")
+  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.10.1")
   val ascentCss     = ascent.mod("ascent-css")
-  val ascentJs      = Lib("rocks.earlyeffect", "ascent-js", "0.11.0-19667f3cf23f-SNAPSHOT")
-  val ascentHtml    = ascent.mod("ascent-html")
-  val ascentPreview = ascent.mod("ascent-preview")
+  val ascentJs      = Lib("rocks.earlyeffect", "ascent-js", "0.11.0")
+  val ascentHtml    = Lib("rocks.earlyeffect", "ascent-html", "0.10.0")
+  val ascentPreview = Lib("rocks.earlyeffect", "ascent-preview", "0.10.0")
 
   /** Docs-only: the figures in specular's own pages. No published module selects it. */
-  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.1.0-75d3fea68e0d-SNAPSHOT")
+  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.1.0")
 
   /** specular-site calls heddle's client itself, so it names heddle rather than taking it through ascent-preview. */
-  val heddle = Lib("rocks.earlyeffect", "heddle", "0.9.0-dedb55f4b1cc-SNAPSHOT")
+  val heddle = Lib("rocks.earlyeffect", "heddle", "0.9.0")
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
 
@@ -36,8 +36,8 @@ object MyVersions extends ZipxVersions:
 
   val scalajs          = Plugin("org.scala-js", "sbt-scalajs", "1.22.0")
   val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
-  val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.3.2-8464547dc109-SNAPSHOT")
-  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.10.0-19667f3cf23f-SNAPSHOT")
+  val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.3.2")
+  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.10.0")
 
   def zioTests   = library(zioTest.test, zioTestSbt.test)
   def zioLib     = library(zio)
