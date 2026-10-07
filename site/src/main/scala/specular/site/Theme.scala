@@ -6,17 +6,17 @@ import zio.*
 
 /** Design tokens for a specular theme. */
 final case class ThemeTokens(
-    bg: String,
-    surface: String,
-    text: String,
-    muted: String,
-    accent: String,
-    link: String,
-    border: String,
-    codeBg: String,
-    codeFg: String,
-    fontSans: String,
-    radius: String,
+    bg: CssToken,
+    surface: CssToken,
+    text: CssToken,
+    muted: CssToken,
+    accent: CssToken,
+    link: CssToken,
+    border: CssToken,
+    codeBg: CssToken,
+    codeFg: CssToken,
+    fontSans: CssToken,
+    radius: CssToken,
     /** Optional light-scheme overrides (e.g. prefers-color-scheme: light). */
     light: Option[ThemeTokens] = None,
     /** Extra CSS appended after chrome classes (brand textures, etc.). */
@@ -25,17 +25,17 @@ final case class ThemeTokens(
 
 object ThemeTokens:
   val default: ThemeTokens = ThemeTokens(
-    bg = "#f7f7f5",
-    surface = "#ffffff",
-    text = "#1a1a1a",
-    muted = "#666666",
-    accent = "#0b5fff",
-    link = "#0b5fff",
-    border = "#dddddd",
-    codeBg = "#111111",
-    codeFg = "#f5f5f5",
-    fontSans = "ui-sans-serif, system-ui, sans-serif",
-    radius = "6px",
+    bg = CssToken("#f7f7f5"),
+    surface = CssToken("#ffffff"),
+    text = CssToken("#1a1a1a"),
+    muted = CssToken("#666666"),
+    accent = CssToken("#0b5fff"),
+    link = CssToken("#0b5fff"),
+    border = CssToken("#dddddd"),
+    codeBg = CssToken("#111111"),
+    codeFg = CssToken("#f5f5f5"),
+    fontSans = CssToken("ui-sans-serif, system-ui, sans-serif"),
+    radius = CssToken("6px"),
   )
 end ThemeTokens
 
@@ -771,11 +771,7 @@ object Theme:
         ),
       )
 
-  private def cssValue(raw: String): String =
-    // Theme tokens are author-controlled; still reject CSS breakout characters.
-    if raw.exists(c => c == ';' || c == '{' || c == '}' || c == '\n' || c == '\r') then
-      throw new IllegalArgumentException(s"Theme token contains illegal CSS characters: ${raw.take(40)}")
-    raw
+  private def cssValue(token: CssToken): String = token.value
 
   private def rootVars(t: ThemeTokens): String =
     s""":root {

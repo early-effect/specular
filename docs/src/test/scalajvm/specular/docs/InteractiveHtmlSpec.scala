@@ -19,7 +19,7 @@ import java.nio.file.Files
   */
 object InteractiveHtmlSpec extends ZIOSpecDefault:
 
-  private def render(page: DocPage): ZIO[SiteBuilder, Throwable, String] =
+  private def render(page: DocPage): ZIO[SiteBuilder, Throwable | SiteError, String] =
     for
       tmp  <- ZIO.attempt(Files.createTempDirectory("specular-interactive"))
       path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(page, tmp))

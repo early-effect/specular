@@ -1,10 +1,9 @@
 package earlyeffect.docs
 
-import specular.site.{BrandLink, DocsSite, SiteBuilder, SiteModel, Theme, ThemeTokens}
+import specular.site.{BrandLink, CssToken, DocsSite, SiteAssets, SiteBuilder, SiteError, SiteModel, Theme, ThemeTokens}
 import zio.*
 
-import java.io.InputStream
-import java.nio.file.{Files, Path, StandardCopyOption}
+import java.nio.file.Path
 
 /** Published Early Effect brand pack for Specular sites (hub + library docs).
   *
@@ -38,7 +37,7 @@ object EarlyEffectTheme:
 
   /** Chalkboard palette sampled from the EE logo: charcoal, stone, cream chalk, terracotta. */
   private val font =
-    """"Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif"""
+    CssToken(""""Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif""")
 
   /** Fine chalk-dust grain (SVG turbulence), soft-light over the board colors. */
   private val chalkGrain: String =
@@ -72,31 +71,31 @@ object EarlyEffectTheme:
 
   val tokens: ThemeTokens = ThemeTokens(
     // Dark chalkboard (logo body ~#2e2f31)
-    bg = "#1c1d1f",
-    surface = "#2a2b2e",
-    text = "#e8e6dc",
-    muted = "#9a978c",
-    accent = "#c46a52", // terracotta beak / dots
-    link = "#d4a574",   // warm chalk — no bright blue
-    border = "#3f4145",
-    codeBg = "#121314",
-    codeFg = "#e8e6dc",
+    bg = CssToken("#1c1d1f"),
+    surface = CssToken("#2a2b2e"),
+    text = CssToken("#e8e6dc"),
+    muted = CssToken("#9a978c"),
+    accent = CssToken("#c46a52"), // terracotta beak / dots
+    link = CssToken("#d4a574"),   // warm chalk — no bright blue
+    border = CssToken("#3f4145"),
+    codeBg = CssToken("#121314"),
+    codeFg = CssToken("#e8e6dc"),
     fontSans = font,
-    radius = "12px",
+    radius = CssToken("12px"),
     light = Some(
       ThemeTokens(
         // Stone oval (~#84837c) + cream chalk
-        bg = "#d8d6ce",
-        surface = "#e9e7df",
-        text = "#2e2f31",
-        muted = "#6a6860",
-        accent = "#9c5848",
-        link = "#8a4a38",
-        border = "#b5b3a8",
-        codeBg = "#2e2f31",
-        codeFg = "#e8e6dc",
+        bg = CssToken("#d8d6ce"),
+        surface = CssToken("#e9e7df"),
+        text = CssToken("#2e2f31"),
+        muted = CssToken("#6a6860"),
+        accent = CssToken("#9c5848"),
+        link = CssToken("#8a4a38"),
+        border = CssToken("#b5b3a8"),
+        codeBg = CssToken("#2e2f31"),
+        codeFg = CssToken("#e8e6dc"),
         fontSans = font,
-        radius = "12px",
+        radius = CssToken("12px"),
       )
     ),
     extraCss = chalkTextureCss,
@@ -121,18 +120,7 @@ object EarlyEffectTheme:
   def github(url: String): BrandLink = BrandLink("GitHub", url)
 
   /** Copy header + hero brand marks into the site output (creates parent dirs). */
-  def writeLogo(siteRoot: Path): Task[Unit] =
-    copyResource(logoResource, siteRoot.resolve(logoHref).nn) *>
-      copyResource(heroImageResource, siteRoot.resolve(heroImageHref).nn)
-
-  private def copyResource(resource: String, dest: Path): Task[Unit] =
-    ZIO.attempt {
-      Files.createDirectories(dest.getParent)
-      val in: InputStream = Option(getClass.getResourceAsStream(resource)).getOrElse {
-        throw new IllegalStateException(s"Missing classpath resource $resource")
-      }
-      try Files.copy(in, dest, StandardCopyOption.REPLACE_EXISTING)
-      finally in.close()
-      ()
-    }
+  def writeLogo(siteRoot: Path): IO[SiteError, Unit] =
+    SiteAssets.copyResource(getClass, logoResource, siteRoot.resolve(logoHref).nn) *>
+      SiteAssets.copyResource(getClass, heroImageResource, siteRoot.resolve(heroImageHref).nn)
 end EarlyEffectTheme

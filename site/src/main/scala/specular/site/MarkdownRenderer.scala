@@ -9,7 +9,7 @@ import zio.*
 
 /** Parses markdown prose into an ascent [[UI]] tree (never spliced HTML strings). */
 trait MarkdownRenderer:
-  def toUi(markdown: String, copyCode: Boolean = true): Task[UI[Any]]
+  def toUi(markdown: String, copyCode: Boolean = true): UIO[UI[Any]]
 
 object MarkdownRenderer:
 
@@ -23,8 +23,8 @@ object MarkdownRenderer:
         .extensions(java.util.List.of(TablesExtension.create()))
         .build()
 
-    def toUi(markdown: String, copyCode: Boolean = true): Task[UI[Any]] =
-      ZIO.attempt:
+    def toUi(markdown: String, copyCode: Boolean = true): UIO[UI[Any]] =
+      ZIO.succeed:
         val doc = parser.parse(markdown)
         renderChildren(doc, copyCode)
 

@@ -93,8 +93,8 @@ object DocsSiteSpec extends ZIOSpecDefault:
         _   <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(themeProbeSite, tmp))
         css <- ZIO.attempt(Files.readString(tmp.resolve("assets/theme.css")))
       yield assertTrue(
-        css.contains(s"--specular-bg: ${ThemeTokens.default.bg};"),
-        css.contains(s"--specular-radius: ${ThemeTokens.default.radius};"),
+        css.contains(s"--specular-bg: ${ThemeTokens.default.bg.value};"),
+        css.contains(s"--specular-radius: ${ThemeTokens.default.radius.value};"),
         // the stock theme declares no light-scheme overrides
         !css.contains("prefers-color-scheme"),
         css.contains(".specular-illustration"),
@@ -105,7 +105,7 @@ object DocsSiteSpec extends ZIOSpecDefault:
     },
     test("themedStack takes the caller's theme instead") {
       val tmp    = Files.createTempDirectory("docs-site-custom-theme")
-      val tokens = ThemeTokens.default.copy(bg = "#0d1117", radius = "12px")
+      val tokens = ThemeTokens.default.copy(bg = CssToken("#0d1117"), radius = CssToken("12px"))
       val build  =
         for
           _   <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(themeProbeSite, tmp))
@@ -115,7 +115,7 @@ object DocsSiteSpec extends ZIOSpecDefault:
         assertTrue(
           css.contains("--specular-bg: #0d1117;"),
           css.contains("--specular-radius: 12px;"),
-          !css.contains(s"--specular-bg: ${ThemeTokens.default.bg};"),
+          !css.contains(s"--specular-bg: ${ThemeTokens.default.bg.value};"),
         )
       }
     },
@@ -148,7 +148,7 @@ object DocsSiteSpec extends ZIOSpecDefault:
       for
         ex <- app.build.flip
         _  <- ZIO.succeed(clearMeta())
-      yield assertTrue(ex.getMessage.contains("non-empty"))
+      yield assertTrue(ex == SiteError.NoPages)
     },
   ).provide(DocsSite.standardLayers) @@ TestAspect.sequential
 end DocsSiteSpec

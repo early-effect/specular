@@ -7,8 +7,8 @@ import java.nio.file.{Files as JFiles, Path as JPath}
 
 /** Writes site artifacts to disk, confined under a site root. */
 trait SiteWriter:
-  def writeText(path: JPath, content: String): Task[Unit]
-  def writeBytes(path: JPath, bytes: Array[Byte]): Task[Unit]
+  def writeText(path: JPath, content: String): IO[SiteError, Unit]
+  def writeBytes(path: JPath, bytes: Array[Byte]): IO[SiteError, Unit]
 
 object SiteWriter:
 
@@ -19,34 +19,29 @@ object SiteWriter:
   def confined(root: JPath): ULayer[SiteWriter] =
     ZLayer.succeed(Confined(root.toAbsolutePath.normalize))
 
-  private object Unconfined extends SiteWriter:
-    def writeText(path: JPath, content: String): Task[Unit] =
-      write(path, content.getBytes(StandardCharsets.UTF_8))
-
-    def writeBytes(path: JPath, bytes: Array[Byte]): Task[Unit] =
-      write(path, bytes)
-
-    private def write(path: JPath, bytes: Array[Byte]): Task[Unit] =
-      ZIO.attempt:
+  private[site] def write(path: JPath, bytes: Array[Byte]): IO[SiteError, Unit] =
+    ZIO
+      .attemptBlockingIO:
         Option(path.getParent).foreach(JFiles.createDirectories(_))
         JFiles.write(path, bytes)
         ()
+      .mapError(SiteError.WriteFailed(path, _))
+
+  private object Unconfined extends SiteWriter:
+    def writeText(path: JPath, content: String): IO[SiteError, Unit] =
+      write(path, content.getBytes(StandardCharsets.UTF_8))
+
+    def writeBytes(path: JPath, bytes: Array[Byte]): IO[SiteError, Unit] =
+      write(path, bytes)
   end Unconfined
 
   private final case class Confined(root: JPath) extends SiteWriter:
-    def writeText(path: JPath, content: String): Task[Unit] =
-      write(path, content.getBytes(StandardCharsets.UTF_8))
+    def writeText(path: JPath, content: String): IO[SiteError, Unit] =
+      writeBytes(path, content.getBytes(StandardCharsets.UTF_8))
 
-    def writeBytes(path: JPath, bytes: Array[Byte]): Task[Unit] =
-      write(path, bytes)
-
-    private def write(path: JPath, bytes: Array[Byte]): Task[Unit] =
-      ZIO.attempt:
-        val abs = path.toAbsolutePath.normalize
-        if !abs.startsWith(root) then
-          throw new IllegalArgumentException(s"Refusing to write outside site root: $abs (root=$root)")
-        Option(abs.getParent).foreach(JFiles.createDirectories(_))
-        JFiles.write(abs, bytes)
-        ()
+    def writeBytes(path: JPath, bytes: Array[Byte]): IO[SiteError, Unit] =
+      val abs = path.toAbsolutePath.normalize
+      if abs.startsWith(root) then write(abs, bytes)
+      else ZIO.fail(SiteError.OutsideSiteRoot(abs, root))
   end Confined
 end SiteWriter

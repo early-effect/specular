@@ -1,6 +1,7 @@
 package specular.docs
 
 import specular.*
+import zio.ZIO
 import zio.test.*
 
 /** The JVM half of the mount contract: every key the site declares has to be one the client will bind.
@@ -40,12 +41,12 @@ object InteractiveContractSpec extends ZIOSpecDefault:
     // Every exampleDom source resolves; DocTestInterpreter emits this per node too, but asserting it over
     // BuildSite.pages covers pages that might not have a DocSpecSuite yet.
     test("every exampleDom source resolves against the source root") {
-      val results = DocMounts
-        .domExamples(BuildSite.pages*)
-        .map(d => d.source.describe -> DomSourceLoader.resolve(d.source, DomSourceLoader.sourceRoot))
-      assertTrue(
+      for results <- ZIO.foreach(DocMounts.domExamples(BuildSite.pages*))(d =>
+          DomSourceLoader.resolve(d.source, DomSourceLoader.sourceRoot).either
+        )
+      yield assertTrue(
         results.nonEmpty,
-        results.forall(_._2.isRight),
+        results.forall(_.isRight),
       )
     },
   )

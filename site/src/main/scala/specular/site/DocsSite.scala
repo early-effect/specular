@@ -52,14 +52,13 @@ trait DocsSite extends ZIOAppDefault:
     DocsSite.standardLayers
 
   /** Runs after a successful build (e.g. write logo, copy JS client). */
-  def afterBuild(out: Path, result: SiteOutput): Task[Unit] =
+  def afterBuild(out: Path, result: SiteOutput): IO[SiteError, Unit] =
     val _ = (out, result)
     ZIO.unit
 
   /** Build the site (fail-loud on empty pages / missing meta via [[meta]] / [[site]]). */
-  final def build: Task[SiteOutput] =
-    if pages.isEmpty then
-      ZIO.fail(new IllegalStateException("DocsSite.pages must be non-empty (site map / nav order)."))
+  final def build: IO[SiteError, SiteOutput] =
+    if pages.isEmpty then ZIO.fail(SiteError.NoPages)
     else
       val model = site
       val out   = outDir
@@ -70,10 +69,12 @@ trait DocsSite extends ZIOAppDefault:
         }
         .provideLayer(layers)
 
-  final def run: ZIO[Any & ZIOAppArgs & Scope, Any, Any] =
-    build.flatMap { result =>
-      Console.printLine(s"Wrote ${result.pages.mkString(", ")}")
-    }
+  /** The process boundary: a [[SiteError]] is printed for the author and exits non-zero. */
+  final def run: ZIO[ZIOAppArgs & Scope, Nothing, ExitCode] =
+    build.foldZIO(
+      error => Console.printLineError(s"specular: ${error.message}").ignore.as(ExitCode.failure),
+      result => Console.printLine(s"Wrote ${result.pages.mkString(", ")}").ignore.as(ExitCode.success),
+    )
 end DocsSite
 
 object DocsSite:
