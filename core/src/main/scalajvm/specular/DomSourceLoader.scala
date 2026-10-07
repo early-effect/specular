@@ -27,10 +27,12 @@ object DomSourceLoader:
   /** Refuse to inline a file larger than this into a source panel (also caps `metadata.json`-style blowups). */
   val MaxExcerptBytes: Int = 64 * 1024
 
-  private val SourceRootProp = "specular.source.root"
-
   private val BeginPrefix = "// specular:begin"
   private val EndMarker   = "// specular:end"
+
+  /** Resolve `ref` under [[sourceRoot]] to the panel text. */
+  def resolve(ref: DomSourceRef): IO[DomSourceError, String] =
+    sourceRoot.mapError(DomSourceError.BadSourceRoot(_)).flatMap(resolve(ref, _))
 
   /** Resolve `ref` under `root` to the panel text. */
   def resolve(ref: DomSourceRef, root: Path): IO[DomSourceError, String] =
@@ -47,12 +49,12 @@ object DomSourceLoader:
     * The property matters because `projectMatrix` starts forked JVMs under `.sbt/matrix/<id>`, so the working directory
     * is not the repo root (the same reason `DocsServe` prefers an explicit site path).
     */
-  def sourceRoot: Path =
-    Option(java.lang.System.getProperty(SourceRootProp))
-      .map(_.nn.trim)
-      .filter(_.nonEmpty)
-      .map(p => Paths.get(p).nn.toAbsolutePath.nn.normalize.nn)
-      .getOrElse(repoRoot)
+  val sourceRoot: IO[Config.Error, Path] =
+    ZIO
+      .config(Config.string("root").optional.nested("source").nested("specular"))
+      .map(_.map(_.trim).filter(_.nonEmpty) match
+        case Some(p) => Paths.get(p).nn.toAbsolutePath.nn.normalize.nn
+        case None    => repoRoot)
 
   /** Nearest ancestor of the working directory containing `build.sbt`, else the working directory. */
   def repoRoot: Path =
@@ -197,6 +199,7 @@ enum DomSourceError:
   case UnclosedMarker(ref: DomSourceRef)
   case EmptyRegion(ref: DomSourceRef)
   case EmptyBody(ref: DomSourceRef)
+  case BadSourceRoot(error: Config.Error)
 
   def message: String = this match
     case MissingPath             => "DomExample has no source path; call .fromSource(path) or .fromSource(path, marker)"
@@ -214,7 +217,8 @@ enum DomSourceError:
       s"DomExample marker not found: ${ref.describe} (expected a line containing `// specular:begin ${ref.marker.getOrElse("")}`)"
     case AmbiguousMarker(ref, lines) =>
       s"DomExample marker is ambiguous in ${ref.describe}: `// specular:begin` appears on lines ${lines.mkString(", ")}"
-    case UnclosedMarker(ref) => s"DomExample marker in ${ref.describe} has no closing `// specular:end`"
-    case EmptyRegion(ref)    => s"DomExample region in ${ref.describe} is empty"
-    case EmptyBody(ref)      => s"DomExample source has no body after its header: ${ref.describe}"
+    case UnclosedMarker(ref)  => s"DomExample marker in ${ref.describe} has no closing `// specular:end`"
+    case EmptyRegion(ref)     => s"DomExample region in ${ref.describe} is empty"
+    case EmptyBody(ref)       => s"DomExample source has no body after its header: ${ref.describe}"
+    case BadSourceRoot(error) => s"-Dspecular.source.root could not be read: $error"
 end DomSourceError

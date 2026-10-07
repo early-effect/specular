@@ -22,6 +22,7 @@ enum SiteError:
   case ExampleInterrupted(id: String)
   case CrashDidNotCrash(id: String)
   case DomSource(id: String, error: DomSourceError)
+  case Settings(error: zio.Config.Error)
 
   def message: String = this match
     case NoPages                     => "DocsSite.pages must be non-empty (site map / nav order)."
@@ -39,4 +40,6 @@ enum SiteError:
     case ExampleInterrupted(id)                              => s"example $id was interrupted during site build"
     case CrashDidNotCrash(id)                                => s"expectCrash $id: effect succeeded during site build"
     case DomSource(id, error)                                => s"DomExample $id: ${error.message}"
+    case Settings(error)                                     =>
+      s"Missing or bad -Dspecular.* settings ($error). Run via sbt-specular `specularSite` with `specularMetaProject` set."
 end SiteError

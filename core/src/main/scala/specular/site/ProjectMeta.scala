@@ -10,7 +10,7 @@ final case class ProjectMeta(
     organization: String,
     /** Published coordinate version. Empty means "not a published artifact" (e.g. an org hub site): chrome then shows
       * no version at all rather than inventing one. Sites built through sbt-specular always have one — see
-      * [[ProjectMeta.fromSystemProperties]], which requires it.
+      * [[ProjectMeta.config]], which requires it.
       */
     version: String,
     scalaVersion: String,
@@ -55,35 +55,33 @@ final case class MetaPage(title: String, slug: String) derives JsonCodec
 
 object ProjectMeta:
 
-  private val PropPrefix = "specular.meta."
-
   /** Max bytes accepted for a remote `metadata.json` body (JVM fetch and live catalog). */
   val MaxBodyBytes: Int = 256 * 1024
 
-  /** Load meta passed by sbt-specular via `-Dspecular.meta.*`. */
-  def fromSystemProperties: Option[ProjectMeta] =
-    def prop(key: String): Option[String] =
-      Option(java.lang.System.getProperty(PropPrefix + key)).map(_.nn).filter(_.nonEmpty)
-
-    for
-      name         <- prop("name")
-      organization <- prop("organization")
-      version      <- prop("version")
-      scalaVersion <- prop("scalaVersion")
-    yield ProjectMeta(
-      name = name,
-      organization = organization,
-      version = version,
-      scalaVersion = scalaVersion,
-      title = prop("title"),
-      description = prop("description"),
-      language = prop("language"),
-      homepage = prop("homepage"),
-      docsUrl = prop("docsUrl"),
-      displayVersion = prop("displayVersion"),
-    )
-    end for
-  end fromSystemProperties
+  /** The fields sbt-specular passes as `-Dspecular.meta.*`, read under whatever prefix the caller nests it in. Blank
+    * optional fields read as absent.
+    */
+  val config: zio.Config[ProjectMeta] =
+    import zio.Config.string
+    def optional(name: String) = string(name).optional.map(_.map(_.trim).filter(_.nonEmpty))
+    (string("name") ++ string("organization") ++ string("version") ++ string("scalaVersion") ++
+      optional("title") ++ optional("description") ++ optional("language") ++ optional("homepage") ++
+      optional("docsUrl") ++ optional("displayVersion")).map {
+      case (name, organization, version, scalaVersion, title, description, language, homepage, docsUrl, display) =>
+        ProjectMeta(
+          name = name,
+          organization = organization,
+          version = version,
+          scalaVersion = scalaVersion,
+          title = title,
+          description = description,
+          language = language,
+          homepage = homepage,
+          docsUrl = docsUrl,
+          displayVersion = display,
+        )
+    }
+  end config
 
   def toJson(meta: ProjectMeta): String =
     meta.toJsonPretty

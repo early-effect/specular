@@ -300,25 +300,18 @@ object DomSourceLoaderSpec extends ZIOSpecDefault:
 
   val sourceRoot = suite("sourceRoot")(
     test("honors -Dspecular.source.root and otherwise walks up to the repo root") {
-      val prop = "specular.source.root"
+      def withProvider[A](props: Map[String, String])(zio: IO[Config.Error, A]) =
+        ZIO.withConfigProvider(ConfigProvider.fromMap(props))(zio)
       fixture("prop") { root =>
-        ZIO.attempt:
-          val saved = Option(java.lang.System.getProperty(prop))
-          try
-            java.lang.System.setProperty(prop, root.toString)
-            val fromProp = DomSourceLoader.sourceRoot
-            java.lang.System.clearProperty(prop)
-            // `sourceRoot` normalizes but deliberately does not realpath (it must work for a root that
-            // does not exist yet), so compare against the normalized path, not `toRealPath`. On macOS
-            // those differ: /var is a symlink to /private/var.
-            val fallback = DomSourceLoader.sourceRoot
-            (fromProp, Files.exists(fallback.resolve("build.sbt")), root.toAbsolutePath.nn.normalize.nn)
-          finally saved.foreach(v => java.lang.System.setProperty(prop, v))
-          end try
-      }.map { case (fromProp, hasBuildSbt, normalized) =>
-        assertTrue(
-          fromProp == normalized,
-          hasBuildSbt, // the fallback walk finds this repo's own build.sbt
+        for
+          fromProp <- withProvider(Map("specular.source.root" -> root.toString))(DomSourceLoader.sourceRoot)
+          fallback <- withProvider(Map.empty)(DomSourceLoader.sourceRoot)
+          hasBuild <- ZIO.attempt(Files.exists(fallback.resolve("build.sbt")))
+        // `sourceRoot` normalizes but deliberately does not realpath (it must work for a root that does not exist
+        // yet), so compare against the normalized path. On macOS those differ: /var is a symlink to /private/var.
+        yield assertTrue(
+          fromProp == root.toAbsolutePath.nn.normalize.nn,
+          hasBuild, // the fallback walk finds this repo's own build.sbt
         )
       }
     },

@@ -13,7 +13,7 @@ import java.nio.file.Path
   * {{{
   * libraryDependencies += "rocks.earlyeffect" %% "early-effect-docs-theme" % "<version>"
   *
-  * override def site   = EarlyEffectTheme.brand(super.site)
+  * override def site(settings: DocsSettings) = EarlyEffectTheme.brand(super.site(settings))
   * override def layers = EarlyEffectTheme.layers
   * override def afterBuild(out: Path, result: SiteOutput) = EarlyEffectTheme.writeLogo(out)
   * }}}

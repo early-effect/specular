@@ -41,9 +41,7 @@ object InteractiveContractSpec extends ZIOSpecDefault:
     // Every exampleDom source resolves; DocTestInterpreter emits this per node too, but asserting it over
     // BuildSite.pages covers pages that might not have a DocSpecSuite yet.
     test("every exampleDom source resolves against the source root") {
-      for results <- ZIO.foreach(DocMounts.domExamples(BuildSite.pages*))(d =>
-          DomSourceLoader.resolve(d.source, DomSourceLoader.sourceRoot).either
-        )
+      for results <- ZIO.foreach(DocMounts.domExamples(BuildSite.pages*))(d => DomSourceLoader.resolve(d.source).either)
       yield assertTrue(
         results.nonEmpty,
         results.forall(_.isRight),

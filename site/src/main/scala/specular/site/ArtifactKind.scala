@@ -12,15 +12,7 @@ object ArtifactKind:
       case "plugin" | "sbt"  => Some(Plugin)
       case _                 => None
 
-  /** System property `specular.meta.artifactKind` (default [[Library]]). */
-  def fromSystemProperties: ArtifactKind =
-    Option(java.lang.System.getProperty("specular.meta.artifactKind"))
-      .map(_.nn)
-      .filter(_.nonEmpty)
-      .flatMap(parse)
-      .getOrElse(Library)
-
-  def defaultInstall(meta: ProjectMeta, kind: ArtifactKind = fromSystemProperties): CodeSnippet =
+  def defaultInstall(meta: ProjectMeta, kind: ArtifactKind): CodeSnippet =
     kind match
       case Library =>
         CodeSnippet("Install", meta.sbtDependency())

@@ -222,7 +222,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
               (run / javaOptions).value.toVector ++
                 dogfoodMetaProps(
                   organization.value,
-                  version.value,
+                  (core.jvm(scala3Version) / version).value,
                   scalaVersion.value,
                   description.value,
                   homepage.value.map(_.toString).getOrElse(""),
@@ -251,7 +251,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
             val siteDir    = (ThisBuild / baseDirectory).value / "target" / "site"
             val sourceRoot = (ThisBuild / baseDirectory).value.getAbsolutePath
             val org        = organization.value
-            val ver        = version.value
+            val ver        = (core.jvm(scala3Version) / version).value
             val sv         = scalaVersion.value
             val desc       = description.value
             val home       = homepage.value.map(_.toString).getOrElse("")
@@ -274,7 +274,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
             val siteDir    = (ThisBuild / baseDirectory).value / "target" / "site"
             val sourceRoot = (ThisBuild / baseDirectory).value.getAbsolutePath
             val org        = organization.value
-            val ver        = version.value
+            val ver        = (core.jvm(scala3Version) / version).value
             val sv         = scalaVersion.value
             val desc       = description.value
             val home       = homepage.value.map(_.toString).getOrElse("")
@@ -360,7 +360,7 @@ def dogfoodMetaProps(
     val mapped = if ver.endsWith("-ci") then ver.stripSuffix("-ci") else ver
     if mapped == ver then "" else mapped
   def opt(key: String, value: String): Seq[String] =
-    if value == null || value.isBlank then Nil else Seq(s"-Dspecular.meta.$key=$value")
+    Option(value).filterNot(_.isBlank).toSeq.map(v => s"-Dspecular.meta.$key=$v")
   (
     opt("name", "specular") ++
       opt("organization", org) ++
