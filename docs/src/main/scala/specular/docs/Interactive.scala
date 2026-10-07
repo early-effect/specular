@@ -188,7 +188,7 @@ pages' mount points are absent by design.
           exampleDom("counter").fromSource("some/File.scala"),
         )
         p.children.collect {
-          case e: Example[?] => e.id -> e.mountKey
+          case e: Example    => e.id -> e.mountKey
           case d: DomExample => d.id -> Some(d.mountKey)
         }
       }.assert(keys =>

@@ -24,69 +24,51 @@ object DocTestInterpreter:
     Chunk.fromIterable(nodes.flatMap {
       case Section(title, children) =>
         Vector(suite(title)(nodeSpecs(children)*))
-      case ex: Example[?] if ex.assertion.isDefined =>
-        val erased   = ex.asInstanceOf[Example[Any]]
-        val assertFn = erased.assertion.get
-        Vector(
-          test(s"example ${erased.id}") {
-            for
-              runner <- ZIO.service[ExampleRunner]
-              ui     <- runner.run(erased)
-            yield assertFn(ui)
+      case ex: Example =>
+        ex.assertion.toVector.map { assertFn =>
+          test(s"example ${ex.id}") {
+            ZIO.serviceWithZIO[ExampleRunner](_.run(ex)).map(assertFn)
           }
-        )
-      case ill: AscentIllustration[?] =>
-        ill.assertion match
-          case Some(assertFn) =>
-            val erased = ill.asInstanceOf[AscentIllustration[Any]]
-            Vector(
-              test(s"illustration ${erased.id}") {
-                for
-                  runner <- ZIO.service[ExampleRunner]
-                  ui     <- runner.run(erased)
-                yield assertFn(ui)
-              }
-            )
-          case None =>
-            Vector.empty
-      case ve: ValueExample[?] if ve.assertion.isDefined =>
-        val erased   = ve.asInstanceOf[ValueExample[Any]]
-        val assertFn = erased.assertion.get
-        Vector(
-          test(s"example ${erased.id}") {
-            ZIO.scoped(erased.body).exit.flatMap {
+        }
+      case ill: AscentIllustration =>
+        ill.assertion.toVector.map { assertFn =>
+          test(s"illustration ${ill.id}") {
+            ZIO.serviceWithZIO[ExampleRunner](_.run(ill)).map(assertFn)
+          }
+        }
+      case ve: ValueExample[a] =>
+        ve.assertion.toVector.map { assertFn =>
+          test(s"example ${ve.id}") {
+            ZIO.scoped(ve.body).exit.flatMap {
               case Exit.Success(value) => ZIO.succeed(assertFn(value))
               case Exit.Failure(cause) =>
                 cause.failureOption match
-                  case Some(e) => ZIO.succeed(assertTrue(false).label(s"example ${erased.id}: $e"))
+                  case Some(e) => ZIO.succeed(assertTrue(false).label(s"example ${ve.id}: $e"))
                   case None    =>
                     cause.dieOption match
                       case Some(e: IllegalStateException) if e.getMessage == ValueExample.ErrorSucceededMessage =>
                         ZIO.succeed(
-                          assertTrue(false).label(s"exampleError ${erased.id}: effect succeeded")
+                          assertTrue(false).label(s"exampleError ${ve.id}: effect succeeded")
                         )
                       case _ => ZIO.failCause(cause)
             }
           }
-        )
-      case fe: FailExample if fe.assertion.isDefined =>
-        val assertFn = fe.assertion.get
-        Vector(
+        }
+      case fe: FailExample =>
+        fe.assertion.toVector.map { assertFn =>
           test(s"example ${fe.id}") {
             ZIO.succeed(assertFn(fe.diagnostics))
           }
-        )
-      case ce: CrashExample[?, ?] if ce.assertion.isDefined =>
-        val erased   = ce.asInstanceOf[CrashExample[Any, Any]]
-        val assertFn = erased.assertion.get
-        Vector(
-          test(s"example ${erased.id}") {
-            ZIO.scoped(erased.body).exit.map {
+        }
+      case ce: CrashExample[e, a] =>
+        ce.assertion.toVector.map { assertFn =>
+          test(s"example ${ce.id}") {
+            ZIO.scoped(ce.body).exit.map {
               case Exit.Failure(cause) => assertFn(cause)
-              case Exit.Success(_)     => assertTrue(false).label(s"expectCrash ${erased.id}: effect succeeded")
+              case Exit.Success(_)     => assertTrue(false).label(s"expectCrash ${ce.id}: effect succeeded")
             }
           }
-        )
+        }
       case de: DomExample =>
         // The one node kind that always emits a test, with no `.assert` — a deliberate exception to the
         // "only .assert makes a test" rule. Its body lives in a Scala.js project the JVM cannot run, so

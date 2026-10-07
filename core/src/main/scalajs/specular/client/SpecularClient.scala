@@ -104,13 +104,9 @@ object SpecularClient:
 
   private def liveAscent(nodes: Vector[DocNode]): Vector[(String, URIO[Scope, ascent.ast.UI[Any]])] =
     nodes.flatMap {
-      case ex: Example[?] if ex.isInteractive =>
-        val e = ex.asInstanceOf[Example[Any]]
-        Vector(e.mountKey.getOrElse(e.id) -> e.body)
-      case ill: AscentIllustration[?] if ill.isLive =>
-        val i = ill.asInstanceOf[AscentIllustration[Any]]
-        Vector(i.mountKey.getOrElse(i.id) -> i.body)
-      case Section(_, kids) => liveAscent(kids)
-      case _                => Vector.empty
+      case ex: Example if ex.isInteractive       => Vector(ex.mountKey.getOrElse(ex.id) -> ex.body)
+      case ill: AscentIllustration if ill.isLive => Vector(ill.mountKey.getOrElse(ill.id) -> ill.body)
+      case Section(_, kids)                      => liveAscent(kids)
+      case _                                     => Vector.empty
     }
 end SpecularClient

@@ -65,10 +65,10 @@ object InteractiveContractSpec extends ZIOSpecDefault:
   private def collectLive(pages: Vector[DocPage]): Vector[(String, Option[String])] =
     def go(nodes: Vector[DocNode]): Vector[(String, Option[String])] =
       nodes.flatMap {
-        case ex: Example[?] if ex.isInteractive       => Vector(ex.id -> ex.mountKey)
-        case ill: AscentIllustration[?] if ill.isLive => Vector(ill.id -> ill.mountKey)
-        case Section(_, kids)                         => go(kids)
-        case _                                        => Vector.empty
+        case ex: Example if ex.isInteractive       => Vector(ex.id -> ex.mountKey)
+        case ill: AscentIllustration if ill.isLive => Vector(ill.id -> ill.mountKey)
+        case Section(_, kids)                      => go(kids)
+        case _                                     => Vector.empty
       }
     pages.flatMap(p => go(p.children))
 end InteractiveContractSpec

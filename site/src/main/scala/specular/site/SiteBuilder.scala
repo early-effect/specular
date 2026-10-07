@@ -239,18 +239,17 @@ object SiteBuilder:
           )
           el("section", Vector(heading, kids))
         end for
-      case ex: Example[?] =>
-        val erased = ex.asInstanceOf[Example[Any]]
-        for ui <- runner.run(erased)
+      case ex: Example =>
+        for ui <- runner.run(ex)
         yield
           val pre = el(
             "pre",
-            Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
+            Vector(el("code", Vector(UI.Text(SourceFormatter.format(ex.source))))),
             Vector(attr("class", "specular-source")),
           )
           // An interactive example also carries the mount key, so the browser client needs one scan
           // for ascent and foreign examples alike (see MountPoint).
-          val mountAttrs = erased.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
+          val mountAttrs = ex.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
           el(
             "figure",
             Vector(
@@ -258,21 +257,20 @@ object SiteBuilder:
               el(
                 "div",
                 Vector(ui),
-                Vector(attr("id", erased.id), attr("class", "specular-snapshot")) ++ mountAttrs,
+                Vector(attr("id", ex.id), attr("class", "specular-snapshot")) ++ mountAttrs,
               ),
             ),
             Vector(attr("class", "specular-example")),
           )
         end for
-      case ill: AscentIllustration[?] =>
-        val erased = ill.asInstanceOf[AscentIllustration[Any]]
-        for ui <- runner.run(erased)
+      case ill: AscentIllustration =>
+        for ui <- runner.run(ill)
         yield
-          val mountAttrs = erased.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
+          val mountAttrs = ill.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
           el(
             "div",
             Vector(ui),
-            Vector(attr("id", erased.id), attr("class", "specular-illustration")) ++ mountAttrs,
+            Vector(attr("id", ill.id), attr("class", "specular-illustration")) ++ mountAttrs,
           )
       case dom: DomIllustration =>
         // Placeholder only. The client clears it and hands the element to the registered Mounter.
@@ -318,15 +316,14 @@ object SiteBuilder:
               Vector(attr("class", "specular-example")),
             )
           }
-      case ve: ValueExample[?] =>
-        val erased = ve.asInstanceOf[ValueExample[Any]]
+      case ve: ValueExample[a] =>
         for
-          exit  <- ZIO.scoped(erased.body).exit
-          value <- valueExampleResult(erased.id, exit)
+          exit  <- ZIO.scoped(ve.body).exit
+          value <- valueExampleResult(ve.id, exit)
         yield
           val pre = el(
             "pre",
-            Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
+            Vector(el("code", Vector(UI.Text(SourceFormatter.format(ve.source))))),
             Vector(attr("class", "specular-source")),
           )
           el(
@@ -335,8 +332,8 @@ object SiteBuilder:
               PageTemplate.codeBlock(pre, copyCode),
               el(
                 "div",
-                Vector(el("pre", Vector(el("code", Vector(UI.Text(erased.show(value))))))),
-                Vector(attr("id", erased.id), attr("class", "specular-snapshot specular-result")),
+                Vector(el("pre", Vector(el("code", Vector(UI.Text(ve.show(value))))))),
+                Vector(attr("id", ve.id), attr("class", "specular-snapshot specular-result")),
               ),
             ),
             Vector(attr("class", "specular-example")),
@@ -365,20 +362,19 @@ object SiteBuilder:
             ),
             Vector(attr("class", "specular-example")),
           )
-      case ce: CrashExample[?, ?] =>
-        val erased = ce.asInstanceOf[CrashExample[Any, Any]]
+      case ce: CrashExample[e, a] =>
         for
-          exit <- ZIO.scoped(erased.body).exit
+          exit <- ZIO.scoped(ce.body).exit
           text <- exit match
-            case Exit.Failure(cause) => ZIO.succeed(erased.show(cause))
+            case Exit.Failure(cause) => ZIO.succeed(ce.show(cause))
             case Exit.Success(_)     =>
               ZIO.fail(
-                new IllegalStateException(s"expectCrash ${erased.id}: effect succeeded during site build")
+                new IllegalStateException(s"expectCrash ${ce.id}: effect succeeded during site build")
               )
         yield
           val pre = el(
             "pre",
-            Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
+            Vector(el("code", Vector(UI.Text(SourceFormatter.format(ce.source))))),
             Vector(attr("class", "specular-source")),
           )
           el(
@@ -389,7 +385,7 @@ object SiteBuilder:
                 "div",
                 Vector(el("pre", Vector(el("code", Vector(UI.Text(text)))))),
                 Vector(
-                  attr("id", erased.id),
+                  attr("id", ce.id),
                   attr("class", "specular-snapshot specular-result specular-crash"),
                 ),
               ),
@@ -399,7 +395,7 @@ object SiteBuilder:
         end for
 
     /** Typed `Fail[E]` is a doc failure that reports `E`; defects stay defects. */
-    private def valueExampleResult(id: String, exit: Exit[Any, Any]): Task[Any] =
+    private def valueExampleResult[A](id: String, exit: Exit[Any, A]): Task[A] =
       exit match
         case Exit.Success(a)     => ZIO.succeed(a)
         case Exit.Failure(cause) =>

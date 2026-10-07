@@ -21,28 +21,28 @@ final case class Prose(markdown: String) extends DocNode
 
 final case class Section(title: String, children: Vector[DocNode]) extends DocNode
 
-/** An executable UI example. `R` is the ZIO environment needed to build the UI (usually `Any`).
+/** An executable UI example.
   *
   * [[mountKey]] is the browser-side handle: when [[interactive]] is set, the site stamps `data-specular-mount="<key>"`
   * on the SSR wrapper and the Scala.js client mounts whatever is registered under that key. It stays `None` until
   * `page(...)` assigns ids, then defaults to [[id]], so ascent examples travel the same keyed-mount path as
   * [[DomExample]] without the author naming anything.
   */
-final case class Example[R](
+final case class Example(
     id: String,
     source: String,
-    body: URIO[R & Scope, ascent.ast.UI[R]],
+    body: URIO[Scope, ascent.ast.UI[Any]],
     isInteractive: Boolean,
-    assertion: Option[ascent.ast.UI[R] => TestResult],
+    assertion: Option[ascent.ast.UI[Any] => TestResult],
     mountKey: Option[String] = None,
 ) extends DocNode:
 
-  def interactive: Example[R] = copy(isInteractive = true)
+  def interactive: Example = copy(isInteractive = true)
 
-  def assert(f: ascent.ast.UI[R] => TestResult): Example[R] = copy(assertion = Some(f))
+  def assert(f: ascent.ast.UI[Any] => TestResult): Example = copy(assertion = Some(f))
 
   /** Name the browser mount key explicitly instead of inheriting the assigned [[id]]. */
-  def withMountKey(key: String): Example[R] =
+  def withMountKey(key: String): Example =
     copy(mountKey = Some(MountKey.validated(key)))
 end Example
 
@@ -63,19 +63,19 @@ sealed trait Illustration extends DocNode:
   * [[live]] remounts through `SpecularClient.fromPages` the way `.interactive` does for samples. `.assert` runs the
   * tree under zio-test. A tool that writes a DOM node is a [[DomIllustration]], not this.
   */
-final case class AscentIllustration[R](
+final case class AscentIllustration(
     id: String,
-    body: URIO[R & Scope, ascent.ast.UI[R]],
+    body: URIO[Scope, ascent.ast.UI[Any]],
     isLive: Boolean,
-    assertion: Option[ascent.ast.UI[R] => TestResult],
+    assertion: Option[ascent.ast.UI[Any] => TestResult],
     mountKey: Option[String] = None,
 ) extends Illustration:
 
-  def live: AscentIllustration[R] = copy(isLive = true)
+  def live: AscentIllustration = copy(isLive = true)
 
-  def assert(f: ascent.ast.UI[R] => TestResult): AscentIllustration[R] = copy(assertion = Some(f))
+  def assert(f: ascent.ast.UI[Any] => TestResult): AscentIllustration = copy(assertion = Some(f))
 
-  def withMountKey(key: String): AscentIllustration[R] =
+  def withMountKey(key: String): AscentIllustration =
     copy(mountKey = Some(MountKey.validated(key)))
 end AscentIllustration
 
@@ -294,20 +294,20 @@ def section(title: String)(nodes: DocNode*): Section =
   * Specialized to `UI[Any]` so contravariant `UI[-R]` does not infer `R = Nothing`. The full argument span is recorded
   * (local `val`s, `CssClass` objects, case classes, …), not only the last expression.
   */
-inline def example(inline body: ascent.ast.UI[Any]): Example[Any] =
+inline def example(inline body: ascent.ast.UI[Any]): Example =
   DocInternal.mkExample(capturedSource(body), body)
 
 /** Capture an effectful UI-building example (e.g. allocating a Source via `sq`). */
-inline def exampleIO(inline body: URIO[Scope, ascent.ast.UI[Any]]): Example[Any] =
+inline def exampleIO(inline body: URIO[Scope, ascent.ast.UI[Any]]): Example =
   DocInternal.mkExampleIO(capturedSource(body), body)
 
 /** SSR an ascent tree with no source panel. The page (or a region) *is* this tree, not a sample of it. */
-def illustration(body: ascent.ast.UI[Any]): AscentIllustration[Any] =
+def illustration(body: ascent.ast.UI[Any]): AscentIllustration =
   DocInternal.mkIllustration(body)
 
 /** Effectful illustration (e.g. `sq`). [[AscentIllustration.live]] remounts it through `fromPages` like `.interactive`.
   */
-def illustrationIO(body: URIO[Scope, ascent.ast.UI[Any]]): AscentIllustration[Any] =
+def illustrationIO(body: URIO[Scope, ascent.ast.UI[Any]]): AscentIllustration =
   DocInternal.mkIllustrationIO(body)
 
 /** SSR a quiet mount point. The client fills it with a `Mounter` registered under `mountKey`.
@@ -376,7 +376,7 @@ private inline def capturedSource(inline body: Any): String =
   ${ ExampleMacros.sourceImpl('body) }
 
 private[specular] object DocInternal:
-  def mkExample(source: String, ui: ascent.ast.UI[Any]): Example[Any] =
+  def mkExample(source: String, ui: ascent.ast.UI[Any]): Example =
     Example(
       id = "",
       source = source,
@@ -385,7 +385,7 @@ private[specular] object DocInternal:
       assertion = None,
     )
 
-  def mkExampleIO(source: String, effect: URIO[Scope, ascent.ast.UI[Any]]): Example[Any] =
+  def mkExampleIO(source: String, effect: URIO[Scope, ascent.ast.UI[Any]]): Example =
     Example(
       id = "",
       source = source,
@@ -394,7 +394,7 @@ private[specular] object DocInternal:
       assertion = None,
     )
 
-  def mkIllustration(ui: ascent.ast.UI[Any]): AscentIllustration[Any] =
+  def mkIllustration(ui: ascent.ast.UI[Any]): AscentIllustration =
     AscentIllustration(
       id = "",
       body = ZIO.succeed(ui),
@@ -402,7 +402,7 @@ private[specular] object DocInternal:
       assertion = None,
     )
 
-  def mkIllustrationIO(effect: URIO[Scope, ascent.ast.UI[Any]]): AscentIllustration[Any] =
+  def mkIllustrationIO(effect: URIO[Scope, ascent.ast.UI[Any]]): AscentIllustration =
     AscentIllustration(
       id = "",
       body = effect,
@@ -474,14 +474,14 @@ private[specular] object DocInternal:
     var n                                        = 0
     def go(ns: Vector[DocNode]): Vector[DocNode] =
       ns.map {
-        case e: Example[?] =>
+        case e: Example =>
           n += 1
           val id = s"$pageSlug-ex-$n"
           // An interactive ascent example needs a browser key; default it to the id so authors
           // keep writing plain `.interactive` while the client sees one uniform keyed mount.
           val key = if e.isInteractive then Some(e.mountKey.getOrElse(id)) else e.mountKey
           e.copy(id = id, mountKey = key)
-        case i: AscentIllustration[?] =>
+        case i: AscentIllustration =>
           n += 1
           val id  = s"$pageSlug-ex-$n"
           val key = if i.isLive then Some(i.mountKey.getOrElse(id)) else i.mountKey
@@ -511,7 +511,7 @@ private[specular] object DocInternal:
   /** Every browser mount key declared on a page, in document order (duplicates preserved for validation). */
   def mountKeys(nodes: Vector[DocNode]): Vector[String] =
     nodes.flatMap {
-      case e: Example[?]    => e.mountKey.toVector
+      case e: Example       => e.mountKey.toVector
       case i: Illustration  => i.mountKey.toVector
       case d: DomExample    => Vector(d.mountKey)
       case Section(_, kids) => mountKeys(kids)
