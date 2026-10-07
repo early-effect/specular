@@ -30,13 +30,13 @@ object SiteNavSpec extends ZIOSpecDefault:
       assertTrue(
         nav.pages.map(_.title) == Vector("Overview", "Usage", "Injection", "Errors"),
         nav.roots.length == 2,
-        nav.roots(0) match
-          case NavGroup("Getting Started", kids) =>
+        nav.roots.lift(0) match
+          case Some(NavGroup("Getting Started", kids)) =>
             kids == Vector(NavPage(Overview.doc), NavPage(Usage.doc))
           case _ => false
         ,
-        nav.roots(1) match
-          case NavGroup("Safety", kids) =>
+        nav.roots.lift(1) match
+          case Some(NavGroup("Safety", kids)) =>
             kids == Vector(NavPage(Injection.doc), NavPage(Errors.doc))
           case _ => false,
       )

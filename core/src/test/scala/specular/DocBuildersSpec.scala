@@ -390,7 +390,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
         assertTrue(
           s.title == "Title",
           s.children.length == 2,
-          s.children(0) == Prose("body"),
+          s.children.headOption.contains(Prose("body")),
         )
       },
     ),
