@@ -75,7 +75,7 @@ sbt docs/specularSite""",
   override def layers: ZLayer[Any, Nothing, SiteBuilder] =
     EarlyEffectTheme.layers
 
-  override def afterBuild(out: Path, result: SiteOutput): Task[Unit] =
+  override def afterBuild(out: Path, result: SiteOutput): IO[SiteError, Unit] =
     val _ = result
     EarlyEffectTheme.writeLogo(out)
 end BuildSite

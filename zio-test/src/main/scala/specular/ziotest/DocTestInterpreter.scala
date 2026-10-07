@@ -74,10 +74,12 @@ object DocTestInterpreter:
         // when someone happens to rebuild the site.
         Vector(
           test(s"example ${de.id} source") {
-            ZIO.succeed:
-              DomSourceLoader.resolve(de.source, DomSourceLoader.sourceRoot) match
-                case Right(excerpt) => assertTrue(excerpt.nonEmpty)
-                case Left(message)  => assertTrue(false).label(s"DomExample ${de.id}: $message")
+            DomSourceLoader
+              .resolve(de.source, DomSourceLoader.sourceRoot)
+              .fold(
+                error => assertTrue(false).label(s"DomExample ${de.id}: ${error.message}"),
+                excerpt => assertTrue(excerpt.nonEmpty),
+              )
           }
         )
       case _ =>
