@@ -105,7 +105,6 @@ lazy val core = (projectMatrix in file("core"))
     Nil,
     (p: Project) =>
       p.settings(
-        MyVersions.javaTime,
         MyVersions.coreJs,
         Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "scalajs",
         // The Mounter hook speaks org.scalajs.dom.Element, the type foreign frameworks (preact,
@@ -299,7 +298,6 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
     (p: Project) =>
       p.dependsOn(core.js(scala3Version))
         .settings(
-          MyVersions.javaTime,
           MyVersions.docsJs,
           // DocSpecs are shared. The JS client compiles the same static diagram body; it does not remount it.
           libraryDependencies += MyVersions.moduleID(MyVersions.mermoidAscent),

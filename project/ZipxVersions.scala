@@ -28,8 +28,6 @@ object MyVersions extends ZipxVersions:
   val heddle = Lib("rocks.earlyeffect", "heddle", "0.9.0-dedb55f4b1cc-SNAPSHOT")
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
-  val scalaJavaTime     = Lib("io.github.cquiroz", "scala-java-time", "2.7.0")
-  val scalaJavaTimeTzdb = scalaJavaTime.mod("scala-java-time-tzdb")
 
   val commonmark    = Lib("org.commonmark", "commonmark", "0.30.0").java
   val commonmarkGfm = Lib("org.commonmark", "commonmark-ext-gfm-tables", "0.30.0").java
@@ -44,7 +42,6 @@ object MyVersions extends ZipxVersions:
   def zioLib     = library(zio)
   def coreJvm    = library(zio, zioTest, zioJson, ascent, ascentCss)
   def coreJs     = library(ascentJs, scalajsDom)
-  def javaTime   = library(scalaJavaTime, scalaJavaTimeTzdb)
   def siteLib    = library(ascentHtml, ascentPreview, heddle, commonmark, commonmarkGfm, scalafmtCore)
   def zioTestLib = library(zioTest, zioTestSbt)
   def docsJs     = library(ascentJs, ascentCss, zioTest)
