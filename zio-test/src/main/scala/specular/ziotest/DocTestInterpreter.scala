@@ -36,22 +36,19 @@ object DocTestInterpreter:
             ZIO.serviceWithZIO[ExampleRunner](_.run(ill)).map(assertFn)
           }
         }
-      case ve: ValueExample[a] =>
+      case ve: ValueExample[?, ?] =>
         ve.assertion.toVector.map { assertFn =>
           test(s"example ${ve.id}") {
-            ZIO.scoped(ve.body).exit.flatMap {
-              case Exit.Success(value) => ZIO.succeed(assertFn(value))
-              case Exit.Failure(cause) =>
-                cause.failureOption match
-                  case Some(e) => ZIO.succeed(assertTrue(false).label(s"example ${ve.id}: $e"))
-                  case None    =>
-                    cause.dieOption match
-                      case Some(e: IllegalStateException) if e.getMessage == ValueExample.ErrorSucceededMessage =>
-                        ZIO.succeed(
-                          assertTrue(false).label(s"exampleError ${ve.id}: effect succeeded")
-                        )
-                      case _ => ZIO.failCause(cause)
-            }
+            ZIO
+              .scoped(ve.body)
+              .fold(
+                {
+                  case ExampleFailure.Failed(error)     => assertTrue(false).label(s"example ${ve.id}: $error")
+                  case ExampleFailure.UnexpectedSuccess =>
+                    assertTrue(false).label(s"exampleError ${ve.id}: effect succeeded")
+                },
+                assertFn,
+              )
           }
         }
       case fe: FailExample =>
@@ -60,7 +57,7 @@ object DocTestInterpreter:
             ZIO.succeed(assertFn(fe.diagnostics))
           }
         }
-      case ce: CrashExample[e, a] =>
+      case ce: CrashExample[?, ?] =>
         ce.assertion.toVector.map { assertFn =>
           test(s"example ${ce.id}") {
             ZIO.scoped(ce.body).exit.map {
