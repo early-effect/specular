@@ -9,7 +9,7 @@ object MyVersions extends ZipxVersions:
   val sbt: SbtVersion     = SbtVersion("2.1.0-M3")
   val scala: ScalaVersion = ScalaVersion("3.9.0")
 
-  val release = ShipGroup("specular", "0.19.0")("core", "zioTest", "site", "eeDocsTheme", "plugin")
+  val release = ShipGroup("specular", "0.19.1")("core", "zioTest", "site", "eeDocsTheme", "plugin")
 
   val zio        = Lib("dev.zio", "zio", "2.1.26")
   val zioTest    = zio.mod("zio-test")
