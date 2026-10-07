@@ -106,7 +106,7 @@ jobs:
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
           cache-epoch: b37992b6d5f222d6
       - name: Pinned snapshots
-        run: echo "::warning title=zipx snapshots::pinned snapshots (rocks.earlyeffect:ascent-core:0.10.0-19667f3cf23f-SNAPSHOT, rocks.earlyeffect:ascent-css:0.10.0-19667f3cf23f-SNAPSHOT, rocks.earlyeffect:ascent-js:0.11.0-19667f3cf23f-SNAPSHOT, rocks.earlyeffect:ascent-html:0.10.0-19667f3cf23f-SNAPSHOT, rocks.earlyeffect:ascent-preview:0.10.0-19667f3cf23f-SNAPSHOT, rocks.earlyeffect:heddle:0.9.0-dedb55f4b1cc-SNAPSHOT, rocks.earlyeffect:sbt-splice:0.3.2-8464547dc109-SNAPSHOT, rocks.earlyeffect:sbt-ascent-preview:0.10.0-19667f3cf23f-SNAPSHOT)"
+        run: echo "::warning title=zipx snapshots::pinned snapshots (rocks.earlyeffect:ascent-core:0.10.0-19667f3cf23f-SNAPSHOT, rocks.earlyeffect:ascent-css:0.10.0-19667f3cf23f-SNAPSHOT, rocks.earlyeffect:ascent-js:0.11.0-19667f3cf23f-SNAPSHOT, rocks.earlyeffect:ascent-html:0.10.0-19667f3cf23f-SNAPSHOT, rocks.earlyeffect:ascent-preview:0.10.0-19667f3cf23f-SNAPSHOT, rocks.earlyeffect:mermoid-ascent:0.1.0-75d3fea68e0d-SNAPSHOT, rocks.earlyeffect:heddle:0.9.0-dedb55f4b1cc-SNAPSHOT, rocks.earlyeffect:sbt-splice:0.3.2-8464547dc109-SNAPSHOT, rocks.earlyeffect:sbt-ascent-preview:0.10.0-19667f3cf23f-SNAPSHOT)"
       - name: test
         run: |
           if [ "$ZIPX_VERIFY_CLEAN_FULL" = "true" ]; then

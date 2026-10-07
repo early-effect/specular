@@ -22,7 +22,8 @@ object MyVersions extends ZipxVersions:
   val ascentHtml    = ascent.mod("ascent-html")
   val ascentPreview = ascent.mod("ascent-preview")
 
-  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.10")
+  /** Docs-only: the figures in specular's own pages. No published module selects it. */
+  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.1.0-75d3fea68e0d-SNAPSHOT")
 
   /** specular-site calls heddle's client itself, so it names heddle rather than taking it through ascent-preview. */
   val heddle = Lib("rocks.earlyeffect", "heddle", "0.9.0-dedb55f4b1cc-SNAPSHOT")
@@ -45,4 +46,5 @@ object MyVersions extends ZipxVersions:
   def siteLib    = library(ascentHtml, ascentPreview, heddle, commonmark, commonmarkGfm, scalafmtCore)
   def zioTestLib = library(zioTest, zioTestSbt)
   def docsJs     = library(ascentJs, ascentCss, zioTest)
+  def docsFigures = library(mermoidAscent)
 end MyVersions

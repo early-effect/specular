@@ -129,9 +129,11 @@ illustration.live                                             // remount an asce
 example.assert(ui => assertTrue(…))                           // zio-test assertion
 ```
 
-A diagram is not a specular feature. Depend on the tool (for example `mermoid-ascent`) in the docs
-project and pass an ascent component to `illustration { ... }`, or mount a DOM element with
-`illustrationDom`. A fenced `mermaid` block in prose is a code block.
+A diagram is not a specular feature, and no published specular module depends on a diagram tool.
+Depend on the tool in the docs project and pass an ascent component to `illustration { ... }`, or
+mount a DOM element with `illustrationDom`. For Mermaid diagrams, `mermoid-ascent` fits
+`illustration` directly: see [Specular illustrations](https://www.earlyeffect.rocks/mermoid/specular-illustrations.html).
+A fenced `mermaid` block in prose is a code block.
 
 Wire the page with `DocSpecSuite` (tests) and `DocsSite` (site map):
 
