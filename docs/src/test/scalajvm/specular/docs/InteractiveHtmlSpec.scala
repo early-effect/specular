@@ -125,7 +125,7 @@ object InteractiveHtmlSpec extends ZIOSpecDefault:
         )
     },
     // Keys reach an HTML attribute, so this is a security property, not cosmetics. `MountKey` restricts the
-    // alphabet at construction; asserting at the attribute position proves nothing downstream un-escapes it,
+    // alphabet at compile time; asserting at the attribute position proves nothing downstream un-escapes it,
     // and that the page's prose about a hostile key stayed prose.
     test("every mount attribute in the site's HTML holds an attribute-safe key") {
       ZIO
@@ -136,7 +136,7 @@ object InteractiveHtmlSpec extends ZIOSpecDefault:
             emitted.nonEmpty,
             emitted.forall(k => k.nonEmpty && k.forall(c => c.isLetterOrDigit || "._-".contains(c))),
             // What the site emits is exactly what the pages declare: no key invented or dropped.
-            emitted.toSet == DocMounts.keys(BuildSite.pages*),
+            emitted.toSet == DocMounts.keys(BuildSite.pages*).map(_.value),
           )
         }
     },

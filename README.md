@@ -162,7 +162,7 @@ exampleDom("counter").fromSource("docs/client/src/main/scala/acme/Counter.scala"
 // Scala.js client: one call covers both kinds
 def run = ZIO.scoped {
   SpecularClient.mountAll(
-    SpecularClient.fromPages(pages*) ++ Map("counter" -> Mounter.sync(el => Preact.render(node, el)))
+    SpecularClient.fromPages(pages*) ++ Map(MountKey("counter") -> Mounter.sync(el => Preact.render(node, el)))
   ) *> ZIO.never
 }
 ```

@@ -1,5 +1,6 @@
 package specular.docs
 
+import specular.MountKey
 import specular.client.{Mounter, SpecularClient}
 import zio.*
 
@@ -27,7 +28,7 @@ object ClientMain extends ZIOAppDefault:
   )
 
   /** Mounters for the keys these pages declare and `fromPages` cannot derive. */
-  val extraMounters: Map[String, Mounter] =
+  val extraMounters: Map[MountKey, Mounter] =
     Map(
       InteractiveRegistry.RawDomCounter -> RawDomDemo.mounter,
       InteractiveRegistry.DiagramPoster -> DiagramPoster.mounter,
