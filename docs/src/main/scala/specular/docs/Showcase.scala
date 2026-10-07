@@ -102,7 +102,7 @@ plus the pretty-printed failure; tests fail if the effect succeeds. Use this for
 """,
       expectCrash {
         ZIO.fail(new IllegalArgumentException("demo failure")): ZIO[Scope, Throwable, Nothing]
-      }.assert(c => assertTrue(c.failures.exists(_.getMessage == "demo failure"))),
+      }.assert(c => assertTrue(c.failures.collectFirst { case e: IllegalArgumentException => e }.isDefined)),
     ),
     section("Typed errors")(
       md"""

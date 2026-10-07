@@ -5,7 +5,6 @@ import org.scalafmt.config.ScalafmtConfig
 
 import java.nio.file.{Files, Path, Paths}
 import scala.meta.dialects.Scala3
-import scala.util.Try
 
 /** Pretty-print captured `example` / `exampleIO` source for the site.
   *
@@ -26,7 +25,10 @@ object SourceFormatter:
          |${indent(snippet, 4)}
          |  }
          |""".stripMargin
-    Try(Scalafmt.format(wrapped, config).get).toOption
+    Scalafmt
+      .format(wrapped, config)
+      .toEither
+      .toOption
       .flatMap(unwrap)
       .map(_.trim)
       .filter(_.nonEmpty)
@@ -65,13 +67,14 @@ object SourceFormatter:
 
   private def loadProjectConfig: Option[ScalafmtConfig] =
     findScalafmtConf().flatMap { path =>
-      Try(ScalafmtConfig.fromHoconFile(path).get).toOption
+      ScalafmtConfig.fromHoconFile(path).toEither.toOption
     }
 
   private def findScalafmtConf(): Option[Path] =
     Iterator
-      .iterate(Paths.get("").toAbsolutePath.nn)(p => Option(p.getParent).orNull)
-      .takeWhile(_ != null)
+      .iterate(Option(Paths.get("").toAbsolutePath.nn))(_.flatMap(p => Option(p.getParent)))
+      .takeWhile(_.isDefined)
+      .flatten
       .map(_.resolve(".scalafmt.conf"))
       .find(Files.isRegularFile(_))
 end SourceFormatter

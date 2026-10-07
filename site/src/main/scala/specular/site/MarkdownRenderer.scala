@@ -43,8 +43,9 @@ object MarkdownRenderer:
 
     private def collect(parent: Node): Vector[Node] =
       Iterator
-        .iterate(parent.getFirstChild)(n => if n == null then null else n.getNext)
-        .takeWhile(_ != null)
+        .iterate(Option(parent.getFirstChild))(_.flatMap(n => Option(n.getNext)))
+        .takeWhile(_.isDefined)
+        .flatten
         .toVector
 
     private def renderNode(node: Node, copyCode: Boolean): UI[Any] = node match
@@ -84,7 +85,7 @@ object MarkdownRenderer:
       case _: HtmlBlock =>
         UI.Empty
       case other =>
-        if other.getFirstChild != null then renderChildren(other, copyCode) else UI.Empty
+        if Option(other.getFirstChild).isDefined then renderChildren(other, copyCode) else UI.Empty
 
     private def sourcePre(literal: String, copyCode: Boolean): UI[Any] =
       val pre = el(
@@ -121,7 +122,7 @@ object MarkdownRenderer:
         Vector(el("a", inlineChildren(l), attrs))
       case _: HtmlInline =>
         Vector.empty
-      case other if other.getFirstChild != null =>
+      case other if Option(other.getFirstChild).isDefined =>
         inlineChildren(other)
       case _ =>
         Vector.empty

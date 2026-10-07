@@ -66,9 +66,9 @@ object SpecularClientSpec extends ZIOSpecDefault:
           val boxes = el.childrenWithClass(MountPoint.ErrorClass)
           assertTrue(
             boxes.length == 1,
-            boxes.head.textContent.contains("unregistered"),
+            boxes.headOption.exists(_.textContent.contains("unregistered")),
             // Rendered as text, never markup: the message quotes a key and an exception message.
-            boxes.head.innerHTML.isEmpty,
+            boxes.headOption.exists(_.innerHTML.isEmpty),
           )
       },
       test("a failing mounter is isolated: its neighbours still mount") {
@@ -103,7 +103,7 @@ object SpecularClientSpec extends ZIOSpecDefault:
           _   <- ZIO.scoped {
             SpecularClient.mountAll(
               Map(
-                MountKey("bad")  -> Mounter.sync(_ => throw new IllegalStateException("defect")),
+                MountKey("bad")  -> Mounter.effect(_ => ZIO.die(IllegalStateException("defect"))),
                 MountKey("good") -> Mounter.effect(_ => ran.update(_ :+ "good")),
               )
             ) *> ZIO.yieldNow.repeatN(8)
