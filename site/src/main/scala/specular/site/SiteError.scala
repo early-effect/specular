@@ -14,6 +14,8 @@ enum SiteError:
   case DuplicateMountKey(key: MountKey, pages: NonEmptyChunk[String])
   case OutsideSiteRoot(path: Path, root: Path)
   case MissingResource(resource: String)
+  case MissingFile(path: Path)
+  case FileUnreadable(path: Path, cause: IOException)
   case ResourceUnreadable(resource: String, cause: IOException)
   case WriteFailed(path: Path, cause: IOException)
   case ExampleFailed(id: String, failure: ExampleFailure[Any])
@@ -28,6 +30,8 @@ enum SiteError:
     case DuplicateMountKey(key, pgs) => s"Duplicate specular mount key: ${key.value} ← ${pgs.mkString(", ")}"
     case OutsideSiteRoot(path, root) => s"Refusing to write outside site root: $path (root=$root)"
     case MissingResource(resource)   => s"Missing classpath resource $resource"
+    case MissingFile(path)           => s"Missing file $path"
+    case FileUnreadable(path, cause) => s"Could not read $path: $cause"
     case ResourceUnreadable(res, e)  => s"Could not read classpath resource $res: $e"
     case WriteFailed(path, cause)    => s"Could not write $path: $cause"
     case ExampleFailed(id, ExampleFailure.Failed(error))     => s"exampleZIO $id: $error"

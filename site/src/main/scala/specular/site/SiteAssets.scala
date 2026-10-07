@@ -2,7 +2,7 @@ package specular.site
 
 import zio.*
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 
 /** Bundled chrome assets shipped with specular-site (copied into the site output). */
 object SiteAssets:
@@ -26,4 +26,13 @@ object SiteAssets:
         bytes <- ZIO.attemptBlockingIO(in.readAllBytes().nn).mapError(SiteError.ResourceUnreadable(resource, _))
         _     <- SiteWriter.write(dest, bytes)
       yield ()
+
+  /** Copy a file the build produced (a linked JS client, say) into the site output. */
+  def copyFile(from: Path, dest: Path): IO[SiteError, Unit] =
+    for
+      exists <- ZIO.attemptBlockingIO(Files.isRegularFile(from)).orElseSucceed(false)
+      _      <- ZIO.fail(SiteError.MissingFile(from)).unless(exists)
+      bytes  <- ZIO.attemptBlockingIO(Files.readAllBytes(from).nn).mapError(SiteError.FileUnreadable(from, _))
+      _      <- SiteWriter.write(dest, bytes)
+    yield ()
 end SiteAssets
