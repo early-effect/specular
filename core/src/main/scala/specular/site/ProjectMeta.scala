@@ -1,5 +1,7 @@
 package specular.site
 
+import zio.json.*
+
 import java.net.URI
 
 /** Published project facts for micro-sites and org hubs. */
@@ -22,7 +24,7 @@ final case class ProjectMeta(
       */
     displayVersion: Option[String] = None,
     pages: Vector[MetaPage] = Vector.empty,
-):
+) derives JsonEncoder:
   def displayTitle: String = title.getOrElse(name)
 
   /** Version shown in install snippets, header/footer chrome, and catalog badges. */
@@ -49,7 +51,7 @@ final case class ProjectMeta(
     )
 end ProjectMeta
 
-final case class MetaPage(title: String, slug: String)
+final case class MetaPage(title: String, slug: String) derives JsonCodec
 
 object ProjectMeta:
 
@@ -84,125 +86,72 @@ object ProjectMeta:
   end fromSystemProperties
 
   def toJson(meta: ProjectMeta): String =
-    val pagesJson =
-      if meta.pages.isEmpty then Vector.empty
-      else
-        val items = meta.pages
-          .map(p => s"""{"title":${quoteJsonString(p.title)},"slug":${quoteJsonString(p.slug)}}""")
-          .mkString(",")
-        Vector(s""""pages":[$items]""")
+    meta.toJsonPretty
 
-    val fields = Vector(
-      s""""name": ${quoteJsonString(meta.name)}""",
-      s""""organization": ${quoteJsonString(meta.organization)}""",
-      s""""version": ${quoteJsonString(meta.version)}""",
-      s""""scalaVersion": ${quoteJsonString(meta.scalaVersion)}""",
-    ) ++ optField("title", meta.title) ++
-      optField("description", meta.description) ++
-      optField("language", meta.language) ++
-      optField("homepage", meta.homepage) ++
-      optField("docsUrl", meta.docsUrl) ++
-      optField("displayVersion", meta.displayVersion) ++
-      pagesJson
-
-    fields.mkString("{\n  ", ",\n  ", "\n}")
-  end toJson
-
-  private def optField(key: String, value: Option[String]): Vector[String] =
-    value.toVector.map(v => s""""$key": ${quoteJsonString(v)}""")
-
-  def parseJson(raw: String): Either[String, ProjectMeta] =
-    def field(key: String): Option[String] =
-      val quoted = raw""""$key"\s*:\s*"((?:\\.|[^"\\])*)"""".r
-      quoted.findFirstMatchIn(raw).map(m => unescape(m.group(1).nn))
+  def parseJson(raw: String): Either[ProjectMetaError, ProjectMeta] =
+    def required(value: Option[String], field: RequiredMetaField): Either[ProjectMetaError, String] =
+      value.toRight(ProjectMetaError.MissingField(field))
 
     for
-      name         <- field("name").toRight("missing name")
-      organization <- field("organization").toRight("missing organization")
-      version      <- field("version").toRight("missing version")
-      scalaVersion <- field("scalaVersion").toRight("missing scalaVersion")
+      wire         <- raw.fromJson[Wire].left.map(ProjectMetaError.Malformed(_))
+      name         <- required(wire.name, RequiredMetaField.Name)
+      organization <- required(wire.organization, RequiredMetaField.Organization)
+      version      <- required(wire.version, RequiredMetaField.Version)
+      scalaVersion <- required(wire.scalaVersion, RequiredMetaField.ScalaVersion)
     yield ProjectMeta(
       name = name,
       organization = organization,
       version = version,
       scalaVersion = scalaVersion,
-      title = field("title"),
-      description = field("description"),
-      language = field("language"),
-      homepage = field("homepage").flatMap(SafeHref.sanitize),
-      docsUrl = field("docsUrl").flatMap(SafeHref.sanitize),
-      displayVersion = field("displayVersion"),
-      pages = parsePages(raw),
+      title = wire.title,
+      description = wire.description,
+      language = wire.language,
+      homepage = wire.homepage,
+      docsUrl = wire.docsUrl,
+      displayVersion = wire.displayVersion,
+      pages = wire.pages.getOrElse(Vector.empty),
     ).withSanitizedLinks
     end for
   end parseJson
+
+  /** The decoded shape before required fields are checked, so a missing one is a [[RequiredMetaField]]. */
+  private final case class Wire(
+      name: Option[String],
+      organization: Option[String],
+      version: Option[String],
+      scalaVersion: Option[String],
+      title: Option[String],
+      description: Option[String],
+      language: Option[String],
+      homepage: Option[String],
+      docsUrl: Option[String],
+      displayVersion: Option[String],
+      pages: Option[Vector[MetaPage]],
+  ) derives JsonDecoder
 
   /** Only http(s) URLs are accepted for hub composition (trusted catalog entries). */
   def isAllowedMetaUrl(url: String): Boolean =
     try
       val uri    = URI.create(url.trim)
       val scheme = Option(uri.getScheme).map(_.nn.toLowerCase)
-      (scheme.contains("https") || scheme.contains("http")) &&
-      uri.getHost != null &&
-      uri.getHost.nn.nonEmpty
+      (scheme.contains("https") || scheme.contains("http")) && Option(uri.getHost).exists(_.nonEmpty)
     catch case _: IllegalArgumentException => false
-
-  /** Quote a string as a JSON string literal. */
-  def quoteJsonString(s: String): String =
-    "\"" + escape(s) + "\""
-
-  private def parsePages(raw: String): Vector[MetaPage] =
-    val block =
-      """(?s)"pages"\s*:\s*\[(.*?)\]""".r.findFirstMatchIn(raw).map(_.group(1).nn).getOrElse("")
-    if block.isBlank then Vector.empty
-    else
-      """\{[^{}]*\}""".r
-        .findAllIn(block)
-        .toVector
-        .flatMap { obj =>
-          val title = """"title"\s*:\s*"((?:\\.|[^"\\])*)"""".r.findFirstMatchIn(obj).map(m => unescape(m.group(1).nn))
-          val slug  = """"slug"\s*:\s*"((?:\\.|[^"\\])*)"""".r.findFirstMatchIn(obj).map(m => unescape(m.group(1).nn))
-          for t <- title; s <- slug yield MetaPage(t, s)
-        }
-    end if
-  end parsePages
-
-  private def escape(s: String): String =
-    s.flatMap {
-      case '\\'                                             => "\\\\"
-      case '"'                                              => "\\\""
-      case '\n'                                             => "\\n"
-      case '\r'                                             => "\\r"
-      case '\t'                                             => "\\t"
-      case '\b'                                             => "\\b"
-      case '\f'                                             => "\\f"
-      case c if c < ' '                                     => f"\\u${c.toInt}%04x"
-      case c if c.toInt > 0x7e && Character.isISOControl(c) => f"\\u${c.toInt}%04x"
-      case c                                                => c.toString
-    }
-
-  private def unescape(s: String): String =
-    val sb = new StringBuilder
-    var i  = 0
-    while i < s.length do
-      if s.charAt(i) == '\\' && i + 1 < s.length then
-        s.charAt(i + 1) match
-          case '\\'                    => sb.append('\\'); i += 2
-          case '"'                     => sb.append('"'); i += 2
-          case 'n'                     => sb.append('\n'); i += 2
-          case 'r'                     => sb.append('\r'); i += 2
-          case 't'                     => sb.append('\t'); i += 2
-          case 'b'                     => sb.append('\b'); i += 2
-          case 'f'                     => sb.append('\f'); i += 2
-          case 'u' if i + 5 < s.length =>
-            val hex = s.substring(i + 2, i + 6)
-            sb.append(Integer.parseInt(hex, 16).toChar)
-            i += 6
-          case c => sb.append(c); i += 2
-      else
-        sb.append(s.charAt(i))
-        i += 1
-    end while
-    sb.toString
-  end unescape
 end ProjectMeta
+
+/** A `metadata.json` field a catalog card cannot do without. */
+enum RequiredMetaField(val key: String):
+  case Name         extends RequiredMetaField("name")
+  case Organization extends RequiredMetaField("organization")
+  case Version      extends RequiredMetaField("version")
+  case ScalaVersion extends RequiredMetaField("scalaVersion")
+
+/** Why a `metadata.json` body is not a [[ProjectMeta]]. */
+enum ProjectMetaError:
+  case MissingField(field: RequiredMetaField)
+
+  /** Not JSON, or a field of the wrong type. `detail` is zio-json's path and reason. */
+  case Malformed(detail: String)
+
+  def message: String = this match
+    case MissingField(field) => s"missing ${field.key}"
+    case Malformed(detail)   => s"malformed metadata.json: $detail"

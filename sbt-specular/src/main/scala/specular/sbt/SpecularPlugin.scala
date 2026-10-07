@@ -226,7 +226,7 @@ object SpecularPlugin extends AutoPlugin:
           val extracted  = Project.extract(state.value)
           val candidates = hubCandidates(extracted, refs)
           HubNest.members(candidates) match
-            case Left(err)      => sys.error(err)
+            case Left(err)      => sys.error(err.message)
             case Right(Nil)     => Def.task(())
             case Right(members) =>
               Def

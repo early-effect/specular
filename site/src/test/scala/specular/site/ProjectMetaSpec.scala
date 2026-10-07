@@ -4,7 +4,38 @@ import zio.test.*
 
 object ProjectMetaSpec extends ZIOSpecDefault:
 
+  private val text: Gen[Any, String] = Gen.string(Gen.printableChar)
+
+  private val metaGen: Gen[Any, ProjectMeta] =
+    for
+      name  <- text
+      org   <- text
+      ver   <- text
+      scala <- text
+      title <- Gen.option(text)
+      desc  <- Gen.option(text)
+      pages <- Gen.vectorOfBounded(0, 3)(text.zip(text).map(MetaPage.apply))
+    yield ProjectMeta(name, org, ver, scala, title = title, description = desc, pages = pages)
+
   def spec = suite("ProjectMeta")(
+    test("parseJson reads back whatever toJson wrote") {
+      check(metaGen)(meta => assertTrue(ProjectMeta.parseJson(meta.toJson) == Right(meta)))
+    },
+    test("parseJson is total over arbitrary text") {
+      check(Gen.string)(raw => assertTrue(ProjectMeta.parseJson(raw).fold(_ => true, _ => true)))
+    },
+    test("a malformed \\u escape is a Malformed error") {
+      val backslash = "\\"
+      val raw       = s"""{"name": "a${backslash}uZZ", "organization": "o", "version": "1", "scalaVersion": "3"}"""
+      assertTrue(ProjectMeta.parseJson(raw).left.exists {
+        case ProjectMetaError.Malformed(_) => true
+        case _                             => false
+      })
+    },
+    test("a missing required field names the field") {
+      val raw = """{"name": "n", "organization": "o", "scalaVersion": "3"}"""
+      assertTrue(ProjectMeta.parseJson(raw) == Left(ProjectMetaError.MissingField(RequiredMetaField.Version)))
+    },
     test("round-trips JSON with optional fields and pages") {
       val meta = ProjectMeta(
         name = "ascent",
@@ -22,12 +53,7 @@ object ProjectMetaSpec extends ZIOSpecDefault:
       val json   = meta.toJson
       val parsed = ProjectMeta.parseJson(json)
       assertTrue(
-        parsed.isRight,
-        parsed.toOption.get.name == "ascent",
-        parsed.toOption.get.version == "0.1.0",
-        parsed.toOption.get.displayVersion.contains("0.1.0"),
-        parsed.toOption.get.title.contains("Ascent"),
-        parsed.toOption.get.pages == Vector(MetaPage("Getting started", "getting-started")),
+        parsed == Right(meta),
         json.contains("\"pages\""),
         json.contains("\"displayVersion\""),
       )
@@ -117,9 +143,8 @@ object ProjectMetaSpec extends ZIOSpecDefault:
           """"homepage":"javascript:alert(1)","docsUrl":"https://ok.example/"}"""
       val parsed = ProjectMeta.parseJson(raw)
       assertTrue(
-        parsed.isRight,
-        parsed.toOption.get.homepage.isEmpty,
-        parsed.toOption.get.docsUrl.contains("https://ok.example/"),
+        parsed.map(_.homepage) == Right(None),
+        parsed.map(_.docsUrl) == Right(Some("https://ok.example/")),
       )
     },
     test("escape encodes control characters") {

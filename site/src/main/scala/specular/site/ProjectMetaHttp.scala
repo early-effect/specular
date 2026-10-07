@@ -11,7 +11,7 @@ enum MetaFetchError(val message: String):
   case Refused(url: String, status: Status)         extends MetaFetchError(s"GET $url answered ${status.code}")
   case Unreadable(url: String, cause: Throwable)    extends MetaFetchError(s"$url: the body could not be read: $cause")
   case TooLarge(url: String, limit: Int)            extends MetaFetchError(s"$url: the body exceeds $limit bytes")
-  case Malformed(url: String, detail: String)       extends MetaFetchError(s"$url: $detail")
+  case Malformed(url: String, error: ProjectMetaError) extends MetaFetchError(s"$url: ${error.message}")
 
 /** JVM HTTP fetch for published micro-site `metadata.json` (org hub composition).
   *
