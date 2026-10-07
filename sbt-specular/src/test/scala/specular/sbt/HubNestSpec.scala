@@ -19,45 +19,54 @@ object HubNestSpec extends ZIOSpecDefault:
   def spec = suite("HubNest")(
     suite("validateSegment")(
       test("accepts a simple segment") {
-        assertTrue(HubNest.validateSegment("atlas") == Right("atlas"))
+        assertTrue(HubNest.validateSegment("atlas").map(_.value) == Right("atlas"))
       },
       test("accepts dots, underscores, and hyphens after the first character") {
         assertTrue(
-          HubNest.validateSegment("foo-bar") == Right("foo-bar"),
-          HubNest.validateSegment("v1.2") == Right("v1.2"),
-          HubNest.validateSegment("a_b") == Right("a_b"),
+          HubNest.validateSegment("foo-bar").map(_.value) == Right("foo-bar"),
+          HubNest.validateSegment("v1.2").map(_.value) == Right("v1.2"),
+          HubNest.validateSegment("a_b").map(_.value) == Right("a_b"),
         )
       },
       test("trims whitespace") {
-        assertTrue(HubNest.validateSegment("  atlas  ") == Right("atlas"))
+        assertTrue(HubNest.validateSegment("  atlas  ").map(_.value) == Right("atlas"))
       },
       test("rejects empty") {
-        assertTrue(HubNest.validateSegment("").isLeft, HubNest.validateSegment("   ").isLeft)
+        assertTrue(
+          HubNest.validateSegment("") == Left(HubNestError.EmptySegment),
+          HubNest.validateSegment("   ") == Left(HubNestError.EmptySegment),
+        )
       },
       test("rejects dot and dot-dot") {
-        assertTrue(HubNest.validateSegment(".").isLeft, HubNest.validateSegment("..").isLeft)
+        assertTrue(
+          HubNest.validateSegment(".") == Left(HubNestError.DotSegment(".")),
+          HubNest.validateSegment("..") == Left(HubNestError.DotSegment("..")),
+        )
       },
       test("rejects a leading hyphen or underscore") {
-        assertTrue(HubNest.validateSegment("-x").isLeft, HubNest.validateSegment("_x").isLeft)
+        assertTrue(
+          HubNest.validateSegment("-x") == Left(HubNestError.IllegalSegment("-x")),
+          HubNest.validateSegment("_x") == Left(HubNestError.IllegalSegment("_x")),
+        )
       },
       test("rejects a slash") {
-        assertTrue(HubNest.validateSegment("foo/bar").isLeft)
+        assertTrue(HubNest.validateSegment("foo/bar") == Left(HubNestError.IllegalSegment("foo/bar")))
       },
       test("rejects reserved names case-insensitively") {
         assertTrue(
-          HubNest.validateSegment("assets").isLeft,
-          HubNest.validateSegment("Assets").isLeft,
-          HubNest.validateSegment("images").isLeft,
-          HubNest.validateSegment("IMAGES").isLeft,
+          HubNest.validateSegment("assets") == Left(HubNestError.ReservedSegment("assets")),
+          HubNest.validateSegment("Assets") == Left(HubNestError.ReservedSegment("Assets")),
+          HubNest.validateSegment("images") == Left(HubNestError.ReservedSegment("images")),
+          HubNest.validateSegment("IMAGES") == Left(HubNestError.ReservedSegment("IMAGES")),
         )
       },
       test("rejects a segment longer than MaxSegmentLength") {
         val tooLong = "a" * (HubNest.MaxSegmentLength + 1)
-        assertTrue(HubNest.validateSegment(tooLong).isLeft)
+        assertTrue(HubNest.validateSegment(tooLong) == Left(HubNestError.SegmentTooLong(tooLong)))
       },
       test("accepts a segment at MaxSegmentLength") {
         val ok = "a" * HubNest.MaxSegmentLength
-        assertTrue(HubNest.validateSegment(ok) == Right(ok))
+        assertTrue(HubNest.validateSegment(ok).map(_.value) == Right(ok))
       },
     ),
     suite("parentHref")(
@@ -74,19 +83,15 @@ object HubNestSpec extends ZIOSpecDefault:
       },
       test("a child without the plugin is a loud error") {
         val result = HubNest.members(Seq(candidate("atlas", segment = None)))
-        assertTrue(
-          result.isLeft,
-          result.swap.toOption.exists(_.contains("does not enable SpecularPlugin")),
-          result.swap.toOption.exists(_.contains("member docs")),
-        )
+        assertTrue(result == Left(HubNestError.NotASpecularProject("atlas")))
       },
       test("a nested hub is rejected") {
         val result = HubNest.members(Seq(candidate("inner", Some("inner"), isHub = true)))
-        assertTrue(result.swap.toOption.exists(_.contains("nested hubs")))
+        assertTrue(result == Left(HubNestError.NestedHub("inner")))
       },
       test("an empty segment is rejected") {
         val result = HubNest.members(Seq(candidate("atlasDocs", Some(""))))
-        assertTrue(result.isLeft)
+        assertTrue(result == Left(HubNestError.EmptySegment))
       },
       test("duplicate segments name both projects") {
         val result = HubNest.members(
@@ -95,11 +100,10 @@ object HubNestSpec extends ZIOSpecDefault:
             candidate("bDocs", Some("atlas"), from = "/tmp/b"),
           )
         )
-        assertTrue(
-          result.swap.toOption.exists(_.contains("aDocs")),
-          result.swap.toOption.exists(_.contains("bDocs")),
-          result.swap.toOption.exists(_.contains("atlas")),
-        )
+        assertTrue(result.left.map {
+          case HubNestError.DuplicateSegment(segment, projects) => (segment.value, projects.toSet)
+          case _                                                => ("", Set.empty[String])
+        } == Left(("atlas", Set("aDocs", "bDocs"))))
       },
       test("two distinct members succeed") {
         val result = HubNest.members(
@@ -109,7 +113,7 @@ object HubNestSpec extends ZIOSpecDefault:
           )
         )
         assertTrue(
-          result.map(_.map(m => (m.project, m.segment))) ==
+          result.map(_.map(m => (m.project, m.segment.value))) ==
             Right(Seq("atlasDocs" -> "atlas", "lanternDocs" -> "lantern"))
         )
       },
@@ -117,8 +121,8 @@ object HubNestSpec extends ZIOSpecDefault:
     suite("copies")(
       test("joins each member onto the hub directory") {
         val members = Seq(
-          HubNest.Member("atlasDocs", "atlas", file("/tmp/member/site")),
-          HubNest.Member("lanternDocs", "lantern", file("/tmp/lantern/site")),
+          HubNest.Member("atlasDocs", SiteSegment("atlas"), file("/tmp/member/site")),
+          HubNest.Member("lanternDocs", SiteSegment("lantern"), file("/tmp/lantern/site")),
         )
         val plan = HubNest.copies(file("/tmp/hub/site"), members)
         assertTrue(

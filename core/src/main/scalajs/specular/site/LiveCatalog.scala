@@ -4,8 +4,6 @@ import ascent.*
 import ascent.dom
 import zio.*
 
-import scala.scalajs.js
-
 /** Browser live catalog: fetch allowlisted `metadata.json` and remount cards via Ascent.
   *
   * Expects the SSR shell from LandingTemplate: `#specular-live-catalog` and
@@ -44,20 +42,26 @@ object LiveCatalog:
       }
       .map(_.flatten)
 
-  private def fetchOne(url: String): Task[ProjectMeta] =
+  private def fetchOne(url: String): IO[LiveCatalogError, ProjectMeta] =
     for
-      _ <- ZIO
-        .fail(new IllegalArgumentException(s"Refusing non-http(s) metadata URL: $url"))
-        .unless(ProjectMeta.isAllowedMetaUrl(url))
-      response <- ZIO.fromPromiseJS(Dom.window.fetch(url).asInstanceOf[js.Promise[dom.Response]])
-      _        <- ZIO.fail(new RuntimeException(s"GET $url → ${response.status}")).when(!response.ok)
-      body     <- ZIO.fromPromiseJS(response.text().asInstanceOf[js.Promise[String]])
+      _        <- ZIO.fail(LiveCatalogError.NotAllowed(url)).unless(ProjectMeta.isAllowedMetaUrl(url))
+      response <- ZIO.fromPromiseJS(Dom.window.fetch(url)).mapError(LiveCatalogError.Unreachable(url, _))
+      _        <- ZIO.fail(LiveCatalogError.Refused(url, response.status)).unless(response.ok)
+      body     <- ZIO.fromPromiseJS(response.text()).mapError(LiveCatalogError.Unreachable(url, _))
       _        <- ZIO
-        .fail(new RuntimeException(s"$url: body exceeds ${ProjectMeta.MaxBodyBytes} bytes"))
+        .fail(LiveCatalogError.TooLarge(url, ProjectMeta.MaxBodyBytes))
         .when(body.length > ProjectMeta.MaxBodyBytes)
-      meta <- ZIO.fromEither(ProjectMeta.parseJson(body)).mapError(msg => new RuntimeException(s"$url: $msg"))
+      meta <- ZIO.fromEither(ProjectMeta.parseJson(body)).mapError(LiveCatalogError.Malformed(url, _))
     yield meta.withSanitizedLinks
 
   private def clearChildren(el: dom.Element): Unit =
     el.innerHTML = ""
 end LiveCatalog
+
+/** Why the browser dropped one catalog card. The SSR card stays in place. */
+enum LiveCatalogError:
+  case NotAllowed(url: String)
+  case Unreachable(url: String, cause: Throwable)
+  case Refused(url: String, status: Int)
+  case TooLarge(url: String, limit: Int)
+  case Malformed(url: String, error: ProjectMetaError)
