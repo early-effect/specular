@@ -414,7 +414,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
     nodes.flatMap {
       case e: Example            => Vector(e.id)
       case i: Illustration       => Vector(i.id)
-      case v: ValueExample[?]    => Vector(v.id)
+      case v: ValueExample[?, ?] => Vector(v.id)
       case f: FailExample        => Vector(f.id)
       case c: CrashExample[?, ?] => Vector(c.id)
       case d: DomExample         => Vector(d.id)

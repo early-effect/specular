@@ -33,10 +33,10 @@ object ShowcaseSourceSpec extends ZIOSpecDefault:
       case _                => Vector.empty
     }
 
-  def collectValues(nodes: Vector[DocNode]): Vector[ValueExample[?]] =
+  def collectValues(nodes: Vector[DocNode]): Vector[ValueExample[?, ?]] =
     nodes.flatMap {
-      case v: ValueExample[?] => Vector(v)
-      case Section(_, kids)   => collectValues(kids)
-      case _                  => Vector.empty
+      case v: ValueExample[?, ?] => Vector(v)
+      case Section(_, kids)      => collectValues(kids)
+      case _                     => Vector.empty
     }
 end ShowcaseSourceSpec

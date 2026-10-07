@@ -316,7 +316,7 @@ object SiteBuilder:
               Vector(attr("class", "specular-example")),
             )
           }
-      case ve: ValueExample[a] =>
+      case ve: ValueExample[?, ?] =>
         for
           exit  <- ZIO.scoped(ve.body).exit
           value <- valueExampleResult(ve.id, exit)
@@ -362,7 +362,7 @@ object SiteBuilder:
             ),
             Vector(attr("class", "specular-example")),
           )
-      case ce: CrashExample[e, a] =>
+      case ce: CrashExample[?, ?] =>
         for
           exit <- ZIO.scoped(ce.body).exit
           text <- exit match
@@ -395,17 +395,17 @@ object SiteBuilder:
         end for
 
     /** Typed `Fail[E]` is a doc failure that reports `E`; defects stay defects. */
-    private def valueExampleResult[A](id: String, exit: Exit[Any, A]): Task[A] =
+    private def valueExampleResult[E, A](id: String, exit: Exit[ExampleFailure[E], A]): Task[A] =
       exit match
         case Exit.Success(a)     => ZIO.succeed(a)
         case Exit.Failure(cause) =>
           cause.failureOption match
-            case Some(e) =>
+            case Some(ExampleFailure.Failed(e)) =>
               ZIO.fail(IllegalStateException(s"exampleZIO $id: $e"))
+            case Some(ExampleFailure.UnexpectedSuccess) =>
+              ZIO.fail(IllegalStateException(s"exampleError $id: effect succeeded during site build"))
             case None =>
               cause.dieOption match
-                case Some(e: IllegalStateException) if e.getMessage == ValueExample.ErrorSucceededMessage =>
-                  ZIO.fail(IllegalStateException(s"exampleError $id: effect succeeded during site build"))
                 case Some(t) => ZIO.die(t)
                 case None    =>
                   ZIO.fail(IllegalStateException(s"exampleZIO $id: ${cause.prettyPrint}"))
