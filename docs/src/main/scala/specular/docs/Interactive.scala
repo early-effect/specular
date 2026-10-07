@@ -38,7 +38,7 @@ build rather than silently rotting.
 """,
       exampleValue {
         val ref = exampleDom("counter").fromSource("docs/client/src/main/scala/acme/Counter.scala", "demo")
-        (ref.mountKey, ref.source.describe)
+        (ref.mountKey.value, ref.source.describe)
       }.assert(t => assertTrue(t == ("counter", "docs/client/src/main/scala/acme/Counter.scala#demo"))),
     ),
     section("Marking a region")(
@@ -103,7 +103,7 @@ object ClientMain extends ZIOAppDefault:
 
   def run = ZIO.scoped {
     SpecularClient.mountAll(
-      SpecularClient.fromPages(pages*) ++ Map("counter" -> Counter.mounter)
+      SpecularClient.fromPages(pages*) ++ Map(MountKey("counter") -> Counter.mounter)
     ) *> ZIO.never
   }
 ```
@@ -188,8 +188,8 @@ pages' mount points are absent by design.
           exampleDom("counter").fromSource("some/File.scala"),
         )
         p.children.collect {
-          case e: Example    => e.id -> e.mountKey
-          case d: DomExample => d.id -> Some(d.mountKey)
+          case e: Example    => e.id -> e.mountKey.map(_.value)
+          case d: DomExample => d.id -> Some(d.mountKey.value)
         }
       }.assert(keys =>
         assertTrue(
@@ -198,15 +198,20 @@ pages' mount points are absent by design.
         )
       ),
     ),
-    section("Illegal keys fail loudly")(
+    section("Illegal keys do not compile")(
       md"""
-A mount key becomes an HTML attribute value and a client-side map key, so it is restricted to
-`[A-Za-z0-9._-]+` and 128 characters. A bad one throws at *construction*, which means it fails both
-`sbt test` and the site build rather than degrading into an example that quietly never mounts:
+A mount key becomes an HTML attribute value and a client-side map key, so `MountKey` restricts it to
+`[A-Za-z0-9._-]+`. A literal key is checked by the compiler, so a bad one cannot reach `sbt test`,
+let alone the site:
 """,
-      expectCrash {
-        zio.ZIO.attempt(exampleDom("\" onload=\"alert(1)"))
-      }.assert(c => assertTrue(c.failures.exists(_.isInstanceOf[IllegalArgumentException]))),
+      expectFail("""specular.exampleDom("\" onload=\"alert(1)")""")
+        .assert(errors => assertTrue(errors.exists(_.message.contains("may contain only")))),
+      md"""
+Runtime text goes through `MountKey.from`, which returns a typed `MountKeyError`:
+""",
+      exampleValue {
+        MountKey.from("\" onload=\"alert(1)")
+      }.assert(key => assertTrue(key == Left(MountKeyError.IllegalCharacters("\" onload=\"alert(1)")))),
     ),
     section("Path rules")(
       md"""

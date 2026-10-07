@@ -75,13 +75,13 @@ object SiteBuilder:
           .collect { case (slug, group) if group.size > 1 => s"$slug ← ${group.map(_.title).mkString(", ")}" }
           .toVector
       // Mount keys are the browser's dispatch table, so they must be unique across the WHOLE site, not
-      // per page: the client keys one `Map[String, Mounter]`, so a collision (two `exampleDom`s sharing a
+      // per page: the client keys one `Map[MountKey, Mounter]`, so a collision (two `exampleDom`s sharing a
       // key, or an explicit key equal to some page's `<slug>-ex-N` auto-key) silently drops a mount.
       val keyDupes =
         pages
           .flatMap(p => DocInternal.mountKeys(p.children).map(_ -> p.title))
           .groupBy(_._1)
-          .collect { case (key, group) if group.size > 1 => s"$key ← ${group.map(_._2).mkString(", ")}" }
+          .collect { case (key, group) if group.size > 1 => s"${key.value} ← ${group.map(_._2).mkString(", ")}" }
           .toVector
       if empty.nonEmpty then
         ZIO.fail(new IllegalArgumentException(s"DocPage title(s) produce empty slug: ${empty.mkString(", ")}"))
@@ -249,7 +249,7 @@ object SiteBuilder:
           )
           // An interactive example also carries the mount key, so the browser client needs one scan
           // for ascent and foreign examples alike (see MountPoint).
-          val mountAttrs = ex.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
+          val mountAttrs = ex.mountKey.toVector.map(k => attr(MountPoint.Attr, k.value))
           el(
             "figure",
             Vector(
@@ -266,7 +266,7 @@ object SiteBuilder:
       case ill: AscentIllustration =>
         for ui <- runner.run(ill)
         yield
-          val mountAttrs = ill.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
+          val mountAttrs = ill.mountKey.toVector.map(k => attr(MountPoint.Attr, k.value))
           el(
             "div",
             Vector(ui),
@@ -281,7 +281,7 @@ object SiteBuilder:
             Vector(
               attr("id", dom.id),
               attr("class", "specular-illustration"),
-              attr(MountPoint.Attr, dom.key),
+              attr(MountPoint.Attr, dom.key.value),
             ),
           )
         )
@@ -309,7 +309,7 @@ object SiteBuilder:
                   Vector(
                     attr("id", de.id),
                     attr("class", "specular-snapshot"),
-                    attr(MountPoint.Attr, de.mountKey),
+                    attr(MountPoint.Attr, de.mountKey.value),
                   ),
                 ),
               ),

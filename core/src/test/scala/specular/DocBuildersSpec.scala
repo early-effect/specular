@@ -75,21 +75,23 @@ object DocBuildersSpec extends ZIOSpecDefault:
         }.live
         assertTrue(ill.isLive)
       },
-      test("Illustration.withMountKey validates the same alphabet") {
-        assertTrue(
-          scala.util.Try(illustration { E.p("x") }.withMountKey("bad key")).isFailure,
-          illustration { E.p("x") }.withMountKey("ok").mountKey.contains("ok"),
+      test("Illustration.withMountKey checks a literal key at compile time") {
+        for rejected <- typeCheck("""specular.illustration(ascent.dsl.E.p("x")).withMountKey("bad key")""")
+        yield assertTrue(
+          rejected.isLeft,
+          illustration { E.p("x") }.withMountKey("ok").mountKey.contains(MountKey("ok")),
         )
       },
-      test("illustrationDom keeps the author key and rejects a bad one") {
+      test("illustrationDom keeps the author key and rejects a bad one at compile time") {
         val ill = illustrationDom("cycle")
         val p   = page("Keys")(example { E.div("a") }, ill)
-        assertTrue(
-          scala.util.Try(illustrationDom("bad key")).isFailure,
-          ill.key == "cycle",
+        for rejected <- typeCheck("""specular.illustrationDom("bad key")""")
+        yield assertTrue(
+          rejected.isLeft,
+          ill.key == MountKey("cycle"),
           ill.fallback == DomIllustration.defaultFallback,
-          DocMounts.domKeys(p) == Set("cycle"),
-          DocInternal.mountKeys(p.children) == Vector("cycle"),
+          DocMounts.domKeys(p) == Set(MountKey("cycle")),
+          DocInternal.mountKeys(p.children).map(_.value) == Vector(MountKey("cycle")),
         )
       },
       test("illustrationDom.withFallback replaces the no-JS placeholder") {
@@ -231,7 +233,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
       test("fromSource without a marker names the whole file") {
         val ex = exampleDom("counter").fromSource("docs/src/main/scalajs/acme/Counter.scala")
         assertTrue(
-          ex.mountKey == "counter",
+          ex.mountKey == MountKey("counter"),
           ex.source == DomSourceRef("docs/src/main/scalajs/acme/Counter.scala", None),
           ex.source.describe == "docs/src/main/scalajs/acme/Counter.scala",
         )
@@ -249,33 +251,21 @@ object DocBuildersSpec extends ZIOSpecDefault:
         assertTrue(ex.fallback == custom, exampleDom("k").fallback == DomExample.defaultFallback)
       },
       // A bad key must fail where the author wrote it, not degrade into an example that never mounts.
-      test("rejects an empty or whitespace key") {
-        assertTrue(
-          keyError("").isDefined,
-          keyError(" ").isDefined,
-          keyError("has space").isDefined,
-        )
+      test("exampleDom rejects a bad literal key at compile time") {
+        for
+          attribute <- typeCheck("""specular.exampleDom("\" onload=\"alert(1)")""")
+          empty     <- typeCheck("""specular.exampleDom("")""")
+        yield assertTrue(attribute.isLeft, empty.isLeft)
       },
-      test("rejects characters that could escape an HTML attribute") {
-        assertTrue(
-          keyError("\" onload=\"alert(1)").isDefined,
-          keyError("a<b").isDefined,
-          keyError("a&b").isDefined,
-          keyError("a'b").isDefined,
-        )
+      test("exampleDom takes runtime text only as a MountKey") {
+        for rejected <- typeCheck("""val raw = "counter"; specular.exampleDom(raw)""")
+        yield assertTrue(rejected.isLeft)
       },
-      test("rejects a key over the length cap") {
-        val ok  = "k" * MountKey.MaxLength
-        val big = "k" * (MountKey.MaxLength + 1)
-        assertTrue(keyError(ok).isEmpty, keyError(big).isDefined)
-      },
-      test("accepts the documented alphabet") {
-        assertTrue(keyError("raw-dom.counter_2").isEmpty)
-      },
-      test("Example.withMountKey validates the same alphabet") {
-        assertTrue(
-          scala.util.Try(example { E.p("x") }.withMountKey("bad key")).isFailure,
-          example { E.p("x") }.withMountKey("ok").mountKey.contains("ok"),
+      test("Example.withMountKey checks a literal key at compile time") {
+        for rejected <- typeCheck("""specular.example(ascent.dsl.E.p("x")).withMountKey("bad key")""")
+        yield assertTrue(
+          rejected.isLeft,
+          example { E.p("x") }.withMountKey("ok").mountKey.contains(MountKey("ok")),
         )
       },
     ),
@@ -330,7 +320,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
         val dom = DocInternal.domExamples(p.children)
         assertTrue(
           dom.map(_.id) == Vector("nested-ex-2"),
-          dom.map(_.mountKey) == Vector("counter"),
+          dom.map(_.mountKey.value) == Vector("counter"),
           collectExampleIds(p.children) == Vector("nested-ex-1", "nested-ex-2", "nested-ex-3"),
         )
       },
@@ -340,7 +330,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
           example { E.div("b") },
         )
         assertTrue(
-          DocInternal.mountKeys(p.children) == Vector("keys-ex-1")
+          DocInternal.mountKeys(p.children).map(_.value) == Vector("keys-ex-1")
         )
       },
       test("illustration shares the one example counter") {
@@ -359,14 +349,14 @@ object DocBuildersSpec extends ZIOSpecDefault:
           illustration { E.div("b") },
         )
         assertTrue(
-          DocInternal.mountKeys(p.children) == Vector("keys-ex-1")
+          DocInternal.mountKeys(p.children).map(_.value) == Vector("keys-ex-1")
         )
       },
       test("an explicit illustration mount key survives id assignment") {
         val p = page("Keys")(
           illustration { E.div("a") }.live.withMountKey("chosen")
         )
-        assertTrue(DocInternal.mountKeys(p.children) == Vector("chosen"))
+        assertTrue(DocInternal.mountKeys(p.children).map(_.value) == Vector("chosen"))
       },
       test("a static illustration declares no mount key") {
         val p = page("Quiet")(illustration { E.div("a") })
@@ -376,7 +366,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
         val p = page("Keys")(
           example { E.div("a") }.interactive.withMountKey("chosen")
         )
-        assertTrue(DocInternal.mountKeys(p.children) == Vector("chosen"))
+        assertTrue(DocInternal.mountKeys(p.children).map(_.value) == Vector("chosen"))
       },
       test("mountKeys walks sections and reports both example kinds in document order") {
         val p = page("Both")(
@@ -387,7 +377,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
           ),
         )
         assertTrue(
-          DocInternal.mountKeys(p.children) == Vector("both-ex-1", "dom-one", "both-ex-3")
+          DocInternal.mountKeys(p.children).map(_.value) == Vector("both-ex-1", "dom-one", "both-ex-3")
         )
       },
       // A non-interactive example must stay off the client's dispatch table.
@@ -405,10 +395,6 @@ object DocBuildersSpec extends ZIOSpecDefault:
       },
     ),
   )
-
-  /** The rejection message for `key`, or `None` if `exampleDom` accepted it. */
-  private def keyError(key: String): Option[String] =
-    scala.util.Try(exampleDom(key)).failed.toOption.map(_.getMessage)
 
   private def collectExampleIds(nodes: Vector[DocNode]): Vector[String] =
     nodes.flatMap {

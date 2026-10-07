@@ -18,7 +18,7 @@ object InteractiveContractSpec extends ZIOSpecDefault:
       val live = collectLive(BuildSite.pages)
       assertTrue(
         live.nonEmpty,
-        live.forall((id, key) => key.contains(id)),
+        live.forall((id, key) => key.map(_.value).contains(id)),
       )
     },
     test("client-bound keys across the site are exactly the ones ClientMain binds") {
@@ -62,8 +62,8 @@ object InteractiveContractSpec extends ZIOSpecDefault:
   )
 
   /** Interactive examples and live illustrations as (id, declared key). */
-  private def collectLive(pages: Vector[DocPage]): Vector[(String, Option[String])] =
-    def go(nodes: Vector[DocNode]): Vector[(String, Option[String])] =
+  private def collectLive(pages: Vector[DocPage]): Vector[(String, Option[MountKey])] =
+    def go(nodes: Vector[DocNode]): Vector[(String, Option[MountKey])] =
       nodes.flatMap {
         case ex: Example if ex.isInteractive       => Vector(ex.id -> ex.mountKey)
         case ill: AscentIllustration if ill.isLive => Vector(ill.id -> ill.mountKey)

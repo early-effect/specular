@@ -827,14 +827,14 @@ object SiteBuilderSpec extends ZIOSpecDefault:
     // The key alphabet is enforced at construction, but prove independently that nothing an
     // attribute could break out of reaches the HTML.
     test("a mount key is attribute-safe end to end") {
-      val hostile = scala.util.Try(exampleDom("\" onload=\"alert(1)"))
+      val hostile = MountKey.from("\" onload=\"alert(1)")
       val doc     = page("Safe")(exampleDom("a.b_c-1").fromSource(FixturePath, "greeting"))
       for
         tmp  <- ZIO.attempt(Files.createTempDirectory("specular-dom-key-safe"))
         path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
         html <- ZIO.attempt(Files.readString(path))
       yield assertTrue(
-        hostile.isFailure,
+        hostile.isLeft,
         html.contains(s"""${MountPoint.Attr}="a.b_c-1""""),
         !html.contains("onload"),
       )
