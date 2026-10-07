@@ -44,7 +44,7 @@ object Mounter:
     * pre-hook client did) releases anything the tree captured (a `sq` source, a subscription) the instant the mount
     * returns, leaving a tree that renders once and then goes inert.
     *
-    * `UI[Any]` rather than a general `UI[R]`: doc examples are `Example[Any]` (see `example` / `exampleIO`, specialized
+    * `UI[Any]` rather than a general `UI[R]`: doc bodies need no environment (see `example` / `exampleIO`, specialized
     * so contravariant `UI[-R]` cannot infer `Nothing`), and a generic `R` here would demand an `izumi` `Tag` from every
     * caller for an environment no DocSpec has. Provide the environment before building the mounter if you need one.
     */

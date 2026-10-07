@@ -412,7 +412,7 @@ object DocBuildersSpec extends ZIOSpecDefault:
 
   private def collectExampleIds(nodes: Vector[DocNode]): Vector[String] =
     nodes.flatMap {
-      case e: Example[?]         => Vector(e.id)
+      case e: Example            => Vector(e.id)
       case i: Illustration       => Vector(i.id)
       case v: ValueExample[?]    => Vector(v.id)
       case f: FailExample        => Vector(f.id)

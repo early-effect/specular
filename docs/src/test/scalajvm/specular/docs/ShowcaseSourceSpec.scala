@@ -26,9 +26,9 @@ object ShowcaseSourceSpec extends ZIOSpecDefault:
     },
   )
 
-  def collectUi(nodes: Vector[DocNode]): Vector[Example[?]] =
+  def collectUi(nodes: Vector[DocNode]): Vector[Example] =
     nodes.flatMap {
-      case e: Example[?]    => Vector(e)
+      case e: Example       => Vector(e)
       case Section(_, kids) => collectUi(kids)
       case _                => Vector.empty
     }
