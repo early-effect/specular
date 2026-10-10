@@ -5,7 +5,7 @@ import specular.*
 import specular.site.*
 import zio.*
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path, StandardCopyOption}
 
 /** Dogfood DocsSite: Compile main invoked by `docs/specularSite`. */
 object BuildSite extends DocsSite:
@@ -69,5 +69,15 @@ sbt docs/specularSite""",
 
   override def afterBuild(out: Path, result: SiteOutput): IO[SiteError, Unit] =
     val _ = result
-    EarlyEffectTheme.writeLogo(out)
+    // The builder always writes index.html as a summary. Why Specular is already the
+    // first nav page, so copying it over that file does not add a second sidebar entry.
+    // Paths in the page are site-relative and stay valid in the same directory.
+    val front   = out.resolve(s"${WhySpecular.doc.slug}.html")
+    val index   = out.resolve("index.html")
+    val promote =
+      ZIO.attemptBlockingIO(Files.copy(front, index, StandardCopyOption.REPLACE_EXISTING)).mapError { err =>
+        SiteError.WriteFailed(index, err)
+      }
+    promote *> EarlyEffectTheme.writeLogo(out)
+  end afterBuild
 end BuildSite

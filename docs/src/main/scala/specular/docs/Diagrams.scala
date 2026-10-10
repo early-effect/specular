@@ -84,7 +84,7 @@ relational schema in specular, so this page does not draw an `erDiagram`.
 
 ```scala
 // the docs project, never a published module
-libraryDependencies += "rocks.earlyeffect" %%% "mermoid-ascent" % "<version>"
+libraryDependencies += "rocks.earlyeffect" %%% "mermoid-ascent" % "0.2.0"
 
 illustration { MermoidAscent.diagram(Mermaid("flowchart LR\n  a --> b")) }
 

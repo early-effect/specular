@@ -356,9 +356,12 @@ def dogfoodMetaProps(
 ): Vector[String] =
   val basePath = sys.env.getOrElse("SPECULAR_BASE_PATH", ".")
   val docsUrl  = sys.env.getOrElse("SPECULAR_DOCS_URL", "")
+  // Dogfood stand-in for specularDisplayVersion. This build cannot load its own plugin.
+  // Do not strip `-ci` first: `0.20.1-ci` is not the unpublished `0.20.1`. A `+` or
+  // SNAPSHOT build is the same kind of lie. A clean release advertises itself.
   val displayVersion =
-    val mapped = if ver.endsWith("-ci") then ver.stripSuffix("-ci") else ver
-    if mapped == ver then "" else mapped
+    val unpublished = ver.contains("-ci") || ver.contains("+") || ver.contains("SNAPSHOT")
+    if unpublished then "0.20.0" else ""
   def opt(key: String, value: String): Seq[String] =
     Option(value).filterNot(_.isBlank).toSeq.map(v => s"-Dspecular.meta.$key=$v")
   (
