@@ -259,7 +259,7 @@ final case class SourceCite(
   /** Header only. A `val`, a `type` alias, and an opaque type stay whole, because they have no body to drop. */
   def signature: SourceCite = copy(view = CiteView.Signature)
 
-  /** Keep the first `lines` of the displayed text. `lines < 1` fails resolution with [[CiteError.BadElision]].
+  /** Keep the first `lines` of the displayed text. `lines < 1` fails resolution with `CiteError.BadElision`.
     *
     * The anchor and the footer still name the whole definition. The panel is a window onto it.
     */

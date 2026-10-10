@@ -7,7 +7,7 @@ import org.commonmark.node.*
 import org.commonmark.parser.Parser
 import zio.*
 
-/** Parses markdown prose into an ascent [[UI]] tree (never spliced HTML strings). */
+/** Parses markdown prose into an ascent [[ascent.ast.UI]] tree (never spliced HTML strings). */
 trait MarkdownRenderer:
   def toUi(markdown: String, copyCode: Boolean = true): UIO[UI[Any]]
 

@@ -8,7 +8,9 @@ enum CiteView:
   /** Scaladoc, annotations, and the header. The body is dropped. A `val` or type alias is already a header. */
   case Signature
 
-/** Whether a cite is reformatted. [[Inherit]] uses the site default (`specularCiteFormat`, as-written unless set). */
+/** Whether a cite is reformatted. [[CiteFormat.Inherit]] uses the site default (`specularCiteFormat`, as-written unless
+  * set).
+  */
 enum CiteFormat:
   case Inherit
   case AsWritten
@@ -16,8 +18,9 @@ enum CiteFormat:
 
 /** Which kind of definition a cite names.
   *
-  * A class and its companion share a name. [[Module]] is the `object`. [[Class]] is the class, trait, or enum.
-  * [[Member]] is everything else the signature already distinguishes (a method, a val, a type alias, an opaque type).
+  * A class and its companion share a name. [[CiteForm.Module]] is the `object`. [[CiteForm.Class]] is the class, trait,
+  * or enum. [[CiteForm.Member]] is everything else the signature already distinguishes (a method, a val, a type alias,
+  * an opaque type).
   */
 enum CiteForm:
   case Module

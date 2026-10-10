@@ -7,7 +7,7 @@ import zio.ZIO
 import zio.ZLayer
 import zio.test.*
 
-/** Interprets a [[DocSpec]] as a zio-test [[Spec]]. */
+/** Interprets a [[DocSpec]] as a zio-test [[zio.test.Spec]]. */
 trait DocTestInterpreter:
   def toSpec(docSpec: DocSpec): Spec[Any, Any]
 

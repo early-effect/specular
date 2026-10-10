@@ -5,7 +5,7 @@ import ascent.domtypes.AttrValue
 
 /** Shared catalog card UI for SSR (LandingTemplate) and live catalog remount.
   *
-  * All remote strings go through [[UI.Text]] (text nodes / escaped SSR). Links use [[SafeHref]].
+  * All remote strings go through [[ascent.ast.UI.Text]] (text nodes / escaped SSR). Links use [[SafeHref]].
   */
 object CatalogCards:
 

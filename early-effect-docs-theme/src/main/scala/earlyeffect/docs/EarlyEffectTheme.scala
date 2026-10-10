@@ -7,8 +7,8 @@ import java.nio.file.Path
 
 /** Published Early Effect brand pack for Specular sites (hub + library docs).
   *
-  * Depends on `specular-site` for [[Theme]] / [[ThemeTokens]]; keeps org branding out of Specular itself. Other EE
-  * projects brand a `DocsSite` with three one-liners:
+  * Depends on `specular-site` for [[specular.site.Theme]] / [[specular.site.ThemeTokens]]; keeps org branding out of
+  * Specular itself. Other EE projects brand a `DocsSite` with three one-liners:
   *
   * {{{
   * libraryDependencies += "rocks.earlyeffect" %% "early-effect-docs-theme" % "<version>"
@@ -116,7 +116,7 @@ object EarlyEffectTheme:
       logoLink = site.logoLink.orElse(Some(hubUrl)),
     )
 
-  /** Convenience [[BrandLink]] for docs chrome / landing hero. */
+  /** Convenience [[specular.site.BrandLink]] for docs chrome / landing hero. */
   def github(url: String): BrandLink = BrandLink("GitHub", url)
 
   /** Copy header + hero brand marks into the site output (creates parent dirs). */

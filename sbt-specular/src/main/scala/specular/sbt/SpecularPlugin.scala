@@ -9,20 +9,21 @@ import sbt.nio.file.Glob
 
 /** Specular site settings for consumer projects.
   *
-  * Convention: DocSpecs, [[specularBuildMain]], and demo UI live on **Compile**. Thin `DocSpecSuite` wrappers live on
-  * Test so `sbt test` discovers them. `specularSite` still compiles Test and forks `(Test / fullClasspath)` (Test
-  * includes Compile), so a Test-only layout still builds.
+  * Convention: DocSpecs, [[autoImport.specularBuildMain]], and demo UI live on **Compile**. Thin `DocSpecSuite`
+  * wrappers live on Test so `sbt test` discovers them. `specularSite` still compiles Test and forks
+  * `(Test / fullClasspath)` (Test includes Compile), so a Test-only layout still builds.
   *
   * Set `specularMetaProject` to the published module (not the docs project) so `-Dspecular.meta.*` carries product
   * identity. Wire `specularJsLink` to `(jsProj / spliceFull)` (and copy into `assets/client.js`) when you have a
   * Scala.js client. Wire `specularJsLinkDev` to `spliceFast` for `specularSiteDev` / `specularPreview`, and set
-  * [[specularJsProject]] so the preview poller watches that client's Compile sources.
+  * [[autoImport.specularJsProject]] so the preview poller watches that client's Compile sources.
   *
-  * Requires [[AscentPreviewPlugin]]. The documented edit loop is `sbt docs/specularPreview` (no `~`): rebuild, start
-  * Preview, watch Compile + Test sources (and the JS client when [[specularJsProject]] is set). From a terminal it
-  * stays in the foreground until interrupt. At an sbt prompt it returns so tests still run; stop with
-  * `docs/specularPreviewStop`. That task delegates to `ascentPreview`. `specularPreviewOnce` is start-and-return, no
-  * watch. `specularServe` is a blocking one-shot of an already-built tree. Do not `~` any of these.
+  * Requires [[ascent.preview.sbt.AscentPreviewPlugin]]. The documented edit loop is `sbt docs/specularPreview` (no
+  * `~`): rebuild, start Preview, watch Compile + Test sources (and the JS client when [[autoImport.specularJsProject]]
+  * is set). From a terminal it stays in the foreground until interrupt. At an sbt prompt it returns so tests still run;
+  * stop with `docs/specularPreviewStop`. That task delegates to `ascentPreview`. `specularPreviewOnce` is
+  * start-and-return, no watch. `specularServe` is a blocking one-shot of an already-built tree. Do not `~` any of
+  * these.
   *
   * Passes into the forked builder:
   *   - `-Dspecular.meta.*` from `specularMetaProject` (+ `specularArtifactKind`, optional mapped display version)
