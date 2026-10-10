@@ -37,15 +37,7 @@ object BuildSite extends DocsSite:
       nav = Some(siteNav),
       pages = siteNav.pages,
       clientScript = Some("assets/client.js"),
-      summaryMarkdown = Some(
-        s"""**Specular** is tests-as-docs for Scala 3: author pages as `DocSpec` programs that assert
-under **zio-test** and SSR into a static site through [ascent](https://github.com/early-effect/ascent).
-
-Most teams adopt it as the **`sbt-specular` plugin**, which wires project meta and runs
-`specularSite`. The libraries (`specular-core`, `specular-zio-test`, `specular-site`) are
-available when you want to compose sites by hand.
-"""
-      ),
+      summaryMarkdown = Some("A documentation page that can lie should fail the build."),
       installSnippets = Vector(
         CodeSnippet(
           "sbt plugin (typical)",

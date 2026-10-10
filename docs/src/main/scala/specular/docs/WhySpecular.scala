@@ -2,6 +2,7 @@ package specular.docs
 
 import ascent.*
 import ascent.dsl.*
+import mermoid.ascent.MermoidAscent
 import specular.*
 import zio.test.*
 
@@ -9,6 +10,24 @@ import zio.test.*
 object WhySpecular extends DocSpec:
 
   def doc = page("Why Specular")(
+    md"""
+A documentation page that can lie should fail the build.
+""",
+    illustration {
+      MermoidAscent.diagram(DocFigures.pipeline)
+    }.assert { ui =>
+      val text = ui.toString
+      assertTrue(text.contains("DocPage"), text.contains("sbt test"), text.contains("HTML page"))
+    },
+    cite[DocSpec](_.doc),
+    md"""
+The coordinate on Central is `0.20.0`.
+
+```scala
+addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "0.20.0")
+libraryDependencies += "rocks.earlyeffect" %% "specular-core" % "0.20.0"
+```
+""",
     md"""
 Scala libraries deserve docs that **compile with the build** and **fail CI when they lie**.
 
@@ -33,7 +52,10 @@ Specular treats that as a **build failure**, not a docs chore.
           E.li(E.strong("Markdown-first"), ": prose owns the page; code is optional decoration."),
           E.li(E.strong("Specular"), ": Scala owns the page; prose explains what the code already proves."),
         )
-      }.assert(ui => assertTrue(ui != null)),
+      }.assert { ui =>
+        val text = ui.toString
+        assertTrue(text.contains("Markdown-first"), text.contains("Specular"))
+      },
     ),
     section("One AST, two interpreters")(
       md"""
@@ -52,7 +74,10 @@ There is no second source of truth. The page you read is the page CI ran.
           E.li(E.code("sbt test"), " gates honesty"),
           E.li(E.code("specularSite"), " publishes HTML + ", E.code("metadata.json")),
         )
-      }.assert(_ => assertTrue(true)),
+      }.assert { ui =>
+        val text = ui.toString
+        assertTrue(text.contains("DocSpec"), text.contains("sbt test"), text.contains("metadata.json"))
+      },
     ),
     section("Why this fits Scala")(
       md"""
@@ -90,7 +115,9 @@ library**, **composable discovery for the org**.
           E.p(E.code("metadata.json"), " → hub card"),
           E.p("Same release tag that ships the jar can ship the docs."),
         )
-      }.assert(_ => assertTrue(true)),
+      }.assert { ui =>
+        assertTrue(ui.toString.contains("metadata.json"))
+      },
     ),
     section("When to reach for Specular")(
       md"""
