@@ -6,24 +6,29 @@ import zipx.*
   * already brings it in. Action pins stay on jar defaults.
   */
 object MyVersions extends ZipxVersions:
-  val sbt: SbtVersion     = SbtVersion("2.1.0-M2")
+  val sbt: SbtVersion     = SbtVersion("2.1.0-M3")
   val scala: ScalaVersion = ScalaVersion("3.9.0")
+
+  val release = ShipGroup("specular", "0.19.1")("core", "zioTest", "site", "eeDocsTheme", "plugin")
 
   val zio        = Lib("dev.zio", "zio", "2.1.26")
   val zioTest    = zio.mod("zio-test")
   val zioTestSbt = zio.mod("zio-test-sbt")
+  val zioJson: Lib = Lib("dev.zio", "zio-json", "1.1.0")
 
-  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.7.4")
+  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.10.1")
   val ascentCss     = ascent.mod("ascent-css")
-  val ascentJs      = ascent.mod("ascent-js")
-  val ascentHtml    = ascent.mod("ascent-html")
-  val ascentPreview = ascent.mod("ascent-preview")
+  val ascentJs      = Lib("rocks.earlyeffect", "ascent-js", "0.11.0")
+  val ascentHtml    = Lib("rocks.earlyeffect", "ascent-html", "0.10.0")
+  val ascentPreview = Lib("rocks.earlyeffect", "ascent-preview", "0.10.0")
 
-  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.0.8")
+  /** Docs-only: the figures in specular's own pages. No published module selects it. */
+  val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.1.0")
+
+  /** specular-site calls heddle's client itself, so it names heddle rather than taking it through ascent-preview. */
+  val heddle = Lib("rocks.earlyeffect", "heddle", "0.9.0")
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
-  val scalaJavaTime     = Lib("io.github.cquiroz", "scala-java-time", "2.7.0")
-  val scalaJavaTimeTzdb = scalaJavaTime.mod("scala-java-time-tzdb")
 
   val commonmark    = Lib("org.commonmark", "commonmark", "0.30.0").java
   val commonmarkGfm = Lib("org.commonmark", "commonmark-ext-gfm-tables", "0.30.0").java
@@ -31,19 +36,15 @@ object MyVersions extends ZipxVersions:
 
   val scalajs          = Plugin("org.scala-js", "sbt-scalajs", "1.22.0")
   val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
-  val dynverCi         = Plugin("rocks.earlyeffect", "sbt-dynver-ci", "0.2.3")
-  val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.3.0")
-  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.7.4")
+  val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.3.2")
+  val sbtAscentPreview = Plugin("rocks.earlyeffect", "sbt-ascent-preview", "0.10.0")
 
   def zioTests   = library(zioTest.test, zioTestSbt.test)
   def zioLib     = library(zio)
-  def coreJvm    = library(zio, zioTest, ascent, ascentCss)
+  def coreJvm    = library(zio, zioTest, zioJson, ascent, ascentCss)
   def coreJs     = library(ascentJs, scalajsDom)
-  def javaTime   = library(scalaJavaTime, scalaJavaTimeTzdb)
-  def siteLib    = library(ascentHtml, ascentPreview, commonmark, commonmarkGfm, scalafmtCore)
-  def mermoidLib = library(ascent, ascentCss, mermoidAscent)
-  def mermoidJvm = library(ascentHtml)
-  def mermoidJs  = library(ascentJs)
+  def siteLib    = library(ascentHtml, ascentPreview, heddle, commonmark, commonmarkGfm, scalafmtCore)
   def zioTestLib = library(zioTest, zioTestSbt)
   def docsJs     = library(ascentJs, ascentCss, zioTest)
+  def docsFigures = library(mermoidAscent)
 end MyVersions

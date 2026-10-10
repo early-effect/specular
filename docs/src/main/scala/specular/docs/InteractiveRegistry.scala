@@ -1,5 +1,7 @@
 package specular.docs
 
+import specular.MountKey
+
 /** Mount keys for `exampleDom` examples in these docs, shared by the page, the JVM spec, and the JS client.
   *
   * The key is a contract between three places that cannot see each other: the DocSpec declares it, `ClientMain`
@@ -11,8 +13,11 @@ package specular.docs
 object InteractiveRegistry:
 
   /** The raw-DOM counter on the Interactive page; bound to `RawDomDemo.mounter` in `ClientMain`. */
-  val RawDomCounter: String = "raw-dom-counter"
+  val RawDomCounter: MountKey = MountKey("raw-dom-counter")
 
-  /** Every `exampleDom` key these docs declare. `ClientMain` must bind a mounter for each. */
-  val domKeys: Set[String] = Set(RawDomCounter)
+  /** The DOM illustration on the Diagrams page; bound to `DiagramPoster.mounter` in `ClientMain`. */
+  val DiagramPoster: MountKey = MountKey("diagram-poster")
+
+  /** Every hand-bound mount key these docs declare (`exampleDom` and `illustrationDom`). */
+  val domKeys: Set[MountKey] = Set(RawDomCounter, DiagramPoster)
 end InteractiveRegistry

@@ -81,11 +81,9 @@ tags via sbt-dynver (`v0.1.0` → `0.1.0`).
 ```scala
 libraryDependencies ++= Seq(
   "rocks.earlyeffect" %% "specular-core"     % "<version>",
-  "rocks.earlyeffect" %% "specular-site"     % "<version>", // includes mermaid Prose fences
+  "rocks.earlyeffect" %% "specular-site"     % "<version>",
   "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
 )
-// docs JS client (when you remount interactive diagrams):
-// libraryDependencies += "rocks.earlyeffect" %%% "specular-mermoid" % "<version>"
 
 // sbt plugin: injects product meta and runs specularSite (Test CP includes Compile)
 addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "<version>")
@@ -119,20 +117,23 @@ def section(title: String)(nodes: DocNode*): Section
 def md"""…""": Prose                                          // markdown → ascent UI
 def example { ui }: Example[Any]                              // static UI + source capture
 def exampleIO { urio }: Example[Any]                          // effectful UI (e.g. sq(0), diagramInteractive)
-def illustration { ui }: Illustration[Any]                    // SSR tree, no source panel
-def illustrationIO { urio }: Illustration[Any]                // effectful illustration (e.g. sq)
+def illustration { ui }: AscentIllustration[Any]              // SSR tree, no source panel
+def illustrationIO { urio }: AscentIllustration[Any]          // effectful illustration (e.g. sq)
+def illustrationDom(key): DomIllustration                     // keyed DOM mount, no source file
 def exampleValue { a } / exampleZIO { zio }: ValueExample[A]   // plain value / effect + printed result
 def exampleError { zio }: ValueExample[E]                      // documented typed failure; result is E
 def expectFail("…") / expectCrash { zio }                     // must-not-compile / must-fail (Cause)
-def exampleDom(key): DomExample                               // interactive mount, any framework
+def exampleDom(key): DomExample                               // interactive sample, any framework
 example.interactive                                           // also mount client-side (ascent)
-illustration.live                                             // remount an illustration (same path as .interactive)
+illustration.live                                             // remount an ascent illustration (same path as .interactive)
 example.assert(ui => assertTrue(…))                           // zio-test assertion
 ```
 
-Mermaid diagrams use `specular-mermoid` (via `specular-site`): fenced `mermaid` in Prose and
-`Mermoid.diagram` render hybrid HTML+SVG at build time; `exampleIO { Mermoid.diagramInteractive(…) }.interactive`
-adds selection, tooltips, and viewport reflow in the browser.
+A diagram is not a specular feature, and no published specular module depends on a diagram tool.
+Depend on the tool in the docs project and pass an ascent component to `illustration { ... }`, or
+mount a DOM element with `illustrationDom`. For Mermaid diagrams, `mermoid-ascent` fits
+`illustration` directly: see [Specular illustrations](https://www.earlyeffect.rocks/mermoid/specular-illustrations.html).
+A fenced `mermaid` block in prose is a code block.
 
 Wire the page with `DocSpecSuite` (tests) and `DocsSite` (site map):
 
@@ -163,7 +164,7 @@ exampleDom("counter").fromSource("docs/client/src/main/scala/acme/Counter.scala"
 // Scala.js client: one call covers both kinds
 def run = ZIO.scoped {
   SpecularClient.mountAll(
-    SpecularClient.fromPages(pages*) ++ Map("counter" -> Mounter.sync(el => Preact.render(node, el)))
+    SpecularClient.fromPages(pages*) ++ Map(MountKey("counter") -> Mounter.sync(el => Preact.render(node, el)))
   ) *> ZIO.never
 }
 ```
@@ -172,7 +173,7 @@ def run = ZIO.scoped {
 `fromSource(path, marker)` shows just the region between `// specular:begin <marker>` and
 `// specular:end`. Paths are repo-relative to `specularSourceRoot` and confined to it.
 
-`fromPages` registers every `.interactive` ascent example and every `.live` illustration; `exampleDom` keys are yours to bind.
+`fromPages` registers every `.interactive` ascent example and every `.live` illustration; `exampleDom` and `illustrationDom` keys are yours to bind.
 Mounters share the **page's** `Scope` (so an `acquireRelease`d listener survives setup), run isolated
 (one failure gets an error box, not a blank page), and are forked (a never-ending mounter cannot
 starve the rest). `exampleDom` is the one node kind that emits a test without `.assert`, so a moved
@@ -202,8 +203,8 @@ logo PNGs — it pre-composes the stack, so branding is three one-liners:
 ```scala
 libraryDependencies += "rocks.earlyeffect" %% "early-effect-docs-theme" % "<version>"
 
-override def site   = EarlyEffectTheme.brand(super.site)   // header logo + hub link
-override def layers = EarlyEffectTheme.layers              // EE tokens >>> DocsSite.themedStack
+override def site(settings: DocsSettings) = EarlyEffectTheme.brand(super.site(settings)) // header logo + hub link
+override def layers = EarlyEffectTheme.layers // EE tokens >>> DocsSite.themedStack
 override def afterBuild(out: Path, result: SiteOutput) = EarlyEffectTheme.writeLogo(out)
 ```
 
@@ -222,10 +223,9 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 
 | Module | Artifact | Role |
 |--------|----------|------|
-| `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section` / `exampleDom`, shared `ProjectMeta` / catalog cards; JVM `DomSourceLoader`; JS `SpecularClient` / `Mounter` / `LiveCatalog` |
+| `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section` / `exampleDom` / `illustrationDom`, shared `ProjectMeta` / catalog cards; JVM `DomSourceLoader`; JS `SpecularClient` / `Mounter` / `LiveCatalog` |
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
-| `site` | `specular-site` | Markdown → UI (incl. fenced `mermaid`), SSR, themes, templates, `metadata.json`, JVM meta fetch |
-| `mermoid` | `specular-mermoid` | [mermoid](https://github.com/early-effect/mermoid) via `mermoid-ascent`: `Mermoid.diagram` (hybrid), `diagramInteractive` / `diagramControlled` (selection/reflow), `svgDiagram` (inert); pulled in by site on JVM; `%%%` for Scala.js remount |
+| `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
 | `docs` | (unpublished) | Dogfood site for specular itself |

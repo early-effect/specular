@@ -6,7 +6,7 @@ import zio.*
 
 /** Landing / hub chrome: hero, catalog, no docs sidebar. */
 trait LandingTemplate:
-  def wrap(model: SiteModel): Task[UI[Any]]
+  def wrap(model: SiteModel): UIO[UI[Any]]
 
 object LandingTemplate:
 
@@ -20,7 +20,7 @@ object LandingTemplate:
     Attr.StaticAttr(name, AttrValue.Str(value))
 
   private final case class Live(theme: Theme, md: MarkdownRenderer) extends LandingTemplate:
-    def wrap(model: SiteModel): Task[UI[Any]] =
+    def wrap(model: SiteModel): UIO[UI[Any]] =
       val home  = model.home.getOrElse(HomePage())
       val brand = model.brand
       for
@@ -131,7 +131,7 @@ object LandingTemplate:
       )
     end renderHero
 
-    private def renderSection(section: HomeSection, classes: ThemeClasses): Task[UI[Any]] =
+    private def renderSection(section: HomeSection, classes: ThemeClasses): UIO[UI[Any]] =
       section match
         case catalog: ProjectCatalog =>
           ZIO.succeed(renderCatalog(catalog, classes))

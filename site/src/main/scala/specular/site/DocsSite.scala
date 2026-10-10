@@ -16,64 +16,47 @@ trait DocsSite extends ZIOAppDefault:
   /** Ordered site map (nav order). Must be non-empty. */
   def pages: Vector[DocPage]
 
-  /** Output directory; honors `-Dspecular.site.dir`. */
-  def outDir: Path =
-    SitePaths.outDir(Paths.get("target/site").toAbsolutePath.nn)
-
-  /** Base path for nav hrefs; honors `-Dspecular.site.basePath`. */
-  def basePath: String =
-    SitePaths.basePath(".")
-
-  /** Meta from `-Dspecular.meta.*`. Missing required props fail the build. */
-  def meta: ProjectMeta =
-    ProjectMeta.fromSystemProperties.getOrElse {
-      throw new IllegalStateException(
-        "Missing -Dspecular.meta.* (name, organization, version, scalaVersion). " +
-          "Run via sbt-specular `specularSite` with `specularMetaProject` set."
-      )
-    }
-
-  /** Full site model; override or `copy` to customize summary, snippets, logo, client script, etc. */
-  def site: SiteModel =
-    val m = meta
+  /** Full site model from what sbt-specular passed; override or `copy` to customize summary, snippets, logo, client
+    * script, etc.
+    */
+  def site(settings: DocsSettings): SiteModel =
     SiteModel(
-      title = m.displayTitle,
-      basePath = basePath,
+      title = settings.meta.displayTitle,
+      basePath = settings.basePath.getOrElse("."),
       pages = pages,
       clientScript = None,
-      meta = Some(m),
-      description = m.description,
-      logoLink = SitePaths.parentHref,
+      meta = Some(settings.meta),
+      description = settings.meta.description,
+      logoLink = settings.parentHref,
+      artifactKind = settings.artifactKind,
     )
-  end site
 
   /** ZIO layers for the stock site stack. Replace [[Theme]] (or more) by overriding. */
   def layers: ZLayer[Any, Nothing, SiteBuilder] =
     DocsSite.standardLayers
 
   /** Runs after a successful build (e.g. write logo, copy JS client). */
-  def afterBuild(out: Path, result: SiteOutput): Task[Unit] =
+  def afterBuild(out: Path, result: SiteOutput): IO[SiteError, Unit] =
     val _ = (out, result)
     ZIO.unit
 
-  /** Build the site (fail-loud on empty pages / missing meta via [[meta]] / [[site]]). */
-  final def build: Task[SiteOutput] =
-    if pages.isEmpty then
-      ZIO.fail(new IllegalStateException("DocsSite.pages must be non-empty (site map / nav order)."))
+  /** Read [[DocsSettings]], then build the site. Empty pages and missing `specular.meta.*` fail the build. */
+  final def build: IO[SiteError, SiteOutput] =
+    if pages.isEmpty then ZIO.fail(SiteError.NoPages)
     else
-      val model = site
-      val out   = outDir
-      ZIO
-        .serviceWithZIO[SiteBuilder](_.buildSite(model, out))
-        .flatMap { result =>
-          afterBuild(out, result).as(result)
-        }
-        .provideLayer(layers)
+      for
+        settings <- ZIO.config(DocsSettings.config).mapError(SiteError.Settings(_))
+        out = settings.outDir.getOrElse(Paths.get("target/site").nn).toAbsolutePath.nn
+        result <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(site(settings), out)).provideLayer(layers)
+        _      <- afterBuild(out, result)
+      yield result
 
-  final def run: ZIO[Any & ZIOAppArgs & Scope, Any, Any] =
-    build.flatMap { result =>
-      Console.printLine(s"Wrote ${result.pages.mkString(", ")}")
-    }
+  /** The process boundary: a [[SiteError]] is printed for the author and exits non-zero. */
+  final def run: ZIO[ZIOAppArgs & Scope, Nothing, ExitCode] =
+    build.foldZIO(
+      error => Console.printLineError(s"specular: ${error.message}").ignore.as(ExitCode.failure),
+      result => Console.printLine(s"Wrote ${result.pages.mkString(", ")}").ignore.as(ExitCode.success),
+    )
 end DocsSite
 
 object DocsSite:
@@ -84,9 +67,6 @@ object DocsSite:
     * {{{
     * override def layers = EarlyEffectTheme.live >>> DocsSite.themedStack
     * }}}
-    *
-    * Diagram styling for fenced `mermaid` comes from [[ThemeTokens.diagramConfig]] on that theme — copy the tokens (or
-    * use a brand pack) to swap palettes without touching DocSpecs.
     */
   val themedStack: ZLayer[Theme, Nothing, SiteBuilder] =
     ZLayer.makeSome[Theme, SiteBuilder](

@@ -18,12 +18,13 @@ That is the entire contract, so anything that can write into a DOM node is a fir
 example: preact, laminar, slinky, tyrian, raw DOM, or ascent. Ascent is not special: it is one
 adapter (`Mounter.fromAscent`) over the same hook, wired for you by `.interactive`.
 """,
-    section("The two authoring forms")(
+    section("The authoring forms")(
       md"""
 | You are documenting | Use | Source panel comes from |
 | ------------------- | --- | ----------------------- |
 | An ascent `UI` sample | `example`/`exampleIO` + `.interactive` | the captured expression (macro) |
 | An ascent `UI` that *is* the page | `illustration`/`illustrationIO` + `.live` | none |
+| A DOM element that *is* the page | `illustrationDom(key)` | none |
 | Anything else | `exampleDom(key).fromSource(...)` | a real file, read at build time |
 
 `.interactive` is unchanged from before the hook: it assigns the mount key from the example's id, so
@@ -37,7 +38,7 @@ build rather than silently rotting.
 """,
       exampleValue {
         val ref = exampleDom("counter").fromSource("docs/client/src/main/scala/acme/Counter.scala", "demo")
-        (ref.mountKey, ref.source.describe)
+        (ref.mountKey.value, ref.source.describe)
       }.assert(t => assertTrue(t == ("counter", "docs/client/src/main/scala/acme/Counter.scala#demo"))),
     ),
     section("Marking a region")(
@@ -102,13 +103,13 @@ object ClientMain extends ZIOAppDefault:
 
   def run = ZIO.scoped {
     SpecularClient.mountAll(
-      SpecularClient.fromPages(pages*) ++ Map("counter" -> Counter.mounter)
+      SpecularClient.fromPages(pages*) ++ Map(MountKey("counter") -> Counter.mounter)
     ) *> ZIO.never
   }
 ```
 
 `fromPages` handles every `.interactive` ascent example and every `.live` illustration.
-`exampleDom` keys are yours to register:
+`exampleDom` and `illustrationDom` keys are yours to register:
 specular cannot invent a mounter for code it does not import.
 
 `ZIO.scoped` around the whole thing on purpose: that scope is the page lifetime the mounters share.
@@ -123,8 +124,9 @@ a page that *is* an Ascent document.
 
 `illustration` / `illustrationIO` SSR the tree (and `.live` remounts it) without that chrome: no
 source panel, no copy button, a quiet `div`. Same ids and `data-specular-mount` path as examples.
-`.assert` is still optional. Do not hide `.specular-code` with CSS; that is a leak of Specular
-internals into the library docs.
+`.assert` is still optional. A picture that is not a sample uses `illustrationDom`: the same quiet
+`div`, no source file, and a `Mounter` you bind. `exampleDom` stays the sample, with a source panel.
+Do not hide `.specular-code` with CSS; that is a leak of Specular internals into the library docs.
 """,
       illustration {
         E.article(
@@ -186,8 +188,8 @@ pages' mount points are absent by design.
           exampleDom("counter").fromSource("some/File.scala"),
         )
         p.children.collect {
-          case e: Example[?] => e.id -> e.mountKey
-          case d: DomExample => d.id -> Some(d.mountKey)
+          case e: Example    => e.id -> e.mountKey.map(_.value)
+          case d: DomExample => d.id -> Some(d.mountKey.value)
         }
       }.assert(keys =>
         assertTrue(
@@ -196,15 +198,20 @@ pages' mount points are absent by design.
         )
       ),
     ),
-    section("Illegal keys fail loudly")(
+    section("Illegal keys do not compile")(
       md"""
-A mount key becomes an HTML attribute value and a client-side map key, so it is restricted to
-`[A-Za-z0-9._-]+` and 128 characters. A bad one throws at *construction*, which means it fails both
-`sbt test` and the site build rather than degrading into an example that quietly never mounts:
+A mount key becomes an HTML attribute value and a client-side map key, so `MountKey` restricts it to
+`[A-Za-z0-9._-]+`. A literal key is checked by the compiler, so a bad one cannot reach `sbt test`,
+let alone the site:
 """,
-      expectCrash {
-        zio.ZIO.attempt(exampleDom("\" onload=\"alert(1)"))
-      }.assert(c => assertTrue(c.failures.exists(_.isInstanceOf[IllegalArgumentException]))),
+      expectFail("""specular.exampleDom("\" onload=\"alert(1)")""")
+        .assert(errors => assertTrue(errors.exists(_.message.contains("may contain only")))),
+      md"""
+Runtime text goes through `MountKey.from`, which returns a typed `MountKeyError`:
+""",
+      exampleValue {
+        MountKey.from("\" onload=\"alert(1)")
+      }.assert(key => assertTrue(key == Left(MountKeyError.IllegalCharacters("\" onload=\"alert(1)")))),
     ),
     section("Path rules")(
       md"""

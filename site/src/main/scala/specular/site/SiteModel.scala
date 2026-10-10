@@ -22,6 +22,8 @@ final case class SiteModel(
     summaryMarkdown: Option[String] = None,
     /** Install / usage snippets on the docs index (plugin-first sites set these explicitly). */
     installSnippets: Vector[CodeSnippet] = Vector.empty,
+    /** Shape of the default install snippet when [[installSnippets]] is empty. */
+    artifactKind: ArtifactKind = ArtifactKind.Library,
     /** When true, source panels and fenced code blocks get a copy-to-clipboard control. */
     copyCode: Boolean = true,
     /** Optional nested sidebar; when set, [[NavBuilder]] renders the tree (pages still drive routing). */
@@ -137,7 +139,7 @@ object ProjectCatalog:
     )
 
   /** Build a catalog by fetching each micro-site's published `metadata.json` (SSR / build-time). */
-  def fromMetadataUrls(urls: Vector[String]): RIO[Client, ProjectCatalog] =
+  def fromMetadataUrls(urls: Vector[String]): ZIO[Client, MetaFetchError, ProjectCatalog] =
     ProjectMetaHttp.fetchAll(urls).map(ps => ProjectCatalog(projects = ps))
 end ProjectCatalog
 

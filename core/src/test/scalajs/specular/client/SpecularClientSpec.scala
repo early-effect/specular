@@ -29,7 +29,7 @@ object SpecularClientSpec extends ZIOSpecDefault:
           seen <- Ref.make(Vector.empty[String])
           _    <- ZIO.scoped {
             SpecularClient.mountAll(
-              Map("k" -> Mounter.effect(e => seen.update(_ :+ e.getAttribute(MountPoint.Attr)) *> ZIO.unit))
+              Map(MountKey("k") -> Mounter.effect(e => seen.update(_ :+ e.getAttribute(MountPoint.Attr)) *> ZIO.unit))
             ) *> ZIO.yieldNow.repeatN(4)
           }
           keys <- seen.get
@@ -49,8 +49,8 @@ object SpecularClientSpec extends ZIOSpecDefault:
           _   <- ZIO.scoped {
             SpecularClient.mountAll(
               Map(
-                "here"      -> Mounter.effect(_ => ran.update(_ :+ "here")),
-                "otherpage" -> Mounter.effect(_ => ran.update(_ :+ "otherpage")),
+                MountKey("here")      -> Mounter.effect(_ => ran.update(_ :+ "here")),
+                MountKey("otherpage") -> Mounter.effect(_ => ran.update(_ :+ "otherpage")),
               )
             ) *> ZIO.yieldNow.repeatN(4)
           }
@@ -66,9 +66,9 @@ object SpecularClientSpec extends ZIOSpecDefault:
           val boxes = el.childrenWithClass(MountPoint.ErrorClass)
           assertTrue(
             boxes.length == 1,
-            boxes.head.textContent.contains("unregistered"),
+            boxes.headOption.exists(_.textContent.contains("unregistered")),
             // Rendered as text, never markup: the message quotes a key and an exception message.
-            boxes.head.innerHTML.isEmpty,
+            boxes.headOption.exists(_.innerHTML.isEmpty),
           )
       },
       test("a failing mounter is isolated: its neighbours still mount") {
@@ -80,8 +80,8 @@ object SpecularClientSpec extends ZIOSpecDefault:
           _   <- ZIO.scoped {
             SpecularClient.mountAll(
               Map(
-                "bad"  -> Mounter.effect(_ => ZIO.fail(new RuntimeException("boom"))),
-                "good" -> Mounter.effect(_ => ran.update(_ :+ "good")),
+                MountKey("bad")  -> Mounter.effect(_ => ZIO.fail(new RuntimeException("boom"))),
+                MountKey("good") -> Mounter.effect(_ => ran.update(_ :+ "good")),
               )
             ) *> ZIO.yieldNow.repeatN(8)
           }
@@ -103,8 +103,8 @@ object SpecularClientSpec extends ZIOSpecDefault:
           _   <- ZIO.scoped {
             SpecularClient.mountAll(
               Map(
-                "bad"  -> Mounter.sync(_ => throw new IllegalStateException("defect")),
-                "good" -> Mounter.effect(_ => ran.update(_ :+ "good")),
+                MountKey("bad")  -> Mounter.effect(_ => ZIO.die(IllegalStateException("defect"))),
+                MountKey("good") -> Mounter.effect(_ => ran.update(_ :+ "good")),
               )
             ) *> ZIO.yieldNow.repeatN(8)
           }
@@ -125,8 +125,8 @@ object SpecularClientSpec extends ZIOSpecDefault:
           _   <- ZIO.scoped {
             SpecularClient.mountAll(
               Map(
-                "forever" -> Mounter.effect(_ => ZIO.never),
-                "after"   -> Mounter.effect(_ => ran.update(_ :+ "after")),
+                MountKey("forever") -> Mounter.effect(_ => ZIO.never),
+                MountKey("after")   -> Mounter.effect(_ => ran.update(_ :+ "after")),
               )
             ) *> ZIO.yieldNow.repeatN(8)
           }
@@ -143,7 +143,7 @@ object SpecularClientSpec extends ZIOSpecDefault:
           inside   <- ZIO.scoped {
             SpecularClient.mountAll(
               Map(
-                "res" -> Mounter.effect(_ => ZIO.acquireRelease(ZIO.unit)(_ => released.set(true)))
+                MountKey("res") -> Mounter.effect(_ => ZIO.acquireRelease(ZIO.unit)(_ => released.set(true)))
               )
             ) *> ZIO.yieldNow.repeatN(4) *> released.get
           }
@@ -156,7 +156,7 @@ object SpecularClientSpec extends ZIOSpecDefault:
         val el  = FakeDom.mountPoint(doc, "k")
         for
           count <- Ref.make(0)
-          mounters = Map("k" -> Mounter.effect(_ => count.update(_ + 1)))
+          mounters = Map(MountKey("k") -> Mounter.effect(_ => count.update(_ + 1)))
           _ <- ZIO.scoped {
             SpecularClient.mountAll(mounters) *> ZIO.yieldNow.repeatN(4) *>
               SpecularClient.mountAll(mounters) *> ZIO.yieldNow.repeatN(4)
@@ -173,7 +173,7 @@ object SpecularClientSpec extends ZIOSpecDefault:
         for
           count <- Ref.make(0)
           _     <- ZIO.scoped {
-            SpecularClient.mountAll(Map("same" -> Mounter.effect(_ => count.update(_ + 1)))) *>
+            SpecularClient.mountAll(Map(MountKey("same") -> Mounter.effect(_ => count.update(_ + 1)))) *>
               ZIO.yieldNow.repeatN(4)
           }
           got <- count.get
@@ -189,7 +189,7 @@ object SpecularClientSpec extends ZIOSpecDefault:
         for
           ran <- Ref.make(false)
           _   <- ZIO.scoped {
-            SpecularClient.mountAll(Map("k" -> Mounter.effect(_ => ran.set(true)))) *> ZIO.yieldNow.repeatN(4)
+            SpecularClient.mountAll(Map(MountKey("k") -> Mounter.effect(_ => ran.set(true)))) *> ZIO.yieldNow.repeatN(4)
           }
           got <- ran.get
         yield assertTrue(!got)
@@ -201,7 +201,7 @@ object SpecularClientSpec extends ZIOSpecDefault:
         for
           ran <- Ref.make(false)
           _   <- ZIO.scoped {
-            SpecularClient.mountAll(Map("" -> Mounter.effect(_ => ran.set(true)))) *> ZIO.yieldNow.repeatN(4)
+            SpecularClient.mountAll(Map(MountKey("k") -> Mounter.effect(_ => ran.set(true)))) *> ZIO.yieldNow.repeatN(4)
           }
           got <- ran.get
         yield assertTrue(
@@ -220,7 +220,7 @@ object SpecularClientSpec extends ZIOSpecDefault:
           exampleDom("dom-one").fromSource("a/A.scala"),
         )
         val b = page("Beta")(example { E.div("static") })
-        assertTrue(SpecularClient.requiredKeys(a, b) == Set("alpha-ex-1", "dom-one"))
+        assertTrue(SpecularClient.requiredKeys(a, b).map(_.value) == Set("alpha-ex-1", "dom-one"))
       },
       test("fromPages registers an ascent mounter per interactive example, and only those") {
         val p = page("Alpha")(
@@ -229,11 +229,11 @@ object SpecularClientSpec extends ZIOSpecDefault:
           section("S")(example { E.div("nested live") }.interactive),
         )
         val mounters = SpecularClient.fromPages(p)
-        assertTrue(mounters.keySet == Set("alpha-ex-2", "alpha-ex-3"))
+        assertTrue(mounters.keySet.map(_.value) == Set("alpha-ex-2", "alpha-ex-3"))
       },
       test("fromPages honors an explicit mount key") {
         val p = page("Alpha")(example { E.div("live") }.interactive.withMountKey("chosen"))
-        assertTrue(SpecularClient.fromPages(p).keySet == Set("chosen"))
+        assertTrue(SpecularClient.fromPages(p).keySet.map(_.value) == Set("chosen"))
       },
       // fromPages covers ascent only; a DomExample's mounter is the author's to register, which is
       // exactly the drift `requiredKeys` is compared against.
@@ -244,17 +244,24 @@ object SpecularClientSpec extends ZIOSpecDefault:
           section("S")(illustrationIO { ZIO.succeed(E.div("nested")) }.live),
         )
         val mounters = SpecularClient.fromPages(p)
-        assertTrue(mounters.keySet == Set("alpha-ex-2", "alpha-ex-3"))
+        assertTrue(mounters.keySet.map(_.value) == Set("alpha-ex-2", "alpha-ex-3"))
       },
       test("fromPages honors an explicit illustration mount key") {
         val p = page("Alpha")(illustration { E.div("live") }.live.withMountKey("chosen"))
-        assertTrue(SpecularClient.fromPages(p).keySet == Set("chosen"))
+        assertTrue(SpecularClient.fromPages(p).keySet.map(_.value) == Set("chosen"))
       },
       test("fromPages does not invent a mounter for a DomExample") {
         val p = page("Alpha")(exampleDom("dom-one").fromSource("a/A.scala"))
         assertTrue(
           SpecularClient.fromPages(p).isEmpty,
-          SpecularClient.requiredKeys(p) == Set("dom-one"),
+          SpecularClient.requiredKeys(p).map(_.value) == Set("dom-one"),
+        )
+      },
+      test("fromPages does not invent a mounter for a DOM illustration") {
+        val p = page("Alpha")(illustrationDom("cycle"))
+        assertTrue(
+          SpecularClient.fromPages(p).isEmpty,
+          SpecularClient.requiredKeys(p).map(_.value) == Set("cycle"),
         )
       },
       test("presentKeys reports the document's mount points, skipping blank ones") {
@@ -262,13 +269,13 @@ object SpecularClientSpec extends ZIOSpecDefault:
         val _   = FakeDom.mountPoint(doc, "one")
         val _   = FakeDom.mountPoint(doc, "two")
         val _   = FakeDom.mountPoint(doc, "  ")
-        assertTrue(SpecularClient.presentKeys == Set("one", "two"))
+        assertTrue(SpecularClient.presentKeys.map(_.value) == Set("one", "two"))
       },
       // The drift check a consumer writes: declared keys vs registered ones.
       test("a registry missing a declared key is detectable before the browser sees it") {
         val p        = page("Alpha")(exampleDom("dom-one").fromSource("a/A.scala"))
-        val registry = Map.empty[String, Mounter]
-        assertTrue((SpecularClient.requiredKeys(p) -- registry.keySet) == Set("dom-one"))
+        val registry = Map.empty[MountKey, Mounter]
+        assertTrue((SpecularClient.requiredKeys(p) -- registry.keySet).map(_.value) == Set("dom-one"))
       },
     ),
     suite("DomInterop")(

@@ -8,7 +8,7 @@ package specular
   * either side.
   *
   * This replaces "look up the element by its `<page-slug>-ex-N` id": ids stay the anchor/permalink contract, while the
-  * mount key is what the browser dispatches on. Keys are validated at construction (see `MountKey`), so what reaches
+  * mount key is what the browser dispatches on. A key is a `MountKey`, checked at compile time, so what reaches
   * [[Attr]] is always `[A-Za-z0-9._-]+`.
   */
 object MountPoint:

@@ -6,15 +6,11 @@ ThisBuild / scalaVersion := (MyVersions.scala: String)
 
 val scala3Version: String = (MyVersions.scala: String)
 
-// Take zio-json 1.1.0 from heddle. Leftover 0.9/0.10 pins still need a scheme under early-semver.
-ThisBuild / libraryDependencySchemes += "dev.zio" %% "zio-json" % "always"
-
 // sbt 2.x scopes bare build.sbt settings to ThisBuild.
 organization         := "rocks.earlyeffect"
 organizationName     := "Early Effect"
 organizationHomepage := Some(uri("https://www.earlyeffect.rocks"))
 versionScheme        := Some("early-semver")
-// No hardcoded version — sbt-dynver derives it from the git tag (v0.1.0 -> 0.1.0).
 
 homepage := Some(uri("https://github.com/early-effect/specular"))
 licenses := Seq("Apache-2.0" -> uri("http://www.apache.org/licenses/LICENSE-2.0.txt"))
@@ -53,8 +49,10 @@ usePgpKeyHex(sys.env.getOrElse("PGP_KEY_HEX", "MISSING_KEY_HEX"))
 zipxJavaVersion      := JdkVersion("25")
 zipxWorkflowDispatch := true
 zipxTestTask         := zipxTasks.session(testFull, LocalProject("plugin") / scripted)
-zipxCapabilities += ZipxCentral.release
+zipxCapabilities += ZipxCentral.snapshots
+zipxCapabilities += ZipxCentral.pullRequestSnapshots("snapshots")
 zipxCapabilities += ZipxDocs.pages()
+zipxReleaseWorkflow := Some(ZipxCentral.releases)
 
 semanticdbEnabled := true
 
@@ -85,7 +83,7 @@ addCommandAlias("release", "; publishSigned; sonaRelease")
 
 lazy val root = (project in file("."))
   .aggregate(
-    (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++ specularMermoid.projectRefs ++
+    (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++
       eeDocsTheme.projectRefs ++ docs.projectRefs ++ Seq[ProjectReference](plugin))*
   )
   .settings(
@@ -107,7 +105,6 @@ lazy val core = (projectMatrix in file("core"))
     Nil,
     (p: Project) =>
       p.settings(
-        MyVersions.javaTime,
         MyVersions.coreJs,
         Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "scalajs",
         // The Mounter hook speaks org.scalajs.dom.Element, the type foreign frameworks (preact,
@@ -131,7 +128,7 @@ lazy val zioTest = (projectMatrix in file("zio-test"))
   .jvmPlatform(scalaVersions = scalaVersions)
 
 lazy val site = (projectMatrix in file("site"))
-  .dependsOn(core, specularMermoid)
+  .dependsOn(core)
   .settings(
     name := "specular-site",
     scalacOptions ++= commonScalacOptions,
@@ -139,38 +136,6 @@ lazy val site = (projectMatrix in file("site"))
     zioTestSettings,
   )
   .jvmPlatform(scalaVersions = scalaVersions)
-
-/** mermoid diagrams → ascent UI for Specular doc pages (see early-effect/specular#35).
-  *
-  * Cross-built for JVM (SSR / docs-as-tests) and Scala.js (interactive remount in the browser).
-  */
-lazy val specularMermoid = (projectMatrix in file("mermoid"))
-  .settings(
-    name := "specular-mermoid",
-    scalacOptions ++= commonScalacOptions,
-    MyVersions.mermoidLib,
-  )
-  .jvmPlatform(
-    scalaVersions,
-    Nil,
-    (p: Project) =>
-      p.settings(
-        zioTestSettings,
-        MyVersions.mermoidJvm,
-        libraryDependencies += MyVersions.moduleID(MyVersions.ascentHtml.test),
-      ),
-  )
-  .jsPlatform(
-    scalaVersions,
-    Nil,
-    (p: Project) =>
-      p.settings(
-        MyVersions.mermoidJs,
-        // SSR round-trip specs need ascent-html (JVM-only).
-        Test / skip    := true,
-        Test / sources := Nil,
-      ),
-  )
 
 /** Early Effect org brand pack (theme tokens + logo). Published; Specular core stays brand-agnostic. */
 lazy val eeDocsTheme = (projectMatrix in file("early-effect-docs-theme"))
@@ -210,12 +175,13 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           zioTest.jvm(scala3Version),
           site.jvm(scala3Version),
           eeDocsTheme.jvm(scala3Version),
-          specularMermoid.jvm(scala3Version),
         )
         .enablePlugins(AscentPreviewPlugin)
         .settings(
           MyVersions.zioTests,
           zioTestSettings,
+          // The docs' own figures. No published module depends on mermoid.
+          MyVersions.docsFigures,
           testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
           run / fork := true,
           run / javaOptions ++= Seq(
@@ -256,7 +222,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
               (run / javaOptions).value.toVector ++
                 dogfoodMetaProps(
                   organization.value,
-                  version.value,
+                  (core.jvm(scala3Version) / version).value,
                   scalaVersion.value,
                   description.value,
                   homepage.value.map(_.toString).getOrElse(""),
@@ -285,7 +251,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
             val siteDir    = (ThisBuild / baseDirectory).value / "target" / "site"
             val sourceRoot = (ThisBuild / baseDirectory).value.getAbsolutePath
             val org        = organization.value
-            val ver        = version.value
+            val ver        = (core.jvm(scala3Version) / version).value
             val sv         = scalaVersion.value
             val desc       = description.value
             val home       = homepage.value.map(_.toString).getOrElse("")
@@ -308,7 +274,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
             val siteDir    = (ThisBuild / baseDirectory).value / "target" / "site"
             val sourceRoot = (ThisBuild / baseDirectory).value.getAbsolutePath
             val org        = organization.value
-            val ver        = version.value
+            val ver        = (core.jvm(scala3Version) / version).value
             val sv         = scalaVersion.value
             val desc       = description.value
             val home       = homepage.value.map(_.toString).getOrElse("")
@@ -330,10 +296,11 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
     scalaVersions,
     Nil,
     (p: Project) =>
-      p.dependsOn(core.js(scala3Version), specularMermoid.js(scala3Version))
+      p.dependsOn(core.js(scala3Version))
         .settings(
-          MyVersions.javaTime,
           MyVersions.docsJs,
+          // DocSpecs are shared. The JS client compiles the same static diagram body; it does not remount it.
+          MyVersions.docsFigures,
           scalaJSUseMainModuleInitializer := true,
           Compile / mainClass := Some("specular.docs.ClientMain"),
         ),
@@ -393,7 +360,7 @@ def dogfoodMetaProps(
     val mapped = if ver.endsWith("-ci") then ver.stripSuffix("-ci") else ver
     if mapped == ver then "" else mapped
   def opt(key: String, value: String): Seq[String] =
-    if value == null || value.isBlank then Nil else Seq(s"-Dspecular.meta.$key=$value")
+    Option(value).filterNot(_.isBlank).toSeq.map(v => s"-Dspecular.meta.$key=$v")
   (
     opt("name", "specular") ++
       opt("organization", org) ++

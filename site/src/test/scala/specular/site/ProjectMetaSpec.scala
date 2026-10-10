@@ -1,10 +1,42 @@
 package specular.site
 
+import zio.*
 import zio.test.*
 
 object ProjectMetaSpec extends ZIOSpecDefault:
 
+  private val text: Gen[Any, String] = Gen.string(Gen.printableChar)
+
+  private val metaGen: Gen[Any, ProjectMeta] =
+    for
+      name  <- text
+      org   <- text
+      ver   <- text
+      scala <- text
+      title <- Gen.option(text)
+      desc  <- Gen.option(text)
+      pages <- Gen.vectorOfBounded(0, 3)(text.zip(text).map(MetaPage.apply))
+    yield ProjectMeta(name, org, ver, scala, title = title, description = desc, pages = pages)
+
   def spec = suite("ProjectMeta")(
+    test("parseJson reads back whatever toJson wrote") {
+      check(metaGen)(meta => assertTrue(ProjectMeta.parseJson(meta.toJson) == Right(meta)))
+    },
+    test("parseJson is total over arbitrary text") {
+      check(Gen.string)(raw => assertTrue(ProjectMeta.parseJson(raw).fold(_ => true, _ => true)))
+    },
+    test("a malformed \\u escape is a Malformed error") {
+      val backslash = "\\"
+      val raw       = s"""{"name": "a${backslash}uZZ", "organization": "o", "version": "1", "scalaVersion": "3"}"""
+      assertTrue(ProjectMeta.parseJson(raw).left.exists {
+        case ProjectMetaError.Malformed(_) => true
+        case _                             => false
+      })
+    },
+    test("a missing required field names the field") {
+      val raw = """{"name": "n", "organization": "o", "scalaVersion": "3"}"""
+      assertTrue(ProjectMeta.parseJson(raw) == Left(ProjectMetaError.MissingField(RequiredMetaField.Version)))
+    },
     test("round-trips JSON with optional fields and pages") {
       val meta = ProjectMeta(
         name = "ascent",
@@ -22,12 +54,7 @@ object ProjectMetaSpec extends ZIOSpecDefault:
       val json   = meta.toJson
       val parsed = ProjectMeta.parseJson(json)
       assertTrue(
-        parsed.isRight,
-        parsed.toOption.get.name == "ascent",
-        parsed.toOption.get.version == "0.1.0",
-        parsed.toOption.get.displayVersion.contains("0.1.0"),
-        parsed.toOption.get.title.contains("Ascent"),
-        parsed.toOption.get.pages == Vector(MetaPage("Getting started", "getting-started")),
+        parsed == Right(meta),
         json.contains("\"pages\""),
         json.contains("\"displayVersion\""),
       )
@@ -82,24 +109,25 @@ object ProjectMetaSpec extends ZIOSpecDefault:
           """addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "0.2.0")""",
       )
     },
-    test("fromSystemProperties reads -Dspecular.meta.*") {
-      val keys = Vector("name", "organization", "version", "scalaVersion", "title", "displayVersion")
-      keys.foreach(k => java.lang.System.clearProperty(s"specular.meta.$k"))
-      java.lang.System.setProperty("specular.meta.name", "specular")
-      java.lang.System.setProperty("specular.meta.organization", "io.github.russwyte")
-      java.lang.System.setProperty("specular.meta.version", "0.1.0-SNAPSHOT")
-      java.lang.System.setProperty("specular.meta.scalaVersion", "3.8.4")
-      java.lang.System.setProperty("specular.meta.title", "Specular")
-      java.lang.System.setProperty("specular.meta.displayVersion", "0.1.0")
-      val meta = ProjectMeta.fromSystemProperties
-      keys.foreach(k => java.lang.System.clearProperty(s"specular.meta.$k"))
-      assertTrue(
-        meta.isDefined,
-        meta.get.name == "specular",
-        meta.get.version == "0.1.0-SNAPSHOT",
-        meta.get.displayVersion.contains("0.1.0"),
-        meta.get.docsVersion == "0.1.0",
-        meta.get.title.contains("Specular"),
+    test("config reads specular.meta.* and treats blank optional fields as absent") {
+      val props = Map(
+        "specular.meta.name"           -> "specular",
+        "specular.meta.organization"   -> "io.github.russwyte",
+        "specular.meta.version"        -> "0.1.0-SNAPSHOT",
+        "specular.meta.scalaVersion"   -> "3.8.4",
+        "specular.meta.title"          -> "Specular",
+        "specular.meta.description"    -> "  ",
+        "specular.meta.displayVersion" -> "0.1.0",
+      )
+      for meta <- ZIO.withConfigProvider(ConfigProvider.fromMap(props))(
+          ZIO.config(ProjectMeta.config.nested("meta").nested("specular"))
+        )
+      yield assertTrue(
+        meta.name == "specular",
+        meta.version == "0.1.0-SNAPSHOT",
+        meta.docsVersion == "0.1.0",
+        meta.title.contains("Specular"),
+        meta.description.isEmpty,
       )
     },
     test("isAllowedMetaUrl accepts only http(s) with host") {
@@ -117,9 +145,8 @@ object ProjectMetaSpec extends ZIOSpecDefault:
           """"homepage":"javascript:alert(1)","docsUrl":"https://ok.example/"}"""
       val parsed = ProjectMeta.parseJson(raw)
       assertTrue(
-        parsed.isRight,
-        parsed.toOption.get.homepage.isEmpty,
-        parsed.toOption.get.docsUrl.contains("https://ok.example/"),
+        parsed.map(_.homepage) == Right(None),
+        parsed.map(_.docsUrl) == Right(Some("https://ok.example/")),
       )
     },
     test("escape encodes control characters") {

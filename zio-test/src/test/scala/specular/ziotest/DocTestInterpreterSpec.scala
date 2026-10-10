@@ -8,6 +8,8 @@ import zio.test.*
 
 object DocTestInterpreterSpec extends ZIOSpecDefault:
 
+  private val kaput = RuntimeException("kaput")
+
   object SampleDoc extends DocSpec:
     def doc = page("Sample")(
       md"intro",
@@ -124,22 +126,22 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
         for outcomes <- runOutcomes(doc)
         yield assertTrue(
           outcomes.map(_._1) == Vector("Bad/example bad-ex-1"),
-          outcomes.head._2 match
-            case Outcome.Assertion(text) => text.contains("DemoErr") && text.contains("nope")
-            case _                       => false,
+          outcomes.map(_._2) match
+            case Vector(Outcome.Assertion(text)) => text.contains("DemoErr") && text.contains("nope")
+            case _                               => false,
         )
       },
       test("exampleZIO that dies fails as a defect, not a pretty E") {
         val doc = page("Die")(
           exampleZIO {
-            ZIO.die(RuntimeException("kaput"))
+            ZIO.die(kaput)
           }.assert(_ => assertTrue(true))
         )
         for outcomes <- runOutcomes(doc)
         yield assertTrue(
-          outcomes.head._2 match
-            case Outcome.Defect(t) => t.getMessage.contains("kaput")
-            case _                 => false
+          outcomes.map(_._2) match
+            case Vector(Outcome.Defect(t)) => t == kaput
+            case _                         => false
         )
       },
       test("asserted exampleError passes with E") {
@@ -160,8 +162,8 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
         )
         for outcomes <- runOutcomes(doc)
         yield assertTrue(
-          outcomes.head._2 match
-            case Outcome.Assertion(text) =>
+          outcomes.map(_._2) match
+            case Vector(Outcome.Assertion(text)) =>
               text.contains("exampleError") && text.contains("effect succeeded")
             case _ => false
         )
@@ -169,14 +171,14 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
       test("exampleError whose body dies fails as a defect, not a pretty E") {
         val doc = page("Die")(
           exampleError {
-            ZIO.die(RuntimeException("kaput")): ZIO[Scope, String, Nothing]
+            ZIO.die(kaput): ZIO[Scope, String, Nothing]
           }.assert(_ => assertTrue(true))
         )
         for outcomes <- runOutcomes(doc)
         yield assertTrue(
-          outcomes.head._2 match
-            case Outcome.Defect(t) => t.getMessage.contains("kaput")
-            case _                 => false
+          outcomes.map(_._2) match
+            case Vector(Outcome.Defect(t)) => t == kaput
+            case _                         => false
         )
       },
     ),

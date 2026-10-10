@@ -19,7 +19,7 @@ import java.nio.file.Files
   */
 object InteractiveHtmlSpec extends ZIOSpecDefault:
 
-  private def render(page: DocPage): ZIO[SiteBuilder, Throwable, String] =
+  private def render(page: DocPage): ZIO[SiteBuilder, Throwable | SiteError, String] =
     for
       tmp  <- ZIO.attempt(Files.createTempDirectory("specular-interactive"))
       path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(page, tmp))
@@ -81,6 +81,23 @@ object InteractiveHtmlSpec extends ZIOSpecDefault:
           !figure.contains("specular:end"),
         )
     },
+    test("a DOM illustration SSRs a quiet mount point and no example chrome") {
+      for html <- render(Diagrams.doc)
+      yield
+        val needle = s"""${MountPoint.Attr}="${InteractiveRegistry.DiagramPoster}""""
+        val at     = html.indexOf(needle)
+        val open   = html.lastIndexOf("<div", at)
+        val close  = html.indexOf("</div>", at)
+        val wrap   = if at < 0 || open < 0 || close < 0 then "" else html.substring(open, close)
+        assertTrue(
+          wrap.contains("class=\"specular-illustration\""),
+          wrap.contains(MountPoint.FallbackClass),
+          wrap.contains("This figure runs in your browser"),
+          !wrap.contains("specular-example"),
+          !wrap.contains("specular-source"),
+          !wrap.contains("<figure"),
+        )
+    },
     test("an illustration SSRs without example chrome") {
       for html <- render(Interactive.doc)
       yield
@@ -108,7 +125,7 @@ object InteractiveHtmlSpec extends ZIOSpecDefault:
         )
     },
     // Keys reach an HTML attribute, so this is a security property, not cosmetics. `MountKey` restricts the
-    // alphabet at construction; asserting at the attribute position proves nothing downstream un-escapes it,
+    // alphabet at compile time; asserting at the attribute position proves nothing downstream un-escapes it,
     // and that the page's prose about a hostile key stayed prose.
     test("every mount attribute in the site's HTML holds an attribute-safe key") {
       ZIO
@@ -119,7 +136,7 @@ object InteractiveHtmlSpec extends ZIOSpecDefault:
             emitted.nonEmpty,
             emitted.forall(k => k.nonEmpty && k.forall(c => c.isLetterOrDigit || "._-".contains(c))),
             // What the site emits is exactly what the pages declare: no key invented or dropped.
-            emitted.toSet == DocMounts.keys(BuildSite.pages*),
+            emitted.toSet == DocMounts.keys(BuildSite.pages*).map(_.value),
           )
         }
     },

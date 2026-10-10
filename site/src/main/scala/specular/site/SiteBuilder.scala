@@ -11,9 +11,9 @@ final case class SiteOutput(root: JPath, pages: Vector[JPath])
 
 /** Builds a static site from one or more [[DocPage]]s. */
 trait SiteBuilder:
-  def buildPage(page: DocPage, outDir: JPath): Task[JPath]
-  def build(pages: Vector[DocPage], outDir: JPath): Task[SiteOutput]
-  def buildSite(model: SiteModel, outDir: JPath): Task[SiteOutput]
+  def buildPage(page: DocPage, outDir: JPath): IO[SiteError, JPath]
+  def build(pages: Vector[DocPage], outDir: JPath): IO[SiteError, SiteOutput]
+  def buildSite(model: SiteModel, outDir: JPath): IO[SiteError, SiteOutput]
 
 object SiteBuilder:
 
@@ -38,15 +38,15 @@ object SiteBuilder:
       theme: Theme,
   ) extends SiteBuilder:
 
-    def buildPage(page: DocPage, outDir: JPath): Task[JPath] =
+    def buildPage(page: DocPage, outDir: JPath): IO[SiteError, JPath] =
       val model = SiteModel(title = page.title, basePath = ".", pages = Vector(page))
-      buildSite(model, outDir).map(_.pages.head)
+      buildSite(model, outDir).as(pageFile(outDir.toAbsolutePath.normalize, page))
 
-    def build(pages: Vector[DocPage], outDir: JPath): Task[SiteOutput] =
+    def build(pages: Vector[DocPage], outDir: JPath): IO[SiteError, SiteOutput] =
       val model = SiteModel(title = "Specular", basePath = ".", pages = pages)
       buildSite(model, outDir)
 
-    def buildSite(model: SiteModel, outDir: JPath): Task[SiteOutput] =
+    def buildSite(model: SiteModel, outDir: JPath): IO[SiteError, SiteOutput] =
       val root = outDir.toAbsolutePath.normalize
       for
         _        <- validatePages(model.pages)
@@ -67,43 +67,45 @@ object SiteBuilder:
       end for
     end buildSite
 
-    private def validatePages(pages: Vector[DocPage]): Task[Unit] =
-      val empty = pages.filter(_.slug.isEmpty).map(_.title)
-      val dupes =
-        pages
-          .groupBy(_.slug)
-          .collect { case (slug, group) if group.size > 1 => s"$slug ← ${group.map(_.title).mkString(", ")}" }
-          .toVector
+    private def validatePages(pages: Vector[DocPage]): IO[SiteError, Unit] =
+      val emptySlugs = NonEmptyChunk.fromIterableOption(pages.filter(_.slug.isEmpty).map(_.title))
+      val dupeSlugs  = repeated(pages.map(p => p.slug -> p.title))
       // Mount keys are the browser's dispatch table, so they must be unique across the WHOLE site, not
-      // per page: the client keys one `Map[String, Mounter]`, so a collision (two `exampleDom`s sharing a
+      // per page: the client keys one `Map[MountKey, Mounter]`, so a collision (two `exampleDom`s sharing a
       // key, or an explicit key equal to some page's `<slug>-ex-N` auto-key) silently drops a mount.
-      val keyDupes =
-        pages
-          .flatMap(p => DocInternal.mountKeys(p.children).map(_ -> p.title))
-          .groupBy(_._1)
-          .collect { case (key, group) if group.size > 1 => s"$key ← ${group.map(_._2).mkString(", ")}" }
-          .toVector
-      if empty.nonEmpty then
-        ZIO.fail(new IllegalArgumentException(s"DocPage title(s) produce empty slug: ${empty.mkString(", ")}"))
-      else if dupes.nonEmpty then
-        ZIO.fail(new IllegalArgumentException(s"Duplicate DocPage slug(s): ${dupes.mkString("; ")}"))
-      else if keyDupes.nonEmpty then
-        ZIO.fail(new IllegalArgumentException(s"Duplicate specular mount key(s): ${keyDupes.mkString("; ")}"))
-      else ZIO.unit
+      val dupeKeys = repeated(pages.flatMap(p => DocInternal.mountKeys(p.children).map(_ -> p.title)))
+      (emptySlugs, dupeSlugs, dupeKeys) match
+        case (Some(titles), _, _)           => ZIO.fail(SiteError.EmptySlug(titles))
+        case (_, (slug, titles) +: _, _)    => ZIO.fail(SiteError.DuplicateSlug(slug, titles))
+        case (_, _, (key, pageTitles) +: _) => ZIO.fail(SiteError.DuplicateMountKey(key, pageTitles))
+        case _                              => ZIO.unit
     end validatePages
 
-    private def writeUnder(root: JPath, path: JPath, content: String): Task[Unit] =
-      val abs = path.toAbsolutePath.normalize
-      if !abs.startsWith(root) then
-        ZIO.fail(new IllegalArgumentException(s"Refusing to write outside site root: $abs (root=$root)"))
-      else writer.writeText(abs, content)
+    /** Keys that occur more than once, in first-seen order, with every page title that declared them. */
+    private def repeated[K](pairs: Vector[(K, String)]): Vector[(K, NonEmptyChunk[String])] =
+      pairs
+        .map(_._1)
+        .distinct
+        .flatMap { key =>
+          pairs.collect { case (`key`, title) => title } match
+            case first +: second +: rest => Vector(key -> NonEmptyChunk(first, (second +: rest)*))
+            case _                       => Vector.empty
+        }
 
-    private def renderOne(model: SiteModel, page: DocPage, outDir: JPath): Task[JPath] =
+    private def pageFile(root: JPath, page: DocPage): JPath =
+      root.resolve(s"${page.slug}.html")
+
+    private def writeUnder(root: JPath, path: JPath, content: String): IO[SiteError, Unit] =
+      val abs = path.toAbsolutePath.normalize
+      if abs.startsWith(root) then writer.writeText(abs, content)
+      else ZIO.fail(SiteError.OutsideSiteRoot(abs, root))
+
+    private def renderOne(model: SiteModel, page: DocPage, outDir: JPath): IO[SiteError, JPath] =
       for
         bodyUi   <- renderPageBody(page, model.copyCode, model.pageToc)
         docUi    <- template.wrap(model, page, bodyUi)
         rendered <- ssr.renderPage(docUi)
-        htmlPath = outDir.resolve(s"${page.slug}.html")
+        htmlPath = pageFile(outDir, page)
         cssPath  = outDir.resolve(s"assets/${page.slug}.css")
         fullHtml = s"<!DOCTYPE html>\n${rendered.html}"
         _ <- writeUnder(outDir, htmlPath, fullHtml)
@@ -114,7 +116,7 @@ object SiteBuilder:
         page: DocPage,
         copyCode: Boolean,
         pageToc: Option[Boolean],
-    ): Task[UI[Any]] =
+    ): IO[SiteError, UI[Any]] =
       val anchors = PageToc.AnchorIds()
       val tocBuf  = scala.collection.mutable.ArrayBuffer.empty[(String, String)]
       for content <- renderNodes(page.children, copyCode, depth = 0, anchors, tocBuf)
@@ -124,7 +126,7 @@ object SiteBuilder:
         else content
     end renderPageBody
 
-    private def writeDocsIndex(model: SiteModel, outDir: JPath): Task[JPath] =
+    private def writeDocsIndex(model: SiteModel, outDir: JPath): IO[SiteError, JPath] =
       val links = model.pages.map { p =>
         el(
           "li",
@@ -135,7 +137,7 @@ object SiteBuilder:
       }
       val fallbackSnippets =
         if model.installSnippets.nonEmpty then model.installSnippets
-        else model.meta.toVector.map(m => ArtifactKind.defaultInstall(m))
+        else model.meta.toVector.map(m => ArtifactKind.defaultInstall(m, model.artifactKind))
       val installSections = fallbackSnippets.map { snip =>
         val pre = el(
           "pre",
@@ -180,7 +182,7 @@ object SiteBuilder:
       end for
     end writeDocsIndex
 
-    private def writeLandingIndex(model: SiteModel, outDir: JPath): Task[JPath] =
+    private def writeLandingIndex(model: SiteModel, outDir: JPath): IO[SiteError, JPath] =
       for
         docUi    <- landing.wrap(model)
         rendered <- ssr.renderPage(docUi)
@@ -190,7 +192,7 @@ object SiteBuilder:
         _ <- writeUnder(outDir, cssPath, rendered.css)
       yield htmlPath
 
-    private def writeMetadata(model: SiteModel, outDir: JPath): Task[JPath] =
+    private def writeMetadata(model: SiteModel, outDir: JPath): IO[SiteError, JPath] =
       val path = outDir.resolve("metadata.json")
       writeUnder(outDir, path, model.publishedMeta.toJson + "\n").as(path)
 
@@ -200,7 +202,7 @@ object SiteBuilder:
         depth: Int,
         anchors: PageToc.AnchorIds,
         tocBuf: scala.collection.mutable.ArrayBuffer[(String, String)],
-    ): Task[UI[Any]] =
+    ): IO[SiteError, UI[Any]] =
       ZIO.foreach(nodes)(n => renderNode(n, copyCode, depth, anchors, tocBuf)).map {
         case Vector()  => UI.Empty
         case Vector(u) => u
@@ -213,7 +215,7 @@ object SiteBuilder:
         depth: Int,
         anchors: PageToc.AnchorIds,
         tocBuf: scala.collection.mutable.ArrayBuffer[(String, String)],
-    ): Task[UI[Any]] = node match
+    ): IO[SiteError, UI[Any]] = node match
       case Prose(markdown) =>
         md.toUi(markdown, copyCode)
       case Section(title, children) =>
@@ -239,18 +241,17 @@ object SiteBuilder:
           )
           el("section", Vector(heading, kids))
         end for
-      case ex: Example[?] =>
-        val erased = ex.asInstanceOf[Example[Any]]
-        for ui <- runner.run(erased)
+      case ex: Example =>
+        for ui <- runner.run(ex)
         yield
           val pre = el(
             "pre",
-            Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
+            Vector(el("code", Vector(UI.Text(SourceFormatter.format(ex.source))))),
             Vector(attr("class", "specular-source")),
           )
           // An interactive example also carries the mount key, so the browser client needs one scan
           // for ascent and foreign examples alike (see MountPoint).
-          val mountAttrs = erased.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
+          val mountAttrs = ex.mountKey.toVector.map(k => attr(MountPoint.Attr, k.value))
           el(
             "figure",
             Vector(
@@ -258,29 +259,41 @@ object SiteBuilder:
               el(
                 "div",
                 Vector(ui),
-                Vector(attr("id", erased.id), attr("class", "specular-snapshot")) ++ mountAttrs,
+                Vector(attr("id", ex.id), attr("class", "specular-snapshot")) ++ mountAttrs,
               ),
             ),
             Vector(attr("class", "specular-example")),
           )
         end for
-      case ill: Illustration[?] =>
-        val erased = ill.asInstanceOf[Illustration[Any]]
-        for ui <- runner.run(erased)
+      case ill: AscentIllustration =>
+        for ui <- runner.run(ill)
         yield
-          val mountAttrs = erased.mountKey.toVector.map(k => attr(MountPoint.Attr, k))
+          val mountAttrs = ill.mountKey.toVector.map(k => attr(MountPoint.Attr, k.value))
           el(
             "div",
             Vector(ui),
-            Vector(attr("id", erased.id), attr("class", "specular-illustration")) ++ mountAttrs,
+            Vector(attr("id", ill.id), attr("class", "specular-illustration")) ++ mountAttrs,
           )
+      case dom: DomIllustration =>
+        // Placeholder only. The client clears it and hands the element to the registered Mounter.
+        ZIO.succeed(
+          el(
+            "div",
+            Vector(dom.fallback),
+            Vector(
+              attr("id", dom.id),
+              attr("class", "specular-illustration"),
+              attr(MountPoint.Attr, dom.key.value),
+            ),
+          )
+        )
       case de: DomExample =>
         // Source comes from a real Scala.js file rather than a captured expression, so an unresolvable
         // ref fails the site build the way `expectCrash` does: a stale path or deleted marker must not
         // degrade into an example with an empty source panel.
-        ZIO
-          .fromEither(DomSourceLoader.resolve(de.source, DomSourceLoader.sourceRoot))
-          .mapError(msg => new IllegalArgumentException(s"DomExample ${de.id}: $msg"))
+        DomSourceLoader
+          .resolve(de.source)
+          .mapError(SiteError.DomSource(de.id, _))
           .map { excerpt =>
             val pre = el(
               "pre",
@@ -298,22 +311,21 @@ object SiteBuilder:
                   Vector(
                     attr("id", de.id),
                     attr("class", "specular-snapshot"),
-                    attr(MountPoint.Attr, de.mountKey),
+                    attr(MountPoint.Attr, de.mountKey.value),
                   ),
                 ),
               ),
               Vector(attr("class", "specular-example")),
             )
           }
-      case ve: ValueExample[?] =>
-        val erased = ve.asInstanceOf[ValueExample[Any]]
+      case ve: ValueExample[?, ?] =>
         for
-          exit  <- ZIO.scoped(erased.body).exit
-          value <- valueExampleResult(erased.id, exit)
+          exit  <- ZIO.scoped(ve.body).exit
+          value <- valueExampleResult(ve.id, exit)
         yield
           val pre = el(
             "pre",
-            Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
+            Vector(el("code", Vector(UI.Text(SourceFormatter.format(ve.source))))),
             Vector(attr("class", "specular-source")),
           )
           el(
@@ -322,8 +334,8 @@ object SiteBuilder:
               PageTemplate.codeBlock(pre, copyCode),
               el(
                 "div",
-                Vector(el("pre", Vector(el("code", Vector(UI.Text(erased.show(value))))))),
-                Vector(attr("id", erased.id), attr("class", "specular-snapshot specular-result")),
+                Vector(el("pre", Vector(el("code", Vector(UI.Text(ve.show(value))))))),
+                Vector(attr("id", ve.id), attr("class", "specular-snapshot specular-result")),
               ),
             ),
             Vector(attr("class", "specular-example")),
@@ -353,19 +365,16 @@ object SiteBuilder:
             Vector(attr("class", "specular-example")),
           )
       case ce: CrashExample[?, ?] =>
-        val erased = ce.asInstanceOf[CrashExample[Any, Any]]
         for
-          exit <- ZIO.scoped(erased.body).exit
+          exit <- ZIO.scoped(ce.body).exit
           text <- exit match
-            case Exit.Failure(cause) => ZIO.succeed(erased.show(cause))
+            case Exit.Failure(cause) => ZIO.succeed(ce.show(cause))
             case Exit.Success(_)     =>
-              ZIO.fail(
-                new IllegalStateException(s"expectCrash ${erased.id}: effect succeeded during site build")
-              )
+              ZIO.fail(SiteError.CrashDidNotCrash(ce.id))
         yield
           val pre = el(
             "pre",
-            Vector(el("code", Vector(UI.Text(SourceFormatter.format(erased.source))))),
+            Vector(el("code", Vector(UI.Text(SourceFormatter.format(ce.source))))),
             Vector(attr("class", "specular-source")),
           )
           el(
@@ -376,7 +385,7 @@ object SiteBuilder:
                 "div",
                 Vector(el("pre", Vector(el("code", Vector(UI.Text(text)))))),
                 Vector(
-                  attr("id", erased.id),
+                  attr("id", ce.id),
                   attr("class", "specular-snapshot specular-result specular-crash"),
                 ),
               ),
@@ -386,20 +395,16 @@ object SiteBuilder:
         end for
 
     /** Typed `Fail[E]` is a doc failure that reports `E`; defects stay defects. */
-    private def valueExampleResult(id: String, exit: Exit[Any, Any]): Task[Any] =
+    private def valueExampleResult[E, A](id: String, exit: Exit[ExampleFailure[E], A]): IO[SiteError, A] =
       exit match
         case Exit.Success(a)     => ZIO.succeed(a)
         case Exit.Failure(cause) =>
           cause.failureOption match
-            case Some(e) =>
-              ZIO.fail(IllegalStateException(s"exampleZIO $id: $e"))
-            case None =>
+            case Some(failure) => ZIO.fail(SiteError.ExampleFailed(id, failure))
+            case None          =>
               cause.dieOption match
-                case Some(e: IllegalStateException) if e.getMessage == ValueExample.ErrorSucceededMessage =>
-                  ZIO.fail(IllegalStateException(s"exampleError $id: effect succeeded during site build"))
                 case Some(t) => ZIO.die(t)
-                case None    =>
-                  ZIO.fail(IllegalStateException(s"exampleZIO $id: ${cause.prettyPrint}"))
+                case None    => ZIO.fail(SiteError.ExampleInterrupted(id))
   end Live
 end SiteBuilder
 

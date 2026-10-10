@@ -190,7 +190,7 @@ object SpecularPlugin extends AutoPlugin:
           sys.error(s"""specularArtifactKind must be "library" or "plugin", got: ${specularArtifactKind.value}""")
         Def.task {
           def opt(key: String, value: String): Seq[String] =
-            if value == null || value.isBlank then Nil else Seq(s"-Dspecular.meta.$key=$value")
+            Option(value).filterNot(_.isBlank).toSeq.map(v => s"-Dspecular.meta.$key=$v")
 
           val home           = (ref / homepage).value.map(_.toString).getOrElse("")
           val desc           = (ref / description).value
@@ -226,7 +226,7 @@ object SpecularPlugin extends AutoPlugin:
           val extracted  = Project.extract(state.value)
           val candidates = hubCandidates(extracted, refs)
           HubNest.members(candidates) match
-            case Left(err)      => sys.error(err)
+            case Left(err)      => sys.error(err.message)
             case Right(Nil)     => Def.task(())
             case Right(members) =>
               Def

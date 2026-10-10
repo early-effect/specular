@@ -26,17 +26,17 @@ object ShowcaseSourceSpec extends ZIOSpecDefault:
     },
   )
 
-  def collectUi(nodes: Vector[DocNode]): Vector[Example[?]] =
+  def collectUi(nodes: Vector[DocNode]): Vector[Example] =
     nodes.flatMap {
-      case e: Example[?]    => Vector(e)
+      case e: Example       => Vector(e)
       case Section(_, kids) => collectUi(kids)
       case _                => Vector.empty
     }
 
-  def collectValues(nodes: Vector[DocNode]): Vector[ValueExample[?]] =
+  def collectValues(nodes: Vector[DocNode]): Vector[ValueExample[?, ?]] =
     nodes.flatMap {
-      case v: ValueExample[?] => Vector(v)
-      case Section(_, kids)   => collectValues(kids)
-      case _                  => Vector.empty
+      case v: ValueExample[?, ?] => Vector(v)
+      case Section(_, kids)      => collectValues(kids)
+      case _                     => Vector.empty
     }
 end ShowcaseSourceSpec

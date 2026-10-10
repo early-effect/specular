@@ -142,11 +142,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       for
         tmp <- ZIO.attempt(Files.createTempDirectory("specular-site-typed-bad"))
         ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp)).flip
-      yield assertTrue(
-        ex.getMessage.contains("exampleZIO"),
-        ex.getMessage.contains("DemoErr"),
-        ex.getMessage.contains("nope"),
-      )
+      yield assertTrue(ex == SiteError.ExampleFailed("typed-bad-ex-1", ExampleFailure.Failed(DemoErr("nope"))))
     },
     test("exampleError renders E in the result panel, not a crash dump") {
       final case class DemoErr(msg: String)
@@ -180,21 +176,19 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       for
         tmp <- ZIO.attempt(Files.createTempDirectory("specular-site-typed-oops"))
         ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp)).flip
-      yield assertTrue(
-        ex.getMessage.contains("exampleError"),
-        ex.getMessage.contains("effect succeeded"),
-      )
+      yield assertTrue(ex == SiteError.ExampleFailed("typed-oops-ex-1", ExampleFailure.UnexpectedSuccess))
     },
     test("exampleError whose body dies fails the site build as a defect") {
-      val doc = page("Typed Die")(
+      val kaput = RuntimeException("kaput")
+      val doc   = page("Typed Die")(
         exampleError {
-          ZIO.die(RuntimeException("kaput")): ZIO[Scope, String, Nothing]
+          ZIO.die(kaput): ZIO[Scope, String, Nothing]
         }
       )
       for
         tmp   <- ZIO.attempt(Files.createTempDirectory("specular-site-typed-die"))
         cause <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp)).sandbox.flip
-      yield assertTrue(cause.dieOption.exists(_.getMessage.contains("kaput")))
+      yield assertTrue(cause.dieOption.contains(kaput))
     },
     test("fail and crash examples render source and diagnostics panels") {
       val doc = page("Failures")(
@@ -680,6 +674,30 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       )
       end for
     },
+    test("a DOM illustration SSRs a quiet mount point and no example chrome") {
+      val doc = page("Figure")(
+        illustrationDom("cycle").withFallback(E.p("custom figure"))
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-dom-illustration"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield
+        val at    = html.indexOf("custom figure")
+        val open  = html.lastIndexOf("<div", at)
+        val close = html.indexOf("</div>", at)
+        val wrap  = if at < 0 || open < 0 || close < 0 then "" else html.substring(open, close)
+        assertTrue(
+          wrap.contains("class=\"specular-illustration\""),
+          wrap.contains("id=\"figure-ex-1\""),
+          wrap.contains(s"""${MountPoint.Attr}="cycle""""),
+          wrap.contains("custom figure"),
+          !wrap.contains("specular-example"),
+          !wrap.contains("specular-source"),
+          !wrap.contains("<figure"),
+        )
+      end for
+    },
     test("a DomExample can override the no-JS fallback") {
       val doc = page("Fallback")(
         exampleDom("k").fromSource(FixturePath, "greeting").withFallback(E.div("custom placeholder"))
@@ -785,10 +803,10 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       for
         tmp <- ZIO.attempt(Files.createTempDirectory("specular-dom-missing"))
         ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp)).flip
-      yield assertTrue(
-        ex.getMessage.contains("broken-ex-1"),
-        ex.getMessage.contains("does/Not/Exist.scala"),
-      )
+      yield assertTrue(ex match
+        case SiteError.DomSource("broken-ex-1", DomSourceError.NotFound(path, _)) =>
+          path == "docs/src/main/scalajs/does/Not/Exist.scala"
+        case _ => false)
     },
     test("a missing marker in an existing file fails the build, naming the marker") {
       val doc = page("Broken")(exampleDom("gone").fromSource(FixturePath, "no-such-marker"))
@@ -796,21 +814,23 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         tmp <- ZIO.attempt(Files.createTempDirectory("specular-dom-marker"))
         ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp)).flip
       yield assertTrue(
-        ex.getMessage.contains("no-such-marker"),
-        ex.getMessage.contains(FixturePath),
+        ex == SiteError.DomSource(
+          "broken-ex-1",
+          DomSourceError.MarkerNotFound(DomSourceRef(FixturePath, Some("no-such-marker"))),
+        )
       )
     },
-    // The key alphabet is enforced at construction, but prove independently that nothing an
+    // The key alphabet is enforced at compile time, but prove independently that nothing an
     // attribute could break out of reaches the HTML.
     test("a mount key is attribute-safe end to end") {
-      val hostile = scala.util.Try(exampleDom("\" onload=\"alert(1)"))
+      val hostile = MountKey.from("\" onload=\"alert(1)")
       val doc     = page("Safe")(exampleDom("a.b_c-1").fromSource(FixturePath, "greeting"))
       for
         tmp  <- ZIO.attempt(Files.createTempDirectory("specular-dom-key-safe"))
         path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
         html <- ZIO.attempt(Files.readString(path))
       yield assertTrue(
-        hostile.isFailure,
+        hostile.isLeft,
         html.contains(s"""${MountPoint.Attr}="a.b_c-1""""),
         !html.contains("onload"),
       )
@@ -827,12 +847,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       for
         tmp <- ZIO.attempt(Files.createTempDirectory("specular-dup-key"))
         ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp)).flip
-      yield assertTrue(
-        ex.getMessage.contains("Duplicate specular mount key"),
-        ex.getMessage.contains("shared"),
-        ex.getMessage.contains("Alpha"),
-        ex.getMessage.contains("Beta"),
-      )
+      yield assertTrue(ex == SiteError.DuplicateMountKey(MountKey("shared"), NonEmptyChunk("Alpha", "Beta")))
     },
     // The nastier collision: an explicit key that happens to equal another page's `<slug>-ex-N`.
     test("an explicit key colliding with an ascent auto-key fails the build") {
@@ -846,10 +861,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       for
         tmp <- ZIO.attempt(Files.createTempDirectory("specular-collide-key"))
         ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp)).flip
-      yield assertTrue(
-        ex.getMessage.contains("Duplicate specular mount key"),
-        ex.getMessage.contains("alpha-ex-1"),
-      )
+      yield assertTrue(ex == SiteError.DuplicateMountKey(MountKey("alpha-ex-1"), NonEmptyChunk("Alpha", "Beta")))
     },
     test("two DomExamples with distinct keys on one page both render") {
       val doc = page("Two")(
@@ -909,7 +921,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       for
         tmp <- ZIO.attempt(Files.createTempDirectory("specular-dup"))
         ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp)).flip
-      yield assertTrue(ex.getMessage.contains("Duplicate"))
+      yield assertTrue(ex == SiteError.DuplicateSlug("hello-world", NonEmptyChunk("Hello World", "Hello_World")))
     },
     test("empty slug fails the build") {
       val model = SiteModel(
@@ -919,7 +931,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
       for
         tmp <- ZIO.attempt(Files.createTempDirectory("specular-empty"))
         ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp)).flip
-      yield assertTrue(ex.getMessage.contains("empty slug"))
+      yield assertTrue(ex == SiteError.EmptySlug(NonEmptyChunk("!!!")))
     },
   ).provide(
     Theme.live,

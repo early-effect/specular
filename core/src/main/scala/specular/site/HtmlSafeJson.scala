@@ -1,5 +1,7 @@
 package specular.site
 
+import zio.json.*
+
 /** Helpers for embedding JSON in HTML without script breakout. */
 object HtmlSafeJson:
 
@@ -9,7 +11,7 @@ object HtmlSafeJson:
 
   /** JSON string array suitable for `application/json` script bodies. */
   def stringArray(values: Vector[String]): String =
-    values.map(ProjectMeta.quoteJsonString).mkString("[", ",", "]")
+    values.toJson
 
   def embedStringArray(values: Vector[String]): String =
     embed(stringArray(values))

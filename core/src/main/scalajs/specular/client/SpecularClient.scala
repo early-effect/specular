@@ -27,7 +27,7 @@ import zio.*
 object SpecularClient:
 
   /** Mount every node on the current page whose key is in `mounters`. Never fails. */
-  def mountAll(mounters: Map[String, Mounter]): URIO[Scope, Unit] =
+  def mountAll(mounters: Map[MountKey, Mounter]): URIO[Scope, Unit] =
     for
       points <- ZIO.succeed(mountPoints)
       _      <- ZIO.foreachDiscard(points)((el, key) => mountOne(el, key, mounters).forkScoped)
@@ -35,45 +35,53 @@ object SpecularClient:
       _ <- ZIO.succeed(DevReload.install())
     yield ()
 
-  /** Ascent adapter: a mounter per interactive `Example` and live `Illustration` across `pages`.
+  /** Ascent adapter: a mounter per interactive `Example` and live [[AscentIllustration]] across `pages`.
     *
     * Replaces the hand-rolled per-repo `ExampleRegistry`: `.interactive` / `.live` already assign a key during
-    * `page(...)`, so listing the pages is all a docs client has to do.
+    * `page(...)`, so listing the pages is all a docs client has to do. A [[DomIllustration]] has no ascent body, so its
+    * mounter stays the author's to register, the same as `exampleDom`.
     */
-  def fromPages(pages: DocPage*): Map[String, Mounter] =
+  def fromPages(pages: DocPage*): Map[MountKey, Mounter] =
     pages.toVector
       .flatMap(p => liveAscent(p.children))
       .map((key, body) => key -> Mounter.fromAscent(body))
       .toMap
 
   /** Every mount key `pages` declares, ascent and DOM alike: the expected registry keys, for a drift spec. */
-  def requiredKeys(pages: DocPage*): Set[String] = DocMounts.keys(pages*)
+  def requiredKeys(pages: DocPage*): Set[MountKey] = DocMounts.keys(pages*)
 
-  /** Keys of the mount points actually present in the current document. */
-  def presentKeys: Set[String] = mountPoints.map(_._2).toSet
+  /** Valid keys of the mount points actually present in the current document. */
+  def presentKeys: Set[MountKey] = mountPoints.flatMap((_, raw) => MountKey.from(raw).toOption).toSet
 
   // Takes `Scope` rather than closing over one: the mounter's resources must outlive this call (see the
   // page-lifetime note above), so the caller's scope is threaded straight through.
-  private def mountOne(el: dom.Element, key: String, mounters: Map[String, Mounter]): URIO[Scope, Unit] =
-    if el.getAttribute(MountPoint.MountedAttr) != null then
+  private def mountOne(el: dom.Element, raw: String, mounters: Map[MountKey, Mounter]): URIO[Scope, Unit] =
+    if Option(el.getAttribute(MountPoint.MountedAttr)).isDefined then
       // Already mounted: a second scan (hot reload, double invocation) must not double-mount.
       ZIO.unit
     else
-      mounters.get(key) match
-        case None =>
-          // Drift: the site declares this example but the client never registered it. Loud, not blank.
-          fail(el, s"specular: no mounter registered for '$key'")
-        case Some(mounter) =>
-          for
-            _    <- ZIO.succeed(prepare(el))
-            exit <- mounter.mount(el).exit
-            _    <- exit match
-              case Exit.Success(_)     => ZIO.unit
-              case Exit.Failure(cause) =>
-                // Isolated: report on this example only, leaving the rest of the page mounted.
-                fail(el, s"specular: mounter '$key' failed: ${cause.squashTrace.getMessage}") *>
-                  ZIO.succeed(dom.console.error(cause.prettyPrint))
-          yield ()
+      MountKey.from(raw) match
+        case Left(err) =>
+          // Only a hand-written or tampered page can carry a key the site builder would not emit.
+          fail(el, s"specular: '$raw' is not a mount key (${err.message})")
+        case Right(key) => mountKnown(el, key, mounters)
+
+  private def mountKnown(el: dom.Element, key: MountKey, mounters: Map[MountKey, Mounter]): URIO[Scope, Unit] =
+    mounters.get(key) match
+      case None =>
+        // Drift: the site declares this example but the client never registered it. Loud, not blank.
+        fail(el, s"specular: no mounter registered for '${key.value}'")
+      case Some(mounter) =>
+        for
+          _    <- ZIO.succeed(prepare(el))
+          exit <- mounter.mount(el).exit
+          _    <- exit match
+            case Exit.Success(_)     => ZIO.unit
+            case Exit.Failure(cause) =>
+              // Isolated: report on this example only, leaving the rest of the page mounted.
+              fail(el, s"specular: mounter '${key.value}' failed: ${cause.squashTrace.getMessage}") *>
+                ZIO.succeed(dom.console.error(cause.prettyPrint))
+        yield ()
 
   /** Clear the SSR fallback and claim the node before handing it to a mounter. */
   private def prepare(el: dom.Element): Unit =
@@ -101,15 +109,11 @@ object SpecularClient:
       }
     }
 
-  private def liveAscent(nodes: Vector[DocNode]): Vector[(String, URIO[Scope, ascent.ast.UI[Any]])] =
+  private def liveAscent(nodes: Vector[DocNode]): Vector[(MountKey, URIO[Scope, ascent.ast.UI[Any]])] =
     nodes.flatMap {
-      case ex: Example[?] if ex.isInteractive =>
-        val e = ex.asInstanceOf[Example[Any]]
-        Vector(e.mountKey.getOrElse(e.id) -> e.body)
-      case ill: Illustration[?] if ill.isLive =>
-        val i = ill.asInstanceOf[Illustration[Any]]
-        Vector(i.mountKey.getOrElse(i.id) -> i.body)
-      case Section(_, kids) => liveAscent(kids)
-      case _                => Vector.empty
+      case ex: Example if ex.isInteractive       => ex.mountKey.toVector.map(_ -> ex.body)
+      case ill: AscentIllustration if ill.isLive => ill.mountKey.toVector.map(_ -> ill.body)
+      case Section(_, kids)                      => liveAscent(kids)
+      case _                                     => Vector.empty
     }
 end SpecularClient

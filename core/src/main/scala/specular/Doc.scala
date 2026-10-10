@@ -3,6 +3,8 @@ package specular
 import zio.*
 import zio.test.TestResult
 
+import scala.annotation.targetName
+
 /** A documentation page authored as a value. Interpreters fold the same AST into tests or a site. */
 trait DocSpec:
   def doc: DocPage
@@ -21,78 +23,128 @@ final case class Prose(markdown: String) extends DocNode
 
 final case class Section(title: String, children: Vector[DocNode]) extends DocNode
 
-/** An executable UI example. `R` is the ZIO environment needed to build the UI (usually `Any`).
+/** An executable UI example.
   *
   * [[mountKey]] is the browser-side handle: when [[interactive]] is set, the site stamps `data-specular-mount="<key>"`
   * on the SSR wrapper and the Scala.js client mounts whatever is registered under that key. It stays `None` until
   * `page(...)` assigns ids, then defaults to [[id]], so ascent examples travel the same keyed-mount path as
   * [[DomExample]] without the author naming anything.
   */
-final case class Example[R](
+final case class Example(
     id: String,
     source: String,
-    body: URIO[R & Scope, ascent.ast.UI[R]],
+    body: URIO[Scope, ascent.ast.UI[Any]],
     isInteractive: Boolean,
-    assertion: Option[ascent.ast.UI[R] => TestResult],
-    mountKey: Option[String] = None,
+    assertion: Option[ascent.ast.UI[Any] => TestResult],
+    mountKey: Option[MountKey] = None,
 ) extends DocNode:
 
-  def interactive: Example[R] = copy(isInteractive = true)
+  def interactive: Example = copy(isInteractive = true)
 
-  def assert(f: ascent.ast.UI[R] => TestResult): Example[R] = copy(assertion = Some(f))
+  def assert(f: ascent.ast.UI[Any] => TestResult): Example = copy(assertion = Some(f))
 
   /** Name the browser mount key explicitly instead of inheriting the assigned [[id]]. */
-  def withMountKey(key: String): Example[R] =
-    copy(mountKey = Some(MountKey.validated(key)))
+  def withMountKey(key: MountKey): Example = copy(mountKey = Some(key))
+
+  @targetName("withMountKeyLiteral")
+  inline def withMountKey(inline key: String): Example = withMountKey(MountKey(key))
 end Example
 
-/** An ascent tree that is the page (or a region of it), not a copy-paste sample.
+/** A region of the page, not a copy-paste sample.
   *
-  * Same SSR and optional JS remount as [[Example]], without a source panel, copy button, or `figure.specular-example`
-  * chrome. Use this for a poster, an anatomy widget, a host switcher: anything that *is* the document rather than a
-  * snippet of it. [[live]] remounts through `SpecularClient.fromPages` the way `.interactive` does for samples.
+  * Two payloads, and no third. [[AscentIllustration]] SSRs an ascent tree (and [[AscentIllustration.live]] remounts
+  * it). [[DomIllustration]] SSRs a placeholder and the client fills the element with a `Mounter`. Neither has a source
+  * panel, a copy button, or `figure.specular-example` chrome. [[DomExample]] stays the sample.
   */
-final case class Illustration[R](
+sealed trait Illustration extends DocNode:
+  def id: String
+
+  /** Browser mount key, when this region is filled by the client. */
+  def mountKey: Option[MountKey]
+
+/** An ascent tree that is the page (or a region of it).
+  *
+  * [[live]] remounts through `SpecularClient.fromPages` the way `.interactive` does for samples. `.assert` runs the
+  * tree under zio-test. A tool that writes a DOM node is a [[DomIllustration]], not this.
+  */
+final case class AscentIllustration(
     id: String,
-    body: URIO[R & Scope, ascent.ast.UI[R]],
+    body: URIO[Scope, ascent.ast.UI[Any]],
     isLive: Boolean,
-    assertion: Option[ascent.ast.UI[R] => TestResult],
-    mountKey: Option[String] = None,
-) extends DocNode:
+    assertion: Option[ascent.ast.UI[Any] => TestResult],
+    mountKey: Option[MountKey] = None,
+) extends Illustration:
 
-  def live: Illustration[R] = copy(isLive = true)
+  def live: AscentIllustration = copy(isLive = true)
 
-  def assert(f: ascent.ast.UI[R] => TestResult): Illustration[R] = copy(assertion = Some(f))
+  def assert(f: ascent.ast.UI[Any] => TestResult): AscentIllustration = copy(assertion = Some(f))
 
-  def withMountKey(key: String): Illustration[R] =
-    copy(mountKey = Some(MountKey.validated(key)))
-end Illustration
+  def withMountKey(key: MountKey): AscentIllustration = copy(mountKey = Some(key))
+
+  @targetName("withMountKeyLiteral")
+  inline def withMountKey(inline key: String): AscentIllustration = withMountKey(MountKey(key))
+end AscentIllustration
+
+/** A quiet mount point. The site SSRs [[fallback]]; the client passes the live element to a `Mounter`.
+  *
+  * No source file and no example chrome. The key is the author's, because specular cannot invent a mounter for code it
+  * does not import. `page(...)` assigns [[id]] and does not rewrite [[key]].
+  */
+final case class DomIllustration(
+    id: String,
+    key: MountKey,
+    fallback: ascent.ast.UI[Any] = DomIllustration.defaultFallback,
+) extends Illustration:
+
+  def mountKey: Option[MountKey] = Some(key)
+
+  def withFallback(ui: ascent.ast.UI[Any]): DomIllustration = copy(fallback = ui)
+end DomIllustration
+
+object DomIllustration:
+  /** Neutral placeholder for readers without JavaScript. The client clears it before the mounter runs. */
+  val defaultFallback: ascent.ast.UI[Any] =
+    ascent.ast.UI.Element(
+      "p",
+      Vector(
+        ascent.ast.Attr.StaticAttr(
+          "class",
+          ascent.domtypes.AttrValue.Str(MountPoint.FallbackClass),
+        )
+      ),
+      Vector(ascent.ast.UI.Text("This figure runs in your browser; enable JavaScript to see it.")),
+    )
+end DomIllustration
 
 /** A plain Scala / ZIO value example: source + computed result (not an ascent UI tree).
   *
   * Plain values and effects share this node (zio-test style): [[exampleValue]] lifts `A` with `ZIO.succeed`, and
   * [[exampleZIO]] stores the effect as-is. Same `.assert` and site result panel either way.
   *
-  * The body is `ZIO[Scope, Any, A]` so a typed error channel is legal (`MechanoidError`, similar ADTs). Interpreters
-  * treat an unexpected `Fail[E]` as a doc/test failure that reports `E`, not a `Cause` dump. Defects (`die`) still fail
-  * the site/test. [[exampleError]] inverts a fallible body so the result panel is `E`.
+  * `E` is the snippet's own error type (`MechanoidError`, similar ADTs), so a typed error channel is legal.
+  * Interpreters treat an [[ExampleFailure]] as a doc/test failure that reports it, not a `Cause` dump. Defects (`die`)
+  * still fail the site/test. [[exampleError]] inverts a fallible body so the result panel is `E`.
   */
-final case class ValueExample[A](
+final case class ValueExample[E, A](
     id: String,
     source: String,
-    body: ZIO[Scope, Any, A],
+    body: ZIO[Scope, ExampleFailure[E], A],
     assertion: Option[A => TestResult],
     show: A => String = (a: A) => a.toString,
 ) extends DocNode:
 
-  def assert(f: A => TestResult): ValueExample[A] = copy(assertion = Some(f))
+  def assert(f: A => TestResult): ValueExample[E, A] = copy(assertion = Some(f))
 
-  def withShow(f: A => String): ValueExample[A] = copy(show = f)
+  def withShow(f: A => String): ValueExample[E, A] = copy(show = f)
 end ValueExample
 
-object ValueExample:
-  /** Die message when [[exampleError]]'s body succeeds. Interpreters match this, then re-label with id. */
-  val ErrorSucceededMessage: String = "exampleError: effect succeeded"
+/** Why a [[ValueExample]] body did not produce its result. */
+enum ExampleFailure[+E]:
+  /** [[exampleZIO]]: the snippet failed with its own typed error. */
+  case Failed(error: E)
+
+  /** [[exampleError]]: the snippet was supposed to fail and succeeded. */
+  case UnexpectedSuccess
 
 /** A must-not-compile snippet: source string + [[scala.compiletime.testing.typeCheckErrors]] diagnostics.
   *
@@ -154,7 +206,7 @@ final case class DomSourceRef(path: String, marker: Option[String]):
   */
 final case class DomExample(
     id: String,
-    mountKey: String,
+    mountKey: MountKey,
     source: DomSourceRef,
     fallback: ascent.ast.UI[Any] = DomExample.defaultFallback,
 ) extends DocNode:
@@ -189,51 +241,26 @@ end DomExample
   *
   * Shared by both platforms because both halves need it: the Scala.js client compares [[keys]] against its registry
   * (`SpecularClient.requiredKeys` delegates here), and a JVM spec can make the same comparison before a browser is ever
-  * involved. [[domKeys]] narrows to the keys specular cannot register on its own, which is the set a docs client must
-  * supply by hand.
+  * involved. [[domKeys]] narrows to the keys specular cannot register from an ascent body ([[DomExample]] and
+  * [[DomIllustration]]), which is the set a docs client must supply by hand.
   */
 object DocMounts:
 
   /** Every declared mount key across `pages`, ascent and DOM alike. */
-  def keys(pages: DocPage*): Set[String] = keyList(pages*).toSet
+  def keys(pages: DocPage*): Set[MountKey] = keyList(pages*).toSet
 
   /** The same keys in document order, **duplicates preserved**: the form a uniqueness check needs. */
-  def keyList(pages: DocPage*): Vector[String] =
+  def keyList(pages: DocPage*): Vector[MountKey] =
     pages.toVector.flatMap(p => DocInternal.mountKeys(p.children))
 
-  /** Keys of [[DomExample]] nodes only: the mounters a client must register itself. */
-  def domKeys(pages: DocPage*): Set[String] = domExamples(pages*).map(_.mountKey).toSet
+  /** Keys a client must register itself: [[DomExample]] and [[DomIllustration]]. */
+  def domKeys(pages: DocPage*): Set[MountKey] =
+    pages.toVector.flatMap(p => DocInternal.clientBoundKeys(p.children)).toSet
 
   /** Every [[DomExample]] across `pages`, in document order, for a spec that checks their sources resolve. */
   def domExamples(pages: DocPage*): Vector[DomExample] =
     pages.toVector.flatMap(p => DocInternal.domExamples(p.children))
 end DocMounts
-
-/** Validation for browser mount keys, shared by [[DomExample]], [[Example.withMountKey]], and
-  * [[Illustration.withMountKey]].
-  *
-  * A key becomes an HTML attribute value and a client-side map key, so it is constrained to an unambiguous, injection-
-  * proof alphabet. Rejection is an exception at *construction* rather than a build-time diagnostic on purpose: DocSpecs
-  * are objects initialized by both `sbt test` and the site build, so a bad key fails both instead of degrading into an
-  * example that silently never mounts.
-  */
-private[specular] object MountKey:
-  val MaxLength: Int = 128
-
-  private val Allowed = "[A-Za-z0-9._-]+".r
-
-  def validated(key: String): String =
-    if key.isEmpty then throw new IllegalArgumentException("specular mount key must not be empty")
-    else if key.length > MaxLength then
-      throw new IllegalArgumentException(
-        s"specular mount key must be at most $MaxLength characters, got ${key.length}: $key"
-      )
-    else if !Allowed.matches(key) then
-      throw new IllegalArgumentException(
-        s"specular mount key may contain only letters, digits, '.', '_' and '-', got: $key"
-      )
-    else key
-end MountKey
 
 extension (sc: StringContext)
   def md(args: Any*): Prose =
@@ -251,23 +278,41 @@ def section(title: String)(nodes: DocNode*): Section =
   * Specialized to `UI[Any]` so contravariant `UI[-R]` does not infer `R = Nothing`. The full argument span is recorded
   * (local `val`s, `CssClass` objects, case classes, …), not only the last expression.
   */
-inline def example(inline body: ascent.ast.UI[Any]): Example[Any] =
+inline def example(inline body: ascent.ast.UI[Any]): Example =
   DocInternal.mkExample(capturedSource(body), body)
 
 /** Capture an effectful UI-building example (e.g. allocating a Source via `sq`). */
-inline def exampleIO(inline body: URIO[Scope, ascent.ast.UI[Any]]): Example[Any] =
+inline def exampleIO(inline body: URIO[Scope, ascent.ast.UI[Any]]): Example =
   DocInternal.mkExampleIO(capturedSource(body), body)
 
 /** SSR an ascent tree with no source panel. The page (or a region) *is* this tree, not a sample of it. */
-def illustration(body: ascent.ast.UI[Any]): Illustration[Any] =
+def illustration(body: ascent.ast.UI[Any]): AscentIllustration =
   DocInternal.mkIllustration(body)
 
-/** Effectful illustration (e.g. `sq`). [[Illustration.live]] remounts it through `fromPages` like `.interactive`. */
-def illustrationIO(body: URIO[Scope, ascent.ast.UI[Any]]): Illustration[Any] =
+/** Effectful illustration (e.g. `sq`). [[AscentIllustration.live]] remounts it through `fromPages` like `.interactive`.
+  */
+def illustrationIO(body: URIO[Scope, ascent.ast.UI[Any]]): AscentIllustration =
   DocInternal.mkIllustrationIO(body)
 
+/** SSR a quiet mount point. The client fills it with a `Mounter` registered under `mountKey`.
+  *
+  * No source file and no example chrome. [[exampleDom]] remains the sample.
+  *
+  * {{{
+  * illustrationDom("cycle")
+  * }}}
+  *
+  * Then in the Scala.js client: `SpecularClient.mountAll(Map(MountKey("cycle") -> Mounter.sync(el => ...)))`.
+  */
+def illustrationDom(mountKey: MountKey): DomIllustration =
+  DomIllustration(id = "", key = mountKey)
+
+@targetName("illustrationDomLiteral")
+inline def illustrationDom(inline mountKey: String): DomIllustration =
+  illustrationDom(MountKey(mountKey))
+
 /** Capture a plain Scala value: source panel + printed result. Same [[ValueExample]] as effects. */
-inline def exampleValue[A](inline body: A): ValueExample[A] =
+inline def exampleValue[A](inline body: A): ValueExample[Nothing, A] =
   DocInternal.mkValueExample(capturedSource(body), body)
 
 /** Capture a ZIO effect as a [[ValueExample]] (same node and `.assert` as plain values).
@@ -275,7 +320,7 @@ inline def exampleValue[A](inline body: A): ValueExample[A] =
   * `E` need not be `Nothing` or a `Throwable`. If the body fails with a typed `E`, interpreters fail the doc/test and
   * report `E`; they do not require `orDie` or a fold in the snippet. Defects (`die`) still fail the site/test.
   */
-inline def exampleZIO[E, A](inline body: ZIO[Scope, E, A]): ValueExample[A] =
+inline def exampleZIO[E, A](inline body: ZIO[Scope, E, A]): ValueExample[E, A] =
   DocInternal.mkValueExampleZIO(capturedSource(body), body)
 
 /** Capture a documented typed failure: source panel + `E` as the result.
@@ -285,7 +330,7 @@ inline def exampleZIO[E, A](inline body: ZIO[Scope, E, A]): ValueExample[A] =
   *
   * `.assert` and `.withShow` take `E`, unlike [[expectCrash]] which takes `Cause[E]`.
   */
-inline def exampleError[E, A](inline body: ZIO[Scope, E, A]): ValueExample[E] =
+inline def exampleError[E, A](inline body: ZIO[Scope, E, A]): ValueExample[Nothing, E] =
   DocInternal.mkValueExampleError(capturedSource(body), body)
 
 /** Capture a must-not-compile snippet (self-contained string literal for `typeCheckErrors`). */
@@ -305,21 +350,25 @@ inline def expectCrash[E, A](inline body: ZIO[Scope, E, A]): CrashExample[E, A] 
   * exampleDom("counter").fromSource("docs/client/src/main/scala/acme/docs/Counter.scala", "demo")
   * }}}
   *
-  * Then in the Scala.js client: `SpecularClient.mountAll(Map("counter" -> Counter.mounter))`.
+  * Then in the Scala.js client: `SpecularClient.mountAll(Map(MountKey("counter") -> Counter.mounter))`.
   */
-def exampleDom(mountKey: String): DomExample =
+def exampleDom(mountKey: MountKey): DomExample =
   DomExample(
     id = "",
-    mountKey = MountKey.validated(mountKey),
+    mountKey = mountKey,
     source = DomSourceRef("", None),
   )
+
+@targetName("exampleDomLiteral")
+inline def exampleDom(inline mountKey: String): DomExample =
+  exampleDom(MountKey(mountKey))
 
 /** Macro-only source capture; keeps the executable body out of quotes (see [[ExampleMacros]]). */
 private inline def capturedSource(inline body: Any): String =
   ${ ExampleMacros.sourceImpl('body) }
 
 private[specular] object DocInternal:
-  def mkExample(source: String, ui: ascent.ast.UI[Any]): Example[Any] =
+  def mkExample(source: String, ui: ascent.ast.UI[Any]): Example =
     Example(
       id = "",
       source = source,
@@ -328,7 +377,7 @@ private[specular] object DocInternal:
       assertion = None,
     )
 
-  def mkExampleIO(source: String, effect: URIO[Scope, ascent.ast.UI[Any]]): Example[Any] =
+  def mkExampleIO(source: String, effect: URIO[Scope, ascent.ast.UI[Any]]): Example =
     Example(
       id = "",
       source = source,
@@ -337,23 +386,23 @@ private[specular] object DocInternal:
       assertion = None,
     )
 
-  def mkIllustration(ui: ascent.ast.UI[Any]): Illustration[Any] =
-    Illustration(
+  def mkIllustration(ui: ascent.ast.UI[Any]): AscentIllustration =
+    AscentIllustration(
       id = "",
       body = ZIO.succeed(ui),
       isLive = false,
       assertion = None,
     )
 
-  def mkIllustrationIO(effect: URIO[Scope, ascent.ast.UI[Any]]): Illustration[Any] =
-    Illustration(
+  def mkIllustrationIO(effect: URIO[Scope, ascent.ast.UI[Any]]): AscentIllustration =
+    AscentIllustration(
       id = "",
       body = effect,
       isLive = false,
       assertion = None,
     )
 
-  def mkValueExample[A](source: String, value: A): ValueExample[A] =
+  def mkValueExample[A](source: String, value: A): ValueExample[Nothing, A] =
     ValueExample(
       id = "",
       source = source,
@@ -361,23 +410,20 @@ private[specular] object DocInternal:
       assertion = None,
     )
 
-  def mkValueExampleZIO[E, A](source: String, effect: ZIO[Scope, E, A]): ValueExample[A] =
+  def mkValueExampleZIO[E, A](source: String, effect: ZIO[Scope, E, A]): ValueExample[E, A] =
     ValueExample(
       id = "",
       source = source,
-      body = effect,
+      body = effect.mapError(ExampleFailure.Failed(_)),
       assertion = None,
     )
 
   /** Invert a fallible body so the stored effect succeeds with `E`. Defects are not caught (`foldZIO`). */
-  def mkValueExampleError[E, A](source: String, effect: ZIO[Scope, E, A]): ValueExample[E] =
+  def mkValueExampleError[E, A](source: String, effect: ZIO[Scope, E, A]): ValueExample[Nothing, E] =
     ValueExample(
       id = "",
       source = source,
-      body = effect.foldZIO(
-        e => ZIO.succeed(e),
-        _ => ZIO.die(IllegalStateException(ValueExample.ErrorSucceededMessage)),
-      ),
+      body = effect.foldZIO(ZIO.succeed(_), _ => ZIO.fail(ExampleFailure.UnexpectedSuccess)),
       assertion = None,
     )
 
@@ -417,19 +463,22 @@ private[specular] object DocInternal:
     var n                                        = 0
     def go(ns: Vector[DocNode]): Vector[DocNode] =
       ns.map {
-        case e: Example[?] =>
+        case e: Example =>
           n += 1
           val id = s"$pageSlug-ex-$n"
           // An interactive ascent example needs a browser key; default it to the id so authors
           // keep writing plain `.interactive` while the client sees one uniform keyed mount.
-          val key = if e.isInteractive then Some(e.mountKey.getOrElse(id)) else e.mountKey
+          val key = if e.isInteractive then Some(e.mountKey.getOrElse(MountKey.assigned(id))) else e.mountKey
           e.copy(id = id, mountKey = key)
-        case i: Illustration[?] =>
+        case i: AscentIllustration =>
           n += 1
           val id  = s"$pageSlug-ex-$n"
-          val key = if i.isLive then Some(i.mountKey.getOrElse(id)) else i.mountKey
+          val key = if i.isLive then Some(i.mountKey.getOrElse(MountKey.assigned(id))) else i.mountKey
           i.copy(id = id, mountKey = key)
-        case v: ValueExample[?] =>
+        case d: DomIllustration =>
+          n += 1
+          d.copy(id = s"$pageSlug-ex-$n")
+        case v: ValueExample[?, ?] =>
           n += 1
           v.copy(id = s"$pageSlug-ex-$n")
         case f: FailExample =>
@@ -449,12 +498,21 @@ private[specular] object DocInternal:
   end assignIds
 
   /** Every browser mount key declared on a page, in document order (duplicates preserved for validation). */
-  def mountKeys(nodes: Vector[DocNode]): Vector[String] =
+  def mountKeys(nodes: Vector[DocNode]): Vector[MountKey] =
     nodes.flatMap {
-      case e: Example[?]      => e.mountKey.toVector
-      case i: Illustration[?] => i.mountKey.toVector
+      case e: Example       => e.mountKey.toVector
+      case i: Illustration  => i.mountKey.toVector
+      case d: DomExample    => Vector(d.mountKey)
+      case Section(_, kids) => mountKeys(kids)
+      case _                => Vector.empty
+    }
+
+  /** Keys the client must bind by hand: [[DomExample]] and [[DomIllustration]], in document order. */
+  def clientBoundKeys(nodes: Vector[DocNode]): Vector[MountKey] =
+    nodes.flatMap {
       case d: DomExample      => Vector(d.mountKey)
-      case Section(_, kids)   => mountKeys(kids)
+      case d: DomIllustration => Vector(d.key)
+      case Section(_, kids)   => clientBoundKeys(kids)
       case _                  => Vector.empty
     }
 

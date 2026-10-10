@@ -4,14 +4,14 @@ import zio.*
 
 /** Runs an example or illustration body under a fresh [[Scope]], producing the built UI. */
 trait ExampleRunner:
-  def run[R](example: Example[R]): URIO[R, ascent.ast.UI[R]]
-  def run[R](illustration: Illustration[R]): URIO[R, ascent.ast.UI[R]]
+  def run(example: Example): UIO[ascent.ast.UI[Any]]
+  def run(illustration: AscentIllustration): UIO[ascent.ast.UI[Any]]
 
 object ExampleRunner:
 
   val live: ULayer[ExampleRunner] =
     ZLayer.succeed(new ExampleRunner:
-      def run[R](example: Example[R]): URIO[R, ascent.ast.UI[R]] =
+      def run(example: Example): UIO[ascent.ast.UI[Any]] =
         ZIO.scoped(example.body)
-      def run[R](illustration: Illustration[R]): URIO[R, ascent.ast.UI[R]] =
+      def run(illustration: AscentIllustration): UIO[ascent.ast.UI[Any]] =
         ZIO.scoped(illustration.body))

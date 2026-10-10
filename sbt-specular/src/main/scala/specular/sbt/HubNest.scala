@@ -24,7 +24,7 @@ object HubNest:
 
   final case class Member(
       project: String,
-      segment: String,
+      segment: SiteSegment,
       from: File,
   )
 
@@ -38,34 +38,29 @@ object HubNest:
   def parentHref(segment: String): String =
     if segment.trim.isEmpty then "" else DefaultParentHref
 
-  def validateSegment(raw: String): Either[String, String] =
+  def validateSegment(raw: String): Either[HubNestError, SiteSegment] =
     val s = raw.trim
-    if s.isEmpty then Left("specularSiteSegment must be non-empty for a hub member")
-    else if s == "." || s == ".." then Left(s"specularSiteSegment cannot be '$s'")
-    else if s.length > MaxSegmentLength then
-      Left(s"specularSiteSegment is longer than $MaxSegmentLength characters: $s")
-    else if !s.matches("[A-Za-z0-9][A-Za-z0-9._-]*") then
-      Left(s"""specularSiteSegment must match [A-Za-z0-9][A-Za-z0-9._-]*, got: "$s"""")
-    else if Reserved.contains(s.toLowerCase) then Left(s"specularSiteSegment '$s' is reserved")
-    else Right(s)
+    if s.isEmpty then Left(HubNestError.EmptySegment)
+    else if s == "." || s == ".." then Left(HubNestError.DotSegment(s))
+    else if s.length > MaxSegmentLength then Left(HubNestError.SegmentTooLong(s))
+    else if !s.matches("[A-Za-z0-9][A-Za-z0-9._-]*") then Left(HubNestError.IllegalSegment(s))
+    else if Reserved.contains(s.toLowerCase) then Left(HubNestError.ReservedSegment(s))
+    else Right(SiteSegment(s))
   end validateSegment
 
   /** Empty candidate list is a no-op nest (hub with no aggregate). Non-empty must all be valid members. */
-  def members(candidates: Seq[Candidate]): Either[String, Seq[Member]] =
+  def members(candidates: Seq[Candidate]): Either[HubNestError, Seq[Member]] =
     if candidates.isEmpty then Right(Seq.empty)
     else
       val nestedHub = candidates.find(_.isHub)
       nestedHub match
         case Some(h) =>
-          Left(s"${h.project} is itself a specular hub; nested hubs are not supported")
+          Left(HubNestError.NestedHub(h.project))
         case None =>
           val validated = candidates.map { c =>
             c.segment match
               case None =>
-                Left(
-                  s"${c.project} is aggregated by a specular hub but does not enable SpecularPlugin. " +
-                    "Aggregate member docs projects, not product umbrellas."
-                )
+                Left(HubNestError.NotASpecularProject(c.project))
               case Some(raw) =>
                 validateSegment(raw).map(seg => Member(c.project, seg, c.from))
           }
@@ -73,19 +68,47 @@ object HubNest:
           firstErr match
             case Some(e) => Left(e)
             case None    =>
-              val ok    = validated.collect { case Right(m) => m }
-              val dupes = ok.groupBy(_.segment).collect { case (seg, group) if group.size > 1 => seg -> group }
-              if dupes.nonEmpty then
-                val msg = dupes
-                  .map { case (seg, group) => s"'$seg' ← ${group.map(_.project).mkString(", ")}" }
-                  .mkString("; ")
-                Left(s"Duplicate specularSiteSegment(s): $msg")
-              else Right(ok)
+              val ok = validated.collect { case Right(m) => m }
+              ok.groupBy(_.segment).collectFirst { case (seg, group) if group.size > 1 => seg -> group } match
+                case Some((seg, group)) => Left(HubNestError.DuplicateSegment(seg, group.map(_.project)))
+                case None               => Right(ok)
           end match
       end match
     end if
   end members
 
   def copies(hubDir: File, members: Seq[Member]): Seq[Copy] =
-    members.map(m => Copy(project = m.project, from = m.from, to = new File(hubDir, m.segment)))
+    members.map(m => Copy(project = m.project, from = m.from, to = new File(hubDir, m.segment.value)))
 end HubNest
+
+/** A validated URL segment for a site nested under a hub. */
+opaque type SiteSegment = String
+
+object SiteSegment:
+  private[sbt] def apply(validated: String): SiteSegment = validated
+  extension (segment: SiteSegment) def value: String     = segment
+
+/** Why a hub cannot nest its aggregate children. */
+enum HubNestError:
+  case EmptySegment
+  case DotSegment(raw: String)
+  case SegmentTooLong(raw: String)
+  case IllegalSegment(raw: String)
+  case ReservedSegment(raw: String)
+  case NestedHub(project: String)
+  case NotASpecularProject(project: String)
+  case DuplicateSegment(segment: SiteSegment, projects: Seq[String])
+
+  def message: String = this match
+    case EmptySegment         => "specularSiteSegment must be non-empty for a hub member"
+    case DotSegment(raw)      => s"specularSiteSegment cannot be '$raw'"
+    case SegmentTooLong(raw)  => s"specularSiteSegment is longer than ${HubNest.MaxSegmentLength} characters: $raw"
+    case IllegalSegment(raw)  => s"""specularSiteSegment must match [A-Za-z0-9][A-Za-z0-9._-]*, got: "$raw""""
+    case ReservedSegment(raw) => s"specularSiteSegment '$raw' is reserved"
+    case NestedHub(project)   => s"$project is itself a specular hub; nested hubs are not supported"
+    case NotASpecularProject(project) =>
+      s"$project is aggregated by a specular hub but does not enable SpecularPlugin. " +
+        "Aggregate member docs projects, not product umbrellas."
+    case DuplicateSegment(segment, projects) =>
+      s"Duplicate specularSiteSegment: '${segment.value}' ← ${projects.mkString(", ")}"
+end HubNestError

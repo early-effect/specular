@@ -28,11 +28,10 @@ object BuildSite extends DocsSite:
 
   def pages: Vector[DocPage] = siteNav.pages
 
-  override def site: SiteModel =
-    val m       = meta
-    val version = m.docsVersion
-    val org     = m.organization
-    val branded = EarlyEffectTheme.brand(super.site)
+  override def site(settings: DocsSettings): SiteModel =
+    val version = settings.meta.docsVersion
+    val org     = settings.meta.organization
+    val branded = EarlyEffectTheme.brand(super.site(settings))
     branded.copy(
       nav = Some(siteNav),
       pages = siteNav.pages,
@@ -42,8 +41,8 @@ object BuildSite extends DocsSite:
 under **zio-test** and SSR into a static site through [ascent](https://github.com/early-effect/ascent).
 
 Most teams adopt it as the **`sbt-specular` plugin**, which wires project meta and runs
-`specularSite`. The libraries (`specular-core`, `specular-zio-test`, `specular-site` with
-Mermaid Prose fences via `specular-mermoid`) are available when you want to compose sites by hand.
+`specularSite`. The libraries (`specular-core`, `specular-zio-test`, `specular-site`) are
+available when you want to compose sites by hand.
 """
       ),
       installSnippets = Vector(
@@ -75,7 +74,7 @@ sbt docs/specularSite""",
   override def layers: ZLayer[Any, Nothing, SiteBuilder] =
     EarlyEffectTheme.layers
 
-  override def afterBuild(out: Path, result: SiteOutput): Task[Unit] =
+  override def afterBuild(out: Path, result: SiteOutput): IO[SiteError, Unit] =
     val _ = result
     EarlyEffectTheme.writeLogo(out)
 end BuildSite

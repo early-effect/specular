@@ -70,7 +70,7 @@ object SiteNav:
     spaced
       .split("\\s+")
       .filter(_.nonEmpty)
-      .map(w => w.head.toUpper.toString + w.tail)
+      .map(_.capitalize)
       .mkString(" ")
   end humanize
 end SiteNav
