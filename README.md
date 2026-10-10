@@ -4,10 +4,7 @@
 [![Maven Central](https://img.shields.io/maven-central/v/rocks.earlyeffect/specular-core_3?logo=apachemaven)](https://central.sonatype.com/artifact/rocks.earlyeffect/specular-core_3)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-**Tests-as-docs** for Scala 3. A documentation page is a real program — a `DocSpec` that
-compiles with your build, asserts under **zio-test**, and SSR-renders through
-[ascent](https://github.com/early-effect/ascent) into a static site. Examples cannot drift from
-behavior: a red example fails CI.
+A documentation page that can lie should fail the build. [Docs](https://www.earlyeffect.rocks/specular/).
 
 > **Status: early / pre-1.0.** Published under [early-semver](https://www.scala-sbt.org/1.x/docs/Publishing.html#Version+scheme)
 > (`versionScheme := "early-semver"`) — the API can change between minor versions until `1.0`.

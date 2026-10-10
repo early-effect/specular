@@ -5,7 +5,7 @@ import specular.*
 import specular.site.*
 import zio.*
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path, StandardCopyOption}
 
 /** Dogfood DocsSite: Compile main invoked by `docs/specularSite`. */
 object BuildSite extends DocsSite:
@@ -37,15 +37,7 @@ object BuildSite extends DocsSite:
       nav = Some(siteNav),
       pages = siteNav.pages,
       clientScript = Some("assets/client.js"),
-      summaryMarkdown = Some(
-        s"""**Specular** is tests-as-docs for Scala 3: author pages as `DocSpec` programs that assert
-under **zio-test** and SSR into a static site through [ascent](https://github.com/early-effect/ascent).
-
-Most teams adopt it as the **`sbt-specular` plugin**, which wires project meta and runs
-`specularSite`. The libraries (`specular-core`, `specular-zio-test`, `specular-site`) are
-available when you want to compose sites by hand.
-"""
-      ),
+      summaryMarkdown = Some("A documentation page that can lie should fail the build."),
       installSnippets = Vector(
         CodeSnippet(
           "sbt plugin (typical)",
@@ -77,5 +69,15 @@ sbt docs/specularSite""",
 
   override def afterBuild(out: Path, result: SiteOutput): IO[SiteError, Unit] =
     val _ = result
-    EarlyEffectTheme.writeLogo(out)
+    // The builder always writes index.html as a summary. Why Specular is already the
+    // first nav page, so copying it over that file does not add a second sidebar entry.
+    // Paths in the page are site-relative and stay valid in the same directory.
+    val front   = out.resolve(s"${WhySpecular.doc.slug}.html")
+    val index   = out.resolve("index.html")
+    val promote =
+      ZIO.attemptBlockingIO(Files.copy(front, index, StandardCopyOption.REPLACE_EXISTING)).mapError { err =>
+        SiteError.WriteFailed(index, err)
+      }
+    promote *> EarlyEffectTheme.writeLogo(out)
+  end afterBuild
 end BuildSite
