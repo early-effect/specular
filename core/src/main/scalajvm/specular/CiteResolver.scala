@@ -815,7 +815,7 @@ object CiteResolver:
         Left(CiteError.UnreadableSignature(fullName, other.getClass.getSimpleName))
 
   private def dropTemplate(fullName: String, text: String, templ: Template): Either[CiteError, String] =
-    templ.stats match
+    templ.body.stats match
       case Nil       => Right(text.stripTrailing)
       case stat :: _ => dropMarker(fullName, text, stat.pos.start, None)
 
