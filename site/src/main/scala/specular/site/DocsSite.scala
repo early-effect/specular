@@ -29,6 +29,7 @@ trait DocsSite extends ZIOAppDefault:
       description = settings.meta.description,
       logoLink = settings.parentHref,
       artifactKind = settings.artifactKind,
+      cites = CiteRendering(settings.citeFormat, settings.citeSourceBase),
     )
 
   /** ZIO layers for the stock site stack. Replace [[Theme]] (or more) by overriding. */

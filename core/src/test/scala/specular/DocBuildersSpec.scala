@@ -385,6 +385,28 @@ object DocBuildersSpec extends ZIOSpecDefault:
         val p = page("Quiet")(example { E.div("a") })
         assertTrue(DocInternal.mountKeys(p.children).isEmpty)
       },
+      test("a cite keeps its anchor and does not consume an example number") {
+        val cited = SourceCite(
+          id = "",
+          symbol = CiteSymbol("pkg.Box.twice", Vector.empty, "", "pkg/Box.scala", CiteForm.Member),
+          view = CiteView.Full,
+          elideAfter = None,
+          format = CiteFormat.Inherit,
+        )
+        val p   = page("Cited")(cited, exampleValue { 1 })
+        val ids = p.children.collect { case c: SourceCite => c.id }
+        assertTrue(
+          ids == Vector("cite-pkg.Box.twice"),
+          collectExampleIds(p.children) == Vector("cited-ex-1"),
+          cited.signature.anchor == "cite-pkg.Box.twice-signature",
+          cited.elided(10).anchor == "cite-pkg.Box.twice-elided-10",
+          cited.formatted.anchor == "cite-pkg.Box.twice-formatted",
+          cited.asWritten.anchor == "cite-pkg.Box.twice-as-written",
+          cited.copy(symbol = cited.symbol.copy(fullName = "pkg.Box.<init>")).anchor == "cite-pkg.Box.init",
+          cited.copy(symbol = cited.symbol.copy(fullName = "pkg.Box$.seed")).anchor == "cite-pkg.Box.seed",
+          cited.symbol.copy(fullName = "pkg.Box$.seed").sourceName == "pkg.Box.seed",
+        )
+      },
       test("section nests children") {
         val s = section("Title")(md"body", example { E.p("x") })
         assertTrue(

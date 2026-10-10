@@ -4,7 +4,7 @@ import ascent.ast.UI
 import ascent.html.Html
 import zio.*
 
-/** Thin ZIO service over ascent SSR. Each call is already StyleRegistry-isolated by [[Html]]. */
+/** Thin ZIO service over ascent SSR. Each call is already StyleRegistry-isolated by [[ascent.html.Html]]. */
 trait HtmlSsr:
   def renderFragment[R](ui: UI[R]): URIO[R, String]
   def renderPage[R](ui: UI[R]): URIO[R, Html.Page]

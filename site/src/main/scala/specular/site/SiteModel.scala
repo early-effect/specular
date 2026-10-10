@@ -1,8 +1,19 @@
 package specular.site
 
-import specular.DocPage
+import specular.{CiteFormat, DocPage}
 import zio.*
 import heddle.Client
+
+/** How a site renders [[specular.SourceCite]].
+  *
+  * [[format]] is the default for a cite that calls neither `.formatted` nor `.asWritten`. [[sourceBase]] is
+  * `https://github.com/org/repo/blob/<rev>` when the build knows a GitHub revision. The renderer appends
+  * `/<path>#Lstart-Lend` and drops the footer when [[SafeHref]] rejects the result.
+  */
+final case class CiteRendering(
+    format: CiteFormat = CiteFormat.AsWritten,
+    sourceBase: Option[String] = None,
+)
 
 /** Configuration for a specular site (docs micro-site or full hub). */
 final case class SiteModel(
@@ -30,6 +41,8 @@ final case class SiteModel(
     nav: Option[NavModel] = None,
     /** In-page TOC: `None` = auto (show when 2+ top-level sections), `Some` forces on/off. */
     pageToc: Option[Boolean] = None,
+    /** Cite formatting default and the optional GitHub blob root for footer links. */
+    cites: CiteRendering = CiteRendering(),
 ):
   def navItems: Vector[NavItem] =
     pages.map(p => NavItem(p.title, hrefFor(p)))

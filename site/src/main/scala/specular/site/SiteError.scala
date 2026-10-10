@@ -1,6 +1,6 @@
 package specular.site
 
-import specular.{DomSourceError, ExampleFailure, MountKey}
+import specular.{CiteError, DomSourceError, ExampleFailure, MountKey}
 import zio.NonEmptyChunk
 
 import java.io.IOException
@@ -22,6 +22,15 @@ enum SiteError:
   case ExampleInterrupted(id: String)
   case CrashDidNotCrash(id: String)
   case DomSource(id: String, error: DomSourceError)
+  case Cite(id: String, error: CiteError)
+
+  /** One page, one or more cites that could not be shown. The page is still written, with each error in place.
+    *
+    * Each pair is the cite anchor and the reason. [[Cite]] is not stored here: naming that case from another case
+    * widens the constructor to [[SiteError]].
+    */
+  case Cites(errors: NonEmptyChunk[(String, CiteError)])
+  case DuplicateCite(anchor: String, page: String)
   case Settings(error: zio.Config.Error)
 
   def message: String = this match
@@ -40,6 +49,10 @@ enum SiteError:
     case ExampleInterrupted(id)                              => s"example $id was interrupted during site build"
     case CrashDidNotCrash(id)                                => s"expectCrash $id: effect succeeded during site build"
     case DomSource(id, error)                                => s"DomExample $id: ${error.message}"
-    case Settings(error)                                     =>
+    case Cite(id, error)                                     => s"cite $id: ${error.message}"
+    case Cites(errors)                                       =>
+      errors.map((id, error) => s"cite $id: ${error.message}").mkString("\n")
+    case DuplicateCite(anchor, page) => s"Duplicate cite on $page: $anchor"
+    case Settings(error)             =>
       s"Missing or bad -Dspecular.* settings ($error). Run via sbt-specular `specularSite` with `specularMetaProject` set."
 end SiteError

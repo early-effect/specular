@@ -10,6 +10,17 @@ import java.nio.file.Files
 
 object SiteBuilderSpec extends ZIOSpecDefault:
 
+  /** The `<figure` that contains `needle`. Empty when the needle or the figure bounds are missing. */
+  private def figureAround(html: String, needle: String): String =
+    val at    = html.indexOf(needle)
+    val open  = html.lastIndexOf("<figure", at)
+    val close = html.indexOf("</figure>", at)
+    if at < 0 || open < 0 || close < 0 then "" else html.substring(open, close + "</figure>".length)
+
+  /** Source text with highlight spans removed, so an assertion can see `ZIO.succeed` across token boundaries. */
+  private def visible(html: String): String =
+    html.replaceAll("</?[^>]+>", "")
+
   object OnlyA extends CssClass(S.color("red"))
   object OnlyB extends CssClass(S.color("blue"))
 
@@ -105,9 +116,11 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("id=\"values-ex-1\""),
         html.contains("id=\"values-ex-2\""),
         html.contains("specular-result"),
-        html.contains("val n"),
+        visible(html).contains("val n"),
+        html.contains("specular-tok-kw"),
+        html.contains("specular-tok-num"),
         html.contains("42"),
-        html.contains("ZIO.succeed"),
+        visible(html).contains("ZIO.succeed"),
         html.contains(">ok<") || html.contains("ok"),
       )
       end for
@@ -127,7 +140,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("id=\"typed-ok-ex-1\""),
         html.contains("specular-result"),
         !html.contains("specular-crash"),
-        html.contains("ZIO.succeed"),
+        visible(html).contains("ZIO.succeed"),
         html.contains("ok"),
       )
       end for
@@ -159,8 +172,8 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("id=\"typed-err-ex-1\""),
         html.contains("specular-result"),
         !html.contains("specular-crash"),
-        html.contains("ZIO.fail"),
-        !html.contains(".either"),
+        visible(html).contains("ZIO.fail"),
+        !visible(html).contains(".either"),
         !html.contains("foldZIO"),
         html.contains("DemoErr"),
         html.contains("nope"),
@@ -208,8 +221,8 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("id=\"failures-ex-2\""),
         html.contains("specular-diagnostics"),
         html.contains("specular-crash"),
-        html.contains("val x"),
-        html.contains("ZIO.fail"),
+        visible(html).contains("val x"),
+        visible(html).contains("ZIO.fail"),
         html.contains("boom"),
       )
       end for
@@ -663,11 +676,11 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("class=\"specular-snapshot\""),
         html.contains(s"""${MountPoint.Attr}="raw-dom-counter""""),
         // The panel shows the marked region of a real compiled file, not a retyped string.
-        html.contains("def greeting"),
-        html.contains("hello, $name"),
+        visible(html).contains("def greeting"),
+        visible(html).contains("hello, $name"),
         // The nested region's own marker comments are stripped, and nothing outside the region leaks in.
-        !html.contains("specular:begin"),
-        !html.contains("def shout"),
+        !visible(html).contains("specular:begin"),
+        !visible(html).contains("def shout"),
         // No-JS readers get the fallback; the client clears it before mounting.
         html.contains(MountPoint.FallbackClass),
         html.contains("enable JavaScript"),
@@ -719,11 +732,11 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
         html <- ZIO.attempt(Files.readString(path))
       yield assertTrue(
-        html.contains("object DomExampleFixture"),
-        html.contains("def shout"),
+        visible(html).contains("object DomExampleFixture"),
+        visible(html).contains("def shout"),
         // The leading `package` / `import` header is trimmed; the whole file is otherwise intact.
-        !html.contains("package specular.site"),
-        !html.contains("import java.util.Locale"),
+        !visible(html).contains("package specular.site"),
+        !visible(html).contains("import java.util.Locale"),
       )
       end for
     },
@@ -734,8 +747,8 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
         html <- ZIO.attempt(Files.readString(path))
       yield assertTrue(
-        html.contains("hello, $name"),
-        !html.contains("def greeting"),
+        visible(html).contains("hello, $name"),
+        !visible(html).contains("def greeting"),
       )
       end for
     },
@@ -932,6 +945,124 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         tmp <- ZIO.attempt(Files.createTempDirectory("specular-empty"))
         ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp)).flip
       yield assertTrue(ex == SiteError.EmptySlug(NonEmptyChunk("!!!")))
+    },
+    test("a cite renders a symbol anchor and does not consume an example number") {
+      val doc = page("Mixed")(
+        cite(MountPoint.Attr),
+        example { E.span("x") },
+      )
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-cite"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield assertTrue(
+        html.contains("class=\"specular-cite\""),
+        html.contains(s"""id="${cite(MountPoint.Attr).anchor}""""),
+        visible(html).contains("specular.MountPoint.Attr"),
+        !html.contains("MountPoint$"),
+        html.contains("data-specular-mount"),
+        html.contains("specular-tok-kw"),
+        html.contains("id=\"mixed-ex-1\""),
+        !html.contains("mixed-ex-2"),
+        !html.contains("View source"),
+      )
+      end for
+    },
+    test("two views of one symbol both render") {
+      val whole  = cite(MountPoint.Attr)
+      val header = cite(MountPoint.Attr).signature
+      val doc    = page("Views")(whole, header)
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-cite-views"))
+        path <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp))
+        html <- ZIO.attempt(Files.readString(path))
+      yield assertTrue(
+        html.contains(s"""id="${whole.anchor}""""),
+        html.contains(s"""id="${header.anchor}""""),
+        whole.anchor != header.anchor,
+      )
+    },
+    test("a cite that cannot be shown fails the build and is written on the page") {
+      val ghost = SourceCite(
+        id = "",
+        symbol = CiteSymbol("no.such.Symbol", Vector.empty, "", "nope.scala", CiteForm.Member),
+        view = CiteView.Full,
+        elideAfter = None,
+        format = CiteFormat.Inherit,
+      )
+      val doc = page("Missing")(ghost)
+      for
+        tmp  <- ZIO.attempt(Files.createTempDirectory("specular-cite-miss"))
+        ex   <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp)).flip
+        html <- ZIO.attempt(Files.readString(tmp.resolve("missing.html")).nn)
+      yield
+        val figure = figureAround(html, s"""id="${ghost.anchor}"""")
+        assertTrue(
+          ex match
+            case SiteError.Cites(errors) =>
+              errors.length == 1 && errors.head._2.message.contains("no.such.Symbol")
+            case _ => false
+          ,
+          figure.contains("specular-cite-error"),
+          figure.contains("specular-cite-invalid"),
+          visible(figure).contains("no.such.Symbol"),
+          !figure.contains("specular-source"),
+        ).label(ex.message)
+      end for
+    },
+    test("the same cite twice on one page fails") {
+      val doc = page("Dup")(cite(MountPoint.Attr), cite(MountPoint.Attr))
+      for
+        tmp <- ZIO.attempt(Files.createTempDirectory("specular-cite-dup"))
+        ex  <- ZIO.serviceWithZIO[SiteBuilder](_.buildPage(doc, tmp)).flip
+      yield assertTrue(ex == SiteError.DuplicateCite(cite(MountPoint.Attr).anchor, "Dup"))
+    },
+    test("the same cite on two pages is allowed") {
+      val model = SiteModel(
+        title = "Docs",
+        pages = Vector(page("One")(cite(MountPoint.Attr)), page("Two")(cite(MountPoint.Attr))),
+      )
+      for
+        tmp <- ZIO.attempt(Files.createTempDirectory("specular-cite-pages"))
+        out <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+      yield assertTrue(
+        out.pages.exists(_.getFileName.toString == "one.html"),
+        out.pages.exists(_.getFileName.toString == "two.html"),
+      )
+    },
+    test("a cite footer uses the full span and a rejected base is omitted") {
+      val window = cite[MountPoint.type].elided(4)
+      val short  = cite(MountPoint.Selector).elided(30)
+      val doc    = page("Foot")(window, short)
+      val base   = "https://github.com/early-effect/specular/blob/0123456789abcdef"
+      val model  = SiteModel(title = "Docs", pages = Vector(doc), cites = CiteRendering(sourceBase = Some(base)))
+      val bad    = model.copy(cites = CiteRendering(sourceBase = Some("javascript:alert(1)")))
+      for
+        tmp     <- ZIO.attempt(Files.createTempDirectory("specular-cite-foot"))
+        _       <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
+        html    <- ZIO.attempt(Files.readString(tmp.resolve("foot.html")))
+        badHtml <- ZIO
+          .serviceWithZIO[SiteBuilder](_.buildSite(bad, tmp))
+          .zipRight(
+            ZIO.attempt(Files.readString(tmp.resolve("foot.html")))
+          )
+      yield
+        val wide = figureAround(html, s"""id="${window.anchor}"""")
+        val tiny = figureAround(html, s"""id="${short.anchor}"""")
+        assertTrue(
+          wide.contains("specular-cite-elision"),
+          wide.indexOf("</code>") < wide.indexOf("specular-cite-elision"),
+          wide.contains("View source"),
+          wide.contains("core/src/main/scala/specular/MountPoint.scala#L"),
+          wide.contains(base),
+          !wide.contains(s"$base//"),
+          wide.contains("noopener"),
+          tiny.contains("specular-source"),
+          !tiny.contains("specular-cite-elision"),
+          !badHtml.contains("View source"),
+          !badHtml.contains("javascript:"),
+        )
+      end for
     },
   ).provide(
     Theme.live,

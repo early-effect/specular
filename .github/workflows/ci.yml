@@ -78,7 +78,7 @@ jobs:
           sbt-disk-cache: "false"
           cache-mode: save
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
-          cache-epoch: b37992b6d5f222d6
+          cache-epoch: ff9831e3b70a0711
       - name: cache-rehydrate
         run: sbt 'Test/compile'
   test:
@@ -104,7 +104,7 @@ jobs:
           sbt-disk-cache: "false"
           cache-mode: save
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
-          cache-epoch: b37992b6d5f222d6
+          cache-epoch: ff9831e3b70a0711
       - name: test
         run: |
           if [ "$ZIPX_VERIFY_CLEAN_FULL" = "true" ]; then
@@ -137,7 +137,7 @@ jobs:
           sbt-disk-cache: "false"
           cache-mode: restore
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
-          cache-epoch: b37992b6d5f222d6
+          cache-epoch: ff9831e3b70a0711
       - name: fmt
         run: |
           if [ "$ZIPX_VERIFY_CLEAN_FULL" = "true" ]; then
@@ -170,7 +170,7 @@ jobs:
           sbt-disk-cache: "false"
           cache-mode: restore
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
-          cache-epoch: b37992b6d5f222d6
+          cache-epoch: ff9831e3b70a0711
       - name: workflow-check
         run: |
           if [ "$ZIPX_VERIFY_CLEAN_FULL" = "true" ]; then
@@ -203,7 +203,7 @@ jobs:
           sbt-disk-cache: "false"
           cache-mode: restore
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
-          cache-epoch: b37992b6d5f222d6
+          cache-epoch: ff9831e3b70a0711
       - name: advisories
         run: |
           if [ "$ZIPX_VERIFY_CLEAN_FULL" = "true" ]; then
@@ -240,7 +240,7 @@ jobs:
           sbt-disk-cache: "false"
           cache-mode: restore
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
-          cache-epoch: b37992b6d5f222d6
+          cache-epoch: ff9831e3b70a0711
       - name: Fetch PR base SHA
         run: git fetch --no-tags origin "$ZIPX_MODVER_BASE_SHA"
       - name: modver-suggest
@@ -278,7 +278,7 @@ jobs:
           sbt-disk-cache: "false"
           cache-mode: restore
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
-          cache-epoch: b37992b6d5f222d6
+          cache-epoch: ff9831e3b70a0711
       - name: Fetch PR base SHA
         run: git fetch --no-tags origin "$ZIPX_MODVER_BASE_SHA"
       - name: modver-check
@@ -331,7 +331,7 @@ jobs:
           sbt-disk-cache: "false"
           cache-mode: restore
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
-          cache-epoch: b37992b6d5f222d6
+          cache-epoch: ff9831e3b70a0711
       - name: snapshots
         run: sbt 'zipxSnapshotPublish'
   snapshots-pr:
@@ -360,7 +360,7 @@ jobs:
           sbt-disk-cache: "false"
           cache-mode: restore
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
-          cache-epoch: b37992b6d5f222d6
+          cache-epoch: ff9831e3b70a0711
       - name: snapshots-pr
         run: sbt 'zipxSnapshotPublish pr'
   docs:

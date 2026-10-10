@@ -7,7 +7,7 @@ import zio.ZIO
 import zio.ZLayer
 import zio.test.*
 
-/** Interprets a [[DocSpec]] as a zio-test [[Spec]]. */
+/** Interprets a [[DocSpec]] as a zio-test [[zio.test.Spec]]. */
 trait DocTestInterpreter:
   def toSpec(docSpec: DocSpec): Spec[Any, Any]
 
@@ -66,6 +66,28 @@ object DocTestInterpreter:
             }
           }
         }
+      case c: SourceCite =>
+        // Same exception as DomExample: a cite has no `.assert`, and its text depends on the filesystem.
+        // A renamed symbol or a deleted file has to go red under plain `sbt test`.
+        val short = c.symbol.sourceName.split('.').filter(_.nonEmpty).lastOption.getOrElse(c.symbol.sourceName)
+        Vector(
+          test(s"cite ${c.anchor}") {
+            CiteResolver
+              .resolve(c, CiteFormat.AsWritten)
+              .fold(
+                error => assertTrue(false).label(s"cite ${c.anchor}: ${error.message}"),
+                cited =>
+                  // The name is in the definition. A window may be only the scaladoc above that name.
+                  val namesTheSymbol = cited.text.contains(short) || (cited.elided && cited.text.nonEmpty)
+                  assertTrue(
+                    namesTheSymbol,
+                    cited.anchor == c.anchor,
+                    cited.startLine >= 1,
+                    cited.endLine >= cited.startLine,
+                  ),
+              )
+          }
+        )
       case de: DomExample =>
         // The one node kind that always emits a test, with no `.assert` — a deliberate exception to the
         // "only .assert makes a test" rule. Its body lives in a Scala.js project the JVM cannot run, so

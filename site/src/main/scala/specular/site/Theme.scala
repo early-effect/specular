@@ -388,6 +388,8 @@ object Theme:
         Selector(" > nav.specular-page-toc", maxWidth(52.rem)),
         Selector(" > table", maxWidth.none, width.pct(100)),
         Selector(" > figure.specular-example", maxWidth.none, width.pct(100)),
+        Selector(" > figure.specular-cite", maxWidth.none, width.pct(100)),
+        Selector(" section > figure.specular-cite", maxWidth.none, width.pct(100)),
         Selector(" > .specular-illustration", maxWidth.none, width.pct(100), minWidth(0.px)),
         Selector(" section > .specular-illustration", maxWidth.none, width.pct(100), minWidth(0.px)),
         Selector(" section > p", maxWidth(52.rem)),
@@ -502,11 +504,79 @@ object Theme:
           borderColor(vAccent),
         ),
         Selector(
+          " .specular-tok-kw",
+          color(Color.keyword("color-mix(in srgb, #c4b5fd 70%, var(--specular-code-fg))")),
+        ),
+        Selector(
+          " .specular-tok-str",
+          color(Color.keyword("color-mix(in srgb, #86efac 70%, var(--specular-code-fg))")),
+        ),
+        Selector(
+          " .specular-tok-cmt",
+          color(Color.keyword("color-mix(in srgb, #a3a3a3 70%, var(--specular-code-fg))")),
+        ),
+        Selector(
+          " .specular-tok-num",
+          color(Color.keyword("color-mix(in srgb, #fdba74 70%, var(--specular-code-fg))")),
+        ),
+        Selector(
+          " .specular-tok-typ",
+          color(Color.keyword("color-mix(in srgb, #7dd3fc 70%, var(--specular-code-fg))")),
+        ),
+        Selector(
           " figure.specular-example",
           width.pct(100),
           maxWidth.none,
           margin(1.25.rem, 0.px),
           padding(0.px),
+        ),
+        Selector(
+          " figure.specular-cite",
+          width.pct(100),
+          maxWidth.none,
+          margin(1.25.rem, 0.px),
+          padding(0.px),
+        ),
+        Selector(
+          " figure.specular-cite figcaption",
+          margin(0.px, 0.px, 0.4.rem, 0.px),
+          fontFamily("ui-monospace, SFMono-Regular, Menlo, monospace"),
+          fontSize(0.85.rem),
+        ),
+        Selector(
+          " figure.specular-cite figcaption a",
+          color(vLink),
+          textDecoration.none,
+        ),
+        Selector(
+          " figure.specular-cite figcaption a:hover",
+          textDecoration.underline,
+        ),
+        Selector(
+          " p.specular-cite-elision",
+          margin(0.35.rem, 0.px, 0.px, 0.px),
+          color(vMuted),
+          fontFamily("ui-monospace, SFMono-Regular, Menlo, monospace"),
+        ),
+        Selector(
+          " p.specular-cite-source",
+          margin(0.35.rem, 0.px, 0.px, 0.px),
+          fontSize(0.85.rem),
+        ),
+        // A cite that could not be shown. Same signal as a broken mount: the panel is the error, not a blank.
+        Selector(
+          " figure.specular-cite-invalid",
+          border(Border.solid(1.px, Color.keyword("color-mix(in srgb, #b91c1c 45%, var(--specular-border))"))),
+          borderRadius(vRadius),
+          padding(0.75.rem, 1.rem),
+        ),
+        Selector(
+          " p.specular-cite-error",
+          margin(0.px),
+          color(Color.keyword("color-mix(in srgb, #b91c1c 70%, var(--specular-text))")),
+          fontSize(0.9.rem),
+          fontFamily("ui-monospace, SFMono-Regular, Menlo, monospace"),
+          whiteSpace.preWrap,
         ),
         // A mount, not a sample: no source panel, no snapshot card. The tree is the document.
         Selector(

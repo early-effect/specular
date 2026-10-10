@@ -2,7 +2,7 @@ package specular
 
 import zio.*
 
-/** Runs an example or illustration body under a fresh [[Scope]], producing the built UI. */
+/** Runs an example or illustration body under a fresh [[zio.Scope]], producing the built UI. */
 trait ExampleRunner:
   def run(example: Example): UIO[ascent.ast.UI[Any]]
   def run(illustration: AscentIllustration): UIO[ascent.ast.UI[Any]]

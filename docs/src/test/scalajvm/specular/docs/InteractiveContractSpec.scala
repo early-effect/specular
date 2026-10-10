@@ -54,6 +54,7 @@ object InteractiveContractSpec extends ZIOSpecDefault:
     WhySpecular.doc,
     GettingStarted.doc,
     Concepts.doc,
+    Citations.doc,
     Diagrams.doc,
     LibraryAuthors.doc,
     Interactive.doc,

@@ -99,7 +99,7 @@ lazy val core = (projectMatrix in file("core"))
     MyVersions.coreJvm,
     zioTestSettings,
   )
-  .jvmPlatform(scalaVersions = scalaVersions)
+  .jvmPlatform(scalaVersions = scalaVersions, settings = MyVersions.citeJvm)
   .jsPlatform(
     scalaVersions,
     Nil,
@@ -376,5 +376,30 @@ def dogfoodMetaProps(
         s"-Dspecular.site.dir=${siteDir.getAbsolutePath}",
         s"-Dspecular.site.basePath=$basePath",
         s"-Dspecular.source.root=$sourceRoot",
-      )
+        "-Dspecular.cite.format=as-written",
+      ) ++ dogfoodCiteBase(home, sourceRoot).toVector.map(b => s"-Dspecular.cite.sourceBase=$b")
   ).toVector
+
+/** Mirrors [[specular.sbt.CiteSourceBase]] for the dogfood site. This build cannot load its own plugin.
+  *
+  * Homepage here is the repo URL (`https://github.com/org/repo`). A missing git revision omits the footer.
+  */
+def dogfoodCiteBase(home: String, sourceRoot: String): Option[String] =
+  val web = home.trim.stripSuffix("/").stripSuffix(".git")
+  val github =
+    web.startsWith("https://github.com/") || web.startsWith("http://github.com/")
+  if !github then None
+  else
+    val rev =
+      try
+        val buf = new StringBuilder
+        val log = scala.sys.process.ProcessLogger(
+          line => { val _ = buf.append(line) },
+          err => { val _ = err },
+        )
+        val code = scala.sys.process.Process(Seq("git", "-C", sourceRoot, "rev-parse", "HEAD")).!(log)
+        val text = buf.toString.trim
+        val hex  = text.nonEmpty && text.forall(c => c.isDigit || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
+        if code == 0 && text.length >= 7 && text.length <= 64 && hex then Some(text) else None
+      catch case _: java.io.IOException => None
+    rev.map(r => s"$web/blob/$r")

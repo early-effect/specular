@@ -46,6 +46,8 @@ object DocsSiteSpec extends ZIOSpecDefault:
         model.description.contains("A demo library"),
         model.pages.size == 1,
         model.meta.exists(_.version == "1.2.3"),
+        model.cites.format == CiteFormat.AsWritten,
+        model.cites.sourceBase.isEmpty,
       )
     },
     test("builds with standardLayers and default library install") {
@@ -83,6 +85,9 @@ object DocsSiteSpec extends ZIOSpecDefault:
         // the stock theme declares no light-scheme overrides
         !css.contains("prefers-color-scheme"),
         css.contains(".specular-illustration"),
+        css.contains("specular-tok-kw"),
+        css.contains("specular-cite"),
+        css.contains("color-mix"),
         css.contains("min-width: 0.0px"),
         !css.contains(".mermoid-"),
       )
@@ -118,6 +123,20 @@ object DocsSiteSpec extends ZIOSpecDefault:
       yield assertTrue(
         model.logoLink.contains("../index.html"),
         html.contains("href=\"../index.html\""),
+      )
+    },
+    test("cite format and source base come from specular.cite") {
+      val props = demoMeta ++ Map(
+        "specular.cite.format"     -> "formatted",
+        "specular.cite.sourceBase" -> "https://github.com/early-effect/specular/blob/0123456789abcdef",
+      )
+      for
+        model <- settings(props).map(sampleSite(Vector(page("Overview")(md"Hello"))).site)
+        bad   <- withSettings(demoMeta + ("specular.cite.format" -> "pretty"))(ZIO.config(DocsSettings.config)).flip
+      yield assertTrue(
+        model.cites.format == CiteFormat.Formatted,
+        model.cites.sourceBase.contains("https://github.com/early-effect/specular/blob/0123456789abcdef"),
+        bad.toString.contains("pretty"),
       )
     },
     test("empty pages fail the build") {

@@ -9,7 +9,7 @@ object MyVersions extends ZipxVersions:
   val sbt: SbtVersion     = SbtVersion("2.1.0-M3")
   val scala: ScalaVersion = ScalaVersion("3.9.0")
 
-  val release = ShipGroup("specular", "0.19.1")("core", "zioTest", "site", "eeDocsTheme", "plugin")
+  val release = ShipGroup("specular", "0.20.0")("core", "zioTest", "site", "eeDocsTheme", "plugin")
 
   val zio        = Lib("dev.zio", "zio", "2.1.26")
   val zioTest    = zio.mod("zio-test")
@@ -34,6 +34,12 @@ object MyVersions extends ZipxVersions:
   val commonmarkGfm = Lib("org.commonmark", "commonmark-ext-gfm-tables", "0.30.0").java
   val scalafmtCore  = Lib("org.scalameta", "scalafmt-core", "3.11.5")
 
+  /** Same scalameta revision scalafmt-core 3.11.5 depends on. Tokenizer and the cite signature parse. */
+  val scalameta = Lib("org.scalameta", "scalameta", "4.17.3")
+
+  /** Reads TASTy written by [[scala]]. Keep this revision equal to `scala`. */
+  val tastyInspector = Lib("org.scala-lang", "scala3-tasty-inspector", "3.9.0")
+
   val scalajs          = Plugin("org.scala-js", "sbt-scalajs", "1.22.0")
   val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
   val sbtSplice        = Plugin("rocks.earlyeffect", "sbt-splice", "0.3.2")
@@ -43,7 +49,8 @@ object MyVersions extends ZipxVersions:
   def zioLib     = library(zio)
   def coreJvm    = library(zio, zioTest, zioJson, ascent, ascentCss)
   def coreJs     = library(ascentJs, scalajsDom)
-  def siteLib    = library(ascentHtml, ascentPreview, heddle, commonmark, commonmarkGfm, scalafmtCore)
+  def citeJvm    = library(scalameta, scalafmtCore, tastyInspector)
+  def siteLib    = library(ascentHtml, ascentPreview, heddle, commonmark, commonmarkGfm, scalafmtCore, scalameta)
   def zioTestLib = library(zioTest, zioTestSbt)
   def docsJs     = library(ascentJs, ascentCss, zioTest)
   def docsFigures = library(mermoidAscent)
