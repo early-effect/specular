@@ -29,8 +29,12 @@ import sbt.nio.file.Glob
   *   - `-Dspecular.site.dir` from `specularSiteDirectory`
   *   - `-Dspecular.site.basePath` from `specularBasePath` (or `SPECULAR_BASE_PATH`)
   *   - `-Dspecular.meta.docsUrl` from `specularDocsUrl` (or `SPECULAR_DOCS_URL`)
-  *   - `-Dspecular.source.root` from `specularSourceRoot` (source panels of `exampleDom`)
+  *   - `-Dspecular.source.root` from `specularSourceRoot` (source panels of `exampleDom`, and cite resolution)
   *   - `-Dspecular.site.parentHref` from `specularParentHref` (sub-site back-to-hub chrome)
+  *   - `-Dspecular.cite.format` from `specularCiteFormat` (`as-written` or `formatted`)
+  *   - `-Dspecular.cite.sourceBase` from the meta project's GitHub browse URL (or homepage) plus `git rev-parse HEAD`,
+  *     when both are present. The renderer appends `/<path>#Lstart-Lend`. Missing git or a non-GitHub host omits the
+  *     footer.
   *
   * A monorepo hub is `specularHub := true` on a SpecularPlugin project that `.aggregate`s member docs projects. Each
   * member sets `specularSiteSegment`. `specularSite` on the hub builds those members into their own directories, copies
@@ -75,6 +79,11 @@ object SpecularPlugin extends AutoPlugin:
       settingKey[File](
         "Root that exampleDom source paths are relative to, passed as -Dspecular.source.root " +
           "(default: the build's base directory)"
+      )
+    val specularCiteFormat =
+      settingKey[String](
+        "Default formatting for cites that call neither .formatted nor .asWritten: " +
+          "\"as-written\" (default) or \"formatted\". Passed as -Dspecular.cite.format. The cite method wins."
       )
     val specularJsLink =
       taskKey[Unit]("Optional Scala.js spliceFull before specularSite (no-op by default)")
@@ -139,6 +148,7 @@ object SpecularPlugin extends AutoPlugin:
     // exampleDom paths are repo-relative, but projectMatrix starts forked JVMs under
     // .sbt/matrix/<id>, so the builder cannot infer the root from its working directory.
     specularSourceRoot := (ThisBuild / baseDirectory).value,
+    specularCiteFormat := "as-written",
     // CI / early-effect/.github specular-docs workflow sets these via env when deploying to Pages.
     specularBasePath            := sys.env.getOrElse("SPECULAR_BASE_PATH", "."),
     specularDocsUrl             := sys.env.getOrElse("SPECULAR_DOCS_URL", ""),
@@ -180,14 +190,20 @@ object SpecularPlugin extends AutoPlugin:
             "specularMetaProject is not set. Example: specularMetaProject := Some(LocalProject(\"root\"))"
           )
         }
-        val kind       = specularArtifactKind.value.trim.toLowerCase
-        val docsUrl    = specularDocsUrl.value
-        val displayMap = specularDisplayVersion.value
-        val dir        = specularSiteDirectory.value.getAbsolutePath
-        val base       = specularBasePath.value
-        val sourceRoot = specularSourceRoot.value.getAbsolutePath
+        val kind           = specularArtifactKind.value.trim.toLowerCase
+        val docsUrl        = specularDocsUrl.value
+        val displayMap     = specularDisplayVersion.value
+        val dir            = specularSiteDirectory.value.getAbsolutePath
+        val base           = specularBasePath.value
+        val sourceRootFile = specularSourceRoot.value
+        val sourceRoot     = sourceRootFile.getAbsolutePath
+        val citeFormat     = specularCiteFormat.value.trim.toLowerCase
         if kind != "library" && kind != "plugin" then
           sys.error(s"""specularArtifactKind must be "library" or "plugin", got: ${specularArtifactKind.value}""")
+        if citeFormat != "as-written" && citeFormat != "formatted" then
+          sys.error(
+            s"""specularCiteFormat must be "as-written" or "formatted", got: ${specularCiteFormat.value}"""
+          )
         Def.task {
           def opt(key: String, value: String): Seq[String] =
             Option(value).filterNot(_.isBlank).toSeq.map(v => s"-Dspecular.meta.$key=$v")
@@ -198,6 +214,12 @@ object SpecularPlugin extends AutoPlugin:
           val buildVersion   = (ref / version).value
           val displayVersion = DisplayVersion.displayProp(buildVersion, displayMap)
           val parent         = specularParentHref.value
+          val browse         = (ref / scmInfo).value
+            .map(_.browseUrl.toString)
+            .filterNot(_.isBlank)
+            .orElse((ref / homepage).value.map(_.toString))
+            .getOrElse("")
+          val blob = CiteSourceBase.githubBlob(browse, CiteSourceBase.gitHead(sourceRootFile))
           opt("name", nm) ++
             opt("organization", (ref / organization).value) ++
             opt("version", buildVersion) ++
@@ -212,7 +234,9 @@ object SpecularPlugin extends AutoPlugin:
               s"-Dspecular.site.dir=$dir",
               s"-Dspecular.site.basePath=$base",
               s"-Dspecular.source.root=$sourceRoot",
+              s"-Dspecular.cite.format=$citeFormat",
             ) ++
+            blob.toList.map(b => s"-Dspecular.cite.sourceBase=$b") ++
             (if parent.isBlank then Nil else Seq(s"-Dspecular.site.parentHref=$parent"))
         }
       }.value

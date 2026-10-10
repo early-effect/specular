@@ -67,7 +67,7 @@ object DomSourceLoader:
       .getOrElse(cwd)
 
   /** Resolve `raw` under `root`, rejecting absolute paths and anything escaping the root (symlinks included). */
-  private def containedFile(raw: String, root: Path): IO[DomSourceError, Path] =
+  private[specular] def containedFile(raw: String, root: Path): IO[DomSourceError, Path] =
     val rel = raw.trim
     if rel.isEmpty then ZIO.fail(DomSourceError.MissingPath)
     else

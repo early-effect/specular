@@ -54,6 +54,10 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
     */
   private val SelfPath = "zio-test/src/test/scala/specular/ziotest/DocTestInterpreterSpec.scala"
 
+  private object CiteTarget:
+    /** Cited from the interpreter spec. */
+    def answer: Int = 7
+
   // specular:begin self
   private val markerRegionExists = true
   // specular:end
@@ -80,6 +84,26 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
       test("a deleted marker fails the test even though the file still exists") {
         for outcomes <- runTests(page("Dom")(exampleDom("k").fromSource(SelfPath, "no-such-marker")))
         yield assertTrue(outcomes.map(_._2) == Vector(false))
+      },
+      test("a cite emits a resolution test and does not consume an example number") {
+        val doc = page("Cite")(
+          cite(CiteTarget.answer),
+          exampleValue(1).assert(n => assertTrue(n == 1)),
+        )
+        for
+          resolved <- CiteResolver.resolve(cite(CiteTarget.answer), CiteFormat.AsWritten).either
+          outcomes <- runTests(doc)
+        yield resolved.fold(
+          err => assertTrue(false).label(err.message),
+          cited =>
+            assertTrue(
+              cited.text.contains("answer"),
+              outcomes.length == 2,
+              outcomes.headOption.exists(outcome => outcome._2 && outcome._1.contains("cite")),
+              outcomes.lift(1).exists(outcome => outcome._2 && outcome._1.contains("ex-1")),
+            ),
+        )
+        end for
       },
       test("an unasserted illustration emits no test; an asserted one does") {
         val doc = page("Ill")(

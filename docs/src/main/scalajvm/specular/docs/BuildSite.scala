@@ -16,6 +16,7 @@ object BuildSite extends DocsSite:
   @navLabel("Guides")
   final case class Guides(
       concepts: Concepts.type,
+      citations: Citations.type,
       diagrams: Diagrams.type,
       authors: LibraryAuthors.type,
       interactive: Interactive.type,

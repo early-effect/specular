@@ -124,6 +124,8 @@ def exampleValue { a } / exampleZIO { zio }: ValueExample[A]   // plain value / 
 def exampleError { zio }: ValueExample[E]                      // documented typed failure; result is E
 def expectFail("…") / expectCrash { zio }                     // must-not-compile / must-fail (Cause)
 def exampleDom(key): DomExample                               // interactive sample, any framework
+def cite[A](_.m) / cite[A](_.m(_: Arg)) / cite(obj.member)     // a definition that already exists
+cite[A].definition / .signature / .elided(n) / .formatted     // whole text, header, window, scalafmt
 example.interactive                                           // also mount client-side (ascent)
 illustration.live                                             // remount an ascent illustration (same path as .interactive)
 example.assert(ui => assertTrue(…))                           // zio-test assertion
@@ -181,6 +183,41 @@ file or deleted marker goes red under plain `sbt test`.
 
 See the [Interactive examples](https://early-effect.github.io/specular/interactive-examples.html) page.
 
+### Citing source
+
+`cite` shows a definition the compiler can already see. The macro stores the symbol. The site and
+`sbt test` read that symbol's current source, so a body edit is not stale under Zinc. The permalink
+is the symbol anchor (`#cite-<symbol>`), not `<page>-ex-N`. A cite does not consume an example number, and
+it always emits a resolution test.
+
+```scala
+cite[MountKey.type](_.from)            // a unique member
+cite[ExampleRunner](_.run(_: Example)) // an overload, named by its argument type
+cite(MountPoint.Attr)                   // stable term
+cite[MountKey].definition               // whole definition, including scaladoc
+cite(MountKey.from(_)).signature        // header. a val or a type alias stays whole
+cite[MountPoint.type].elided(6)         // first 6 lines. footer still covers the whole definition
+cite(MountKey.from(_)).formatted        // scalafmt. .asWritten forces the file text
+```
+
+`specularCiteFormat` (`as-written` by default, or `formatted`) is the default for a cite that calls
+neither method. A cite's own `.formatted` or `.asWritten` wins. The setting is passed as
+`-Dspecular.cite.format`.
+
+Two views of one symbol can share a page: the anchor gains `-signature`, `-elided-N`, `-formatted`,
+or `-as-written`. The same anchor twice on one page fails the build. The same symbol on two pages
+is fine.
+
+When the build knows a GitHub revision, the panel footer links to
+`blob/<rev>/<path>#Lstart-Lend` for the whole definition. No repository metadata means no footer.
+The anchor still works. v1 speaks GitHub.
+
+A call is not a definition. `cite[Foo[Int]]` is rejected at compile time, as is a synthetic
+(`copy`, generated `apply`, an anonymous given) and a symbol whose source is missing or inside
+a jar. A cite that compiles but whose source cannot be read when the site is built fails that
+build, and the page shows the error where the panel would have been. `exampleDom` stays for a
+Scala.js sample the JVM page must not typecheck.
+
 ### Docs micro-site vs full site
 
 | Mode | Configure | Output |
@@ -223,7 +260,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 
 | Module | Artifact | Role |
 |--------|----------|------|
-| `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section` / `exampleDom` / `illustrationDom`, shared `ProjectMeta` / catalog cards; JVM `DomSourceLoader`; JS `SpecularClient` / `Mounter` / `LiveCatalog` |
+| `core` | `specular-core` | `DocPage` / `DocNode` AST, `example` / `md` / `section` / `cite` / `exampleDom` / `illustrationDom`, shared `ProjectMeta` / catalog cards; JVM `DomSourceLoader` and `CiteResolver`; JS `SpecularClient` / `Mounter` / `LiveCatalog` |
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
 | `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |

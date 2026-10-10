@@ -237,6 +237,58 @@ object DomExample:
     )
 end DomExample
 
+/** A page node that shows a definition which already exists in this build.
+  *
+  * Not an example: nothing runs, and the chrome is a citation, not `figure.specular-example`. The permalink is
+  * [[anchor]], derived from the symbol and the view, so inserting an example does not renumber it. The footer link,
+  * when the site has a repository revision, covers the whole definition even if the panel is a signature or a window.
+  *
+  * `page(...)` stamps [[id]] from [[anchor]]. Two cites of the same symbol and the same view on one page fail the site
+  * build.
+  *
+  * The class lives in this file because [[DocNode]] is sealed.
+  */
+final case class SourceCite(
+    id: String,
+    symbol: CiteSymbol,
+    view: CiteView,
+    elideAfter: Option[Int],
+    format: CiteFormat,
+) extends DocNode:
+
+  /** Header only. A `val`, a `type` alias, and an opaque type stay whole, because they have no body to drop. */
+  def signature: SourceCite = copy(view = CiteView.Signature)
+
+  /** Keep the first `lines` of the displayed text. `lines < 1` fails resolution with [[CiteError.BadElision]].
+    *
+    * The anchor and the footer still name the whole definition. The panel is a window onto it.
+    */
+  def elided(lines: Int): SourceCite = copy(elideAfter = Some(lines))
+
+  /** Reformat this cite with scalafmt, using the repo's `.scalafmt.conf`. */
+  def formatted: SourceCite = copy(format = CiteFormat.Formatted)
+
+  /** Show the file text. Wins over `specularCiteFormat`. */
+  def asWritten: SourceCite = copy(format = CiteFormat.AsWritten)
+
+  /** In-page id. Format and elision are part of it, so two views of one symbol can share a page.
+    *
+    * The name is [[CiteSymbol.sourceName]], so a module-class `$` is not part of the permalink. `<` and `>` are dropped
+    * because an HTML id cannot carry them. `<init>` is written `init`.
+    */
+  def anchor: String =
+    val name   = symbol.sourceName.replace(".<init>", ".init").replace("<", "").replace(">", "")
+    val viewed = view match
+      case CiteView.Full      => s"cite-$name"
+      case CiteView.Signature => s"cite-$name-signature"
+    val window = elideAfter.fold(viewed)(n => s"$viewed-elided-$n")
+    format match
+      case CiteFormat.Formatted => s"$window-formatted"
+      case CiteFormat.AsWritten => s"$window-as-written"
+      case CiteFormat.Inherit   => window
+  end anchor
+end SourceCite
+
 /** The mount keys a set of pages declares: the site's half of the SSR-to-browser contract.
   *
   * Shared by both platforms because both halves need it: the Scala.js client compares [[keys]] against its registry
@@ -490,6 +542,10 @@ private[specular] object DocInternal:
         case d: DomExample =>
           n += 1
           d.copy(id = s"$pageSlug-ex-$n")
+        case c: SourceCite =>
+          // The permalink is the symbol anchor, not an example number. Inserting a cite must not
+          // renumber the examples around it.
+          c.copy(id = c.anchor)
         case Section(title, kids) =>
           Section(title, go(kids))
         case other => other

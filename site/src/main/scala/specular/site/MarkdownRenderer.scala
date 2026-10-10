@@ -63,7 +63,7 @@ object MarkdownRenderer:
       case _: ThematicBreak =>
         el("hr", Vector.empty)
       case fb: FencedCodeBlock =>
-        sourcePre(fb.getLiteral, copyCode)
+        sourcePre(fb.getLiteral, fenceLanguage(fb.getInfo), copyCode)
       case ib: IndentedCodeBlock =>
         // Indented blocks are prose-adjacent legacy markdown; copy controls are for fenced code only.
         el(
@@ -87,13 +87,21 @@ object MarkdownRenderer:
       case other =>
         if Option(other.getFirstChild).isDefined then renderChildren(other, copyCode) else UI.Empty
 
-    private def sourcePre(literal: String, copyCode: Boolean): UI[Any] =
+    /** First info token, lowercased. `scala` and `scala3` are highlighted. Other languages stay plain. */
+    private def fenceLanguage(info: String): Option[String] =
+      Option(info).getOrElse("").trim.split("\\s+").filter(_.nonEmpty).headOption.map(_.toLowerCase)
+
+    private def sourcePre(literal: String, language: Option[String], copyCode: Boolean): UI[Any] =
+      val body = language match
+        case Some("scala") | Some("scala3") => ScalaHighlight.nodes(literal)
+        case _                              => Vector(UI.Text(literal))
       val pre = el(
         "pre",
-        Vector(el("code", Vector(UI.Text(literal)))),
+        Vector(el("code", body)),
         Vector(attr("class", "specular-source")),
       )
       PageTemplate.codeBlock(pre, copyCode)
+    end sourcePre
 
     private def listItems(list: ListBlock, copyCode: Boolean): Vector[UI[Any]] =
       collect(list).collect { case li: ListItem =>

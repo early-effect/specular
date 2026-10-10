@@ -116,7 +116,9 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
         html.contains("A --&gt; B") || html.contains("A --> B"),
         html.contains("specular-source"),
         !html.contains("mermoid-node"),
+        !html.contains("specular-tok-kw"),
       )
+      end for
     },
     test("a nonsense mermaid fence does not fail") {
       val md =
@@ -128,14 +130,32 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
         html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
       yield assertTrue(html.contains("this is not a diagram"), html.contains("specular-source"))
     },
-    test("fenced scala still renders as source") {
+    test("fenced scala is highlighted") {
       for
         ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi("```scala\nval a = 1\n```"))
         html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
       yield assertTrue(
-        html.contains("val a = 1"),
+        html.replaceAll("</?[^>]+>", "").contains("val a = 1"),
         html.contains("specular-source"),
         html.contains("specular-copy"),
+        html.contains("specular-tok-kw"),
+        html.contains("specular-tok-num"),
+      )
+    },
+    test("fenced scala3 is highlighted") {
+      for
+        ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi("```scala3\nval b = 2\n```"))
+        html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
+      yield assertTrue(html.contains("specular-tok-kw"), html.contains("specular-tok-num"))
+    },
+    test("an unlabeled fence stays plain") {
+      for
+        ui   <- ZIO.serviceWithZIO[MarkdownRenderer](_.toUi("```\nval a = 1\n```"))
+        html <- ZIO.serviceWithZIO[HtmlSsr](_.renderFragment(ui))
+      yield assertTrue(
+        html.contains("val a = 1"),
+        html.contains("specular-source"),
+        !html.contains("specular-tok-kw"),
       )
     },
   ).provide(MarkdownRenderer.live, HtmlSsr.live)

@@ -12,6 +12,9 @@ object GettingStartedSuite extends DocSpecSuite:
 object ConceptsSuite extends DocSpecSuite:
   def doc = Concepts.doc
 
+object CitationsSuite extends DocSpecSuite:
+  def doc = Citations.doc
+
 object DiagramsSuite extends DocSpecSuite:
   def doc = Diagrams.doc
 

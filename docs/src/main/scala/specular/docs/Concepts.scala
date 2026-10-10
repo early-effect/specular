@@ -25,6 +25,7 @@ that fold it into tests or HTML. Everything else (themes, hubs, sbt wiring) hang
 | `ValueExample` | `exampleValue` / `exampleZIO` / `exampleError` | Source string + plain value, effect, or typed `E` |
 | `FailExample` | `expectFail("…")` | Must-not-compile snippet + diagnostics |
 | `CrashExample` | `expectCrash { … }` | Must-fail effect + `Cause` output |
+| `SourceCite` | `cite` | A definition that already exists in this build |
 
 Examples carry optional flags:
 
@@ -34,7 +35,9 @@ Examples carry optional flags:
 - `.live`: ascent illustrations only; same remount path as `.interactive`, without sample chrome
 
 Ids (`<page-slug>-ex-1`, …) are assigned when you call `page`, so SSR wrappers and the JS
-registry stay aligned across pages without colliding.
+registry stay aligned across pages without colliding. A cite does not take a number. Its id
+is the symbol anchor, so inserting one does not renumber the examples around it. A cite
+always emits a resolution test, the same way `exampleDom` does.
 """,
       example {
         E.p(A.className("note"), "captured source + live UI")
@@ -58,6 +61,7 @@ report; `exampleError` asserts on `E` itself.
 6. Page template + sidebar nav + theme CSS
 7. Optional landing / catalog when `SiteModel.home` is set
 8. Write `metadata.json` for hub consumption
+9. Cites: highlighted definition, symbol anchor, optional source link
 
 One authoring surface; two consumers. That is the product.
 """,
