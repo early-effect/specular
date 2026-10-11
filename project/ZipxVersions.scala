@@ -20,13 +20,13 @@ object MyVersions extends ZipxVersions:
   val ascentCss     = ascent.mod("ascent-css")
   val ascentJs      = Lib("rocks.earlyeffect", "ascent-js", "0.11.0")
   val ascentHtml    = Lib("rocks.earlyeffect", "ascent-html", "0.10.0")
-  val ascentPreview = Lib("rocks.earlyeffect", "ascent-preview", "0.10.0")
+  val ascentPreview = Lib("rocks.earlyeffect", "ascent-preview", "0.10.1")
 
   /** Docs-only: the figures in specular's own pages. No published module selects it. */
   val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.2.0")
 
   /** specular-site calls heddle's client itself, so it names heddle rather than taking it through ascent-preview. */
-  val heddle = Lib("rocks.earlyeffect", "heddle", "0.9.0")
+  val heddle = Lib("rocks.earlyeffect", "heddle", "0.10.0")
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
 
