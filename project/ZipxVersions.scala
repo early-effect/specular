@@ -26,19 +26,19 @@ object MyVersions extends ZipxVersions:
   val mermoidAscent = Lib("rocks.earlyeffect", "mermoid-ascent", "0.2.0")
 
   /** specular-site calls heddle's client itself, so it names heddle rather than taking it through ascent-preview. */
-  val heddle = Lib("rocks.earlyeffect", "heddle", "0.9.0")
+  val heddle = Lib("rocks.earlyeffect", "heddle", "0.10.0")
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
 
-  val commonmark    = Lib("org.commonmark", "commonmark", "0.30.0").java
-  val commonmarkGfm = Lib("org.commonmark", "commonmark-ext-gfm-tables", "0.30.0").java
+  val commonmark    = Lib("org.commonmark", "commonmark", "0.30.1").java
+  val commonmarkGfm = Lib("org.commonmark", "commonmark-ext-gfm-tables", "0.30.1").java
   val scalafmtCore  = Lib("org.scalameta", "scalafmt-core", "3.11.5")
 
   /** Same scalameta revision scalafmt-core 3.11.5 depends on. Tokenizer and the cite signature parse. */
-  val scalameta = Lib("org.scalameta", "scalameta", "4.17.3")
+  val scalameta = Lib("org.scalameta", "scalameta", "4.17.4")
 
   /** Reads TASTy written by [[scala]]. Keep this revision equal to `scala`. */
-  val tastyInspector = Lib("org.scala-lang", "scala3-tasty-inspector", "3.9.0")
+  val tastyInspector = Lib("org.scala-lang", "scala3-tasty-inspector", "3.10.0")
 
   val scalajs          = Plugin("org.scala-js", "sbt-scalajs", "1.22.0")
   val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
