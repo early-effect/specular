@@ -6,10 +6,10 @@ import zipx.*
   * already brings it in. Action pins stay on jar defaults.
   */
 object MyVersions extends ZipxVersions:
-  val sbt: SbtVersion     = SbtVersion("2.1.0-M3")
+  val sbt: SbtVersion     = SbtVersion("2.1.0-RC1")
   val scala: ScalaVersion = ScalaVersion("3.9.0")
 
-  val release = ShipGroup("specular", "0.21.0")("core", "zioTest", "site", "eeDocsTheme", "plugin")
+  val release = ShipGroup("specular", "0.21.1")("core", "zioTest", "site", "eeDocsTheme", "plugin")
 
   val zio        = Lib("dev.zio", "zio", "2.1.26")
   val zioTest    = zio.mod("zio-test")
