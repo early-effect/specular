@@ -16,10 +16,10 @@ object MyVersions extends ZipxVersions:
   val zioTestSbt = zio.mod("zio-test-sbt")
   val zioJson: Lib = Lib("dev.zio", "zio-json", "1.1.0")
 
-  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.10.1")
+  val ascent        = Lib("rocks.earlyeffect", "ascent-core", "0.10.2")
   val ascentCss     = ascent.mod("ascent-css")
-  val ascentJs      = Lib("rocks.earlyeffect", "ascent-js", "0.11.0")
-  val ascentHtml    = Lib("rocks.earlyeffect", "ascent-html", "0.10.0")
+  val ascentJs      = Lib("rocks.earlyeffect", "ascent-js", "0.11.1")
+  val ascentHtml    = Lib("rocks.earlyeffect", "ascent-html", "0.10.1")
   val ascentPreview = Lib("rocks.earlyeffect", "ascent-preview", "0.11.1")
 
   /** Docs-only: the figures in specular's own pages. No published module selects it. */
@@ -30,15 +30,15 @@ object MyVersions extends ZipxVersions:
 
   val scalajsDom        = Lib("org.scala-js", "scalajs-dom", "2.8.1")
 
-  val commonmark    = Lib("org.commonmark", "commonmark", "0.30.0").java
-  val commonmarkGfm = Lib("org.commonmark", "commonmark-ext-gfm-tables", "0.30.0").java
+  val commonmark    = Lib("org.commonmark", "commonmark", "0.30.1").java
+  val commonmarkGfm = Lib("org.commonmark", "commonmark-ext-gfm-tables", "0.30.1").java
   val scalafmtCore  = Lib("org.scalameta", "scalafmt-core", "3.11.5")
 
   /** Same scalameta revision scalafmt-core 3.11.5 depends on. Tokenizer and the cite signature parse. */
-  val scalameta = Lib("org.scalameta", "scalameta", "4.17.3")
+  val scalameta = Lib("org.scalameta", "scalameta", "4.17.4")
 
   /** Reads TASTy written by [[scala]]. Keep this revision equal to `scala`. */
-  val tastyInspector = Lib("org.scala-lang", "scala3-tasty-inspector", "3.9.0")
+  val tastyInspector = Lib("org.scala-lang", "scala3-tasty-inspector", "3.10.0")
 
   val scalajs          = Plugin("org.scala-js", "sbt-scalajs", "1.22.0")
   val scalafmt         = Plugin("org.scalameta", "sbt-scalafmt", "2.6.2")
