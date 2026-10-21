@@ -84,7 +84,7 @@ addCommandAlias("release", "; publishSigned; sonaRelease")
 lazy val root = (project in file("."))
   .aggregate(
     (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++
-      eeDocsTheme.projectRefs ++ docs.projectRefs ++ Seq[ProjectReference](plugin))*
+      eeDocsTheme.projectRefs ++ docs.projectRefs ++ Seq[ProjectReference](plugin, specularHistos))*
   )
   .settings(
     name           := "specular",
@@ -308,6 +308,7 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
 
 lazy val plugin = project
   .in(file("sbt-specular"))
+  .dependsOn(site.jvm(scala3Version))
   .enablePlugins(SbtPlugin)
   .settings(
     name := "sbt-specular",
@@ -316,11 +317,45 @@ lazy val plugin = project
     zioTestSettings,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     addSbtPlugin(MyVersions.moduleID(MyVersions.sbtAscentPreview)),
+    // The plugin calls SiteFork. A scripted build resolves that POM, so the in-repo jars have to be local.
+    scriptedDependencies := Def.uncached {
+      val _ = (core.jvm(scala3Version) / publishLocal).value
+      val _ = (site.jvm(scala3Version) / publishLocal).value
+      val _ = publishLocal.value
+    },
     scriptedLaunchOpts ++= Seq("-Xmx1g", s"-Dplugin.version=${version.value}"),
     scriptedBufferLog := false,
   )
 
-/** Copy spliced JS then fork BuildSite. Callers must already have compiled Test and resolved classpath. */
+/** Histos adapter. Unpublished while `histos-api` is `0.0.1-SNAPSHOT`: a release cannot depend on that pointer.
+  *
+  * Scala 3.10, the compiler that produced the api jar. `specular-site` stays on 3.9, and 3.10 reads that tasty.
+  *
+  * zipx refuses a `<line>-SNAPSHOT` pointer inside `update`, and a catalog row would force that pointer onto every
+  * module. The dependency is Provided because the Histos launcher supplies the api at runtime. This project's `update`
+  * is `updateFull`, so the pointer refusal stays in force for the modules that ship.
+  */
+lazy val specularHistos = project
+  .in(file("specular-histos"))
+  .dependsOn(site.jvm(scala3Version))
+  .settings(
+    name               := "specular-histos",
+    scalaVersion       := "3.10.0",
+    crossScalaVersions := Seq("3.10.0"),
+    publish / skip     := true,
+    scalacOptions ++= commonScalacOptions,
+    resolvers += "central-snapshots" at "https://central.sonatype.com/repository/maven-snapshots/",
+    // Changing so a republish of the 0.0.1-SNAPSHOT pointer is resolved, not a cached build.
+    libraryDependencies += ("rocks.earlyeffect" %% "histos-api" % "0.0.1-SNAPSHOT" % Provided).withIsChanging(true),
+    update := updateFull.value,
+    zioTestSettings,
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+  )
+
+/** Copy spliced JS then fork BuildSite. Callers must already have compiled Test and resolved classpath.
+  *
+  * The fork contract is [[specular.site.SiteFork]]. This task cannot call it: the body compiles in the meta-build.
+  */
 def copyJsAndForkBuild(
     js: File,
     siteDir: File,
