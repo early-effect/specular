@@ -33,7 +33,7 @@ The plugin id, task, and job are the ones the Histos fixture already loads:
 - `CiJob(JobName("docs"), TaskName("site"), JobWhen.Always)`
 - `Seal.Open`. A site task is local. Hermetic plus an empty `Need` set is the only sendable plugin task, and this task is not that.
 
-The header a Histos build will use, once the adapter is published, is `plugin(dep"rocks.earlyeffect::specular-histos:<specular version>")`, then `Projects(use(Specular.plugin), docs)`. The fixture's `dev.earlyeffect::specular:0.2.0` is not this coordinate.
+The header a Histos build will use, once the adapter is published, is `plugin(dep"rocks.earlyeffect::specular-histos:<specular version>")`, then `Projects(use(Specular.plugin), docs.pipe(Specular.main("com.example.docs.BuildSite")))`. The fixture's `dev.earlyeffect::specular:0.2.0` is not this coordinate. `Specular.main` is the `DocsSite` object the fork starts. The plugin process does not load that class.
 
 ## 1. Move the fork into `specular-site`
 
@@ -65,14 +65,7 @@ The test in this repo checks `contribute`: the id, the task name, `Seal.Open`, t
 
 This step is in the Histos repo. The Specular session does not paper over it.
 
-`TaskDep.Compile` is documented as an action dependency on the docs module's cells (`docs/plugins.md`). `PluginRuntime.dependencies` currently drops that case and returns the accumulated list unchanged. `PluginInputs.compileInputs` only hashes the class directories. `RunRequest` carries the module name and base directory. It does not carry the classpath `GraphCompile` used.
-
-Until both of these are true, `specular-histos` must not fork:
-
-- `TaskDep.Compile` on the docs module's JVM cell is scheduled before `run`.
-- The request carries that cell's compile classpath and its test classpath, the same entries `(Test / fullClasspath)` is for sbt: the module's classes, its test classes, and the resolved jars.
-
-The adapter reads that classpath and passes it to the fork. It does not walk `.histos/classes`, and it does not call Coursier again.
+`TaskDep.Compile` is an action dependency on the docs module's cells. `histos-api` `0.0.1-SNAPSHOT` (`0.0.1-20261021.204409-6`) puts the classpath that compile used on `RunRequest.compiled`: one `CellClasspath` per cell, with `compile` and `test` path lists. The adapter forks when that list has one docs JVM cell. The fork classpath is `test` (main classes, test classes, and the resolved jars). It does not walk `.histos/classes`, and it does not call Coursier again. Zero cells, an empty `test` list, or more than one JVM Scala version refuses before the fork.
 
 Class directories today land at `.histos/classes/<module>/<scala>/jvm` and `.histos/test-classes/<module>/<scala>/jvm`. Those paths are the engine's. The adapter treats the classpath on the request as the contract.
 
