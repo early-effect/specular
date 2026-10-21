@@ -6,6 +6,9 @@ import sbt.*
 import sbt.Keys.*
 import sbt.nio.Keys.{fileInputs, watchOnTermination}
 import sbt.nio.file.Glob
+import _root_.specular.site.{SiteFork, SiteForkError, SiteForkLog}
+
+import java.nio.file.Path
 
 /** Specular site settings for consumer projects.
   *
@@ -312,19 +315,7 @@ object SpecularPlugin extends AutoPlugin:
       val jvmOpts =
         (run / javaOptions).value.toVector ++ metaProps ++ Seq(s"-Dspecular.site.port=$port")
       log.info(s"specularServe: $mainClass → http://127.0.0.1:$port ($dir)")
-      val code = Fork.java(
-        ForkOptions()
-          .withOutputStrategy(Some(LoggedOutput(log)))
-          .withRunJVMOptions(jvmOpts),
-        Seq(
-          "-cp",
-          jars.mkString(java.io.File.pathSeparator),
-          mainClass,
-          port.toString,
-          dir.getAbsolutePath,
-        ),
-      )
-      if code != 0 then sys.error(s"$mainClass failed with exit code $code")
+      forkMain(log, mainClass, dir, jars, jvmOpts, Seq(port.toString, dir.getAbsolutePath))
     },
   )
 
@@ -371,18 +362,43 @@ object SpecularPlugin extends AutoPlugin:
   ): Unit =
     log.info(s"specularSite: running $mainClass → $dir (Test classpath includes Compile)")
     log.debug(s"specularSite: meta props ${jvmOpts.filter(_.startsWith("-Dspecular")).mkString(" ")}")
-    val code = Fork.java(
-      ForkOptions()
-        .withOutputStrategy(Some(LoggedOutput(log)))
-        .withRunJVMOptions(jvmOpts),
-      Seq("-cp", jars.mkString(java.io.File.pathSeparator), mainClass),
-    )
-    if code != 0 then sys.error(s"$mainClass failed with exit code $code")
-    if !dir.exists then sys.error(s"Site directory was not created: $dir (did $mainClass write there?)")
+    forkMain(log, mainClass, dir, jars, jvmOpts, Nil)
     val metaFile = dir / "metadata.json"
     if metaFile.exists then log.info(s"specularSite: wrote ${metaFile.getName}")
     log.info(s"specularSite: ready at $dir")
   end runBuildMain
+
+  /** [[SiteFork]] is the shared fork. `sys.error` stays here so the messages above do not move. */
+  private def forkMain(
+      log: Logger,
+      mainClass: String,
+      dir: File,
+      jars: Seq[String],
+      jvmOpts: Vector[String],
+      arguments: Seq[String],
+  ): Unit =
+    val result = SiteFork.run(
+      SiteFork.Request(
+        classpath = jars.toList.map(path => Path.of(path)),
+        mainClass = mainClass,
+        jvmOptions = jvmOpts.toList,
+        arguments = arguments.toList,
+        siteDirectory = dir.toPath,
+      ),
+      SbtSiteLog(log),
+    )
+    result match
+      case Right(_)                                   => ()
+      case Left(error @ SiteForkError.Interrupted(_)) =>
+        Thread.currentThread.interrupt()
+        sys.error(error.message)
+      case Left(error) =>
+        sys.error(error.message)
+  end forkMain
+
+  private final class SbtSiteLog(log: Logger) extends SiteForkLog:
+    def info(line: String): Unit  = log.info(line)
+    def error(line: String): Unit = log.error(line)
 
   /** Compile sources of [[autoImport.specularJsProject]], or empty when unset. */
   private def jsClientFileInputs: Def.Initialize[Seq[Glob]] = Def.settingDyn {
