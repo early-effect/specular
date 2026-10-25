@@ -86,8 +86,6 @@ object SiteBuilder:
         stamp = java.lang.Long.toString(java.lang.System.currentTimeMillis)
         _ <- writeUnder(root, root.resolve("assets/dev-stamp"), stamp)
       yield SiteOutput(root, paths :+ index :+ metaPath)
-      end for
-    end buildSite
 
     private def validatePages(pages: Vector[DocPage]): IO[SiteError, Unit] =
       val emptySlugs = NonEmptyChunk.fromIterableOption(pages.filter(_.slug.isEmpty).map(_.title))
@@ -109,7 +107,6 @@ object SiteBuilder:
         case (_, _, (key, titles) +: _, _)  => ZIO.fail(SiteError.DuplicateMountKey(key, titles))
         case (_, _, _, Some(error))         => ZIO.fail(error)
         case _                              => ZIO.unit
-    end validatePages
 
     private def citeAnchors(nodes: Vector[DocNode]): Vector[String] =
       nodes.flatMap {
@@ -169,7 +166,6 @@ object SiteBuilder:
           if PageToc.show(pageToc, entries.length) then UI.Fragment(Vector(PageToc.render(entries), content))
           else content
         PageBody(ui, citeErrors.toVector)
-    end renderPageBody
 
     private def writeDocsIndex(model: SiteModel, outDir: JPath): IO[SiteError, JPath] =
       val links = model.pages.map { p =>
@@ -224,8 +220,6 @@ object SiteBuilder:
         _ <- writeUnder(outDir, htmlPath, s"<!DOCTYPE html>\n${rendered.html}")
         _ <- writeUnder(outDir, cssPath, rendered.css)
       yield htmlPath
-      end for
-    end writeDocsIndex
 
     private def writeLandingIndex(model: SiteModel, outDir: JPath): IO[SiteError, JPath] =
       for
@@ -289,7 +283,6 @@ object SiteBuilder:
             Vector(attr("id", id)),
           )
           el("section", Vector(heading, kids))
-        end for
       case ex: Example =>
         for ui <- runner.run(ex)
         yield
@@ -309,7 +302,6 @@ object SiteBuilder:
             ),
             Vector(attr("class", "specular-example")),
           )
-        end for
       case ill: AscentIllustration =>
         for ui <- runner.run(ill)
         yield
@@ -377,7 +369,6 @@ object SiteBuilder:
             ),
             Vector(attr("class", "specular-example")),
           )
-        end for
       case fe: FailExample =>
         val text = FailDiagnostics.format(fe.diagnostics)
         ZIO.succeed:
@@ -421,7 +412,6 @@ object SiteBuilder:
             ),
             Vector(attr("class", "specular-example")),
           )
-        end for
       case c: SourceCite =>
         CiteResolver
           .resolve(c, cites.format)
@@ -466,7 +456,6 @@ object SiteBuilder:
           sourceFooter(cites.sourceBase, cited).toVector,
         Vector(attr("id", cited.anchor), attr("class", "specular-cite")),
       )
-    end citeFigure
 
     /** Where the source would have been. Text only: the message quotes a path and a symbol. */
     private def citeFailure(c: SourceCite, error: CiteError): UI[Any] =
@@ -500,4 +489,3 @@ private[site] object FailDiagnostics:
           else e.message
         }
         .mkString("\n\n")
-end FailDiagnostics

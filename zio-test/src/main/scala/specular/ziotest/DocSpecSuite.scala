@@ -12,3 +12,4 @@ trait DocSpecSuite extends ZIOSpecDefault, DocSpec:
 
   def spec: Spec[TestEnvironment, Any] =
     DocTestInterpreter.specOf(this).provideLayer(ExampleRunner.live)
+end DocSpecSuite

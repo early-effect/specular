@@ -38,7 +38,6 @@ object CatalogCards:
       ),
       Vector(attr("class", cardClass)),
     )
-  end card
 
   def cards(projects: Vector[ProjectMeta], cardClass: String): Vector[UI[Any]] =
     projects.map(card(_, cardClass))
@@ -63,5 +62,4 @@ object CatalogCards:
       cards(projects, cardClass),
       Vector(attr("class", "specular-catalog-grid")) ++ idAttrs ++ liveAttrs,
     )
-  end grid
 end CatalogCards

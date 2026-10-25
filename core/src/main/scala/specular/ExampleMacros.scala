@@ -33,5 +33,4 @@ private[specular] object ExampleMacros:
           here ++ fromCall ++ go(expansion)
         case _ => here
     go(term).filter(_.nonEmpty).maxByOption(_.length)
-  end longestSource
 end ExampleMacros

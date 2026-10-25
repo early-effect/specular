@@ -6,3 +6,4 @@ object LiveCatalogIds:
 
   /** `<link rel="…">` entries that carry allowlisted metadata.json hrefs. */
   val MetaLinkRel: String = "specular-catalog-meta"
+end LiveCatalogIds

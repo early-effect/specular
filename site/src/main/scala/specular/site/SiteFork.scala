@@ -72,10 +72,7 @@ object SiteFork:
           err.interrupt()
           Thread.currentThread.interrupt()
           Left(SiteForkError.Interrupted(request.mainClass))
-      end try
     catch case cause: IOException => Left(SiteForkError.Launch(request.mainClass, cause))
-    end try
-  end execute
 
   private def command(request: Request): List[String] =
     val classpath = request.classpath.map(_.toAbsolutePath.normalize.toString).mkString(java.io.File.pathSeparator)
@@ -98,5 +95,4 @@ object SiteFork:
       }
     worker.start()
     worker
-  end drain
 end SiteFork

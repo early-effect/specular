@@ -61,6 +61,7 @@ sealed trait Illustration extends DocNode:
 
   /** Browser mount key, when this region is filled by the client. */
   def mountKey: Option[MountKey]
+end Illustration
 
 /** An ascent tree that is the page (or a region of it).
   *
@@ -114,7 +115,6 @@ object DomIllustration:
       ),
       Vector(ascent.ast.UI.Text("This figure runs in your browser; enable JavaScript to see it.")),
     )
-end DomIllustration
 
 /** A plain Scala / ZIO value example: source + computed result (not an ascent UI tree).
   *
@@ -145,6 +145,7 @@ enum ExampleFailure[+E]:
 
   /** [[exampleError]]: the snippet was supposed to fail and succeeded. */
   case UnexpectedSuccess
+end ExampleFailure
 
 /** A must-not-compile snippet: source string + [[scala.compiletime.testing.typeCheckErrors]] diagnostics.
   *
@@ -235,7 +236,6 @@ object DomExample:
       ),
       Vector(ascent.ast.UI.Text("This example runs in your browser; enable JavaScript to see it.")),
     )
-end DomExample
 
 /** A page node that shows a definition which already exists in this build.
   *
@@ -286,7 +286,6 @@ final case class SourceCite(
       case CiteFormat.Formatted => s"$window-formatted"
       case CiteFormat.AsWritten => s"$window-as-written"
       case CiteFormat.Inherit   => window
-  end anchor
 end SourceCite
 
 /** The mount keys a set of pages declares: the site's half of the SSR-to-browser contract.
@@ -509,7 +508,6 @@ private[specular] object DocInternal:
           .minOption
           .getOrElse(0)
       lines.map(l => if l.length >= indent then l.drop(indent) else l).mkString("\n").trim
-  end trimSource
 
   def assignIds(nodes: Vector[DocNode], pageSlug: String): Vector[DocNode] =
     var n                                        = 0
@@ -551,7 +549,6 @@ private[specular] object DocInternal:
         case other => other
       }
     go(nodes)
-  end assignIds
 
   /** Every browser mount key declared on a page, in document order (duplicates preserved for validation). */
   def mountKeys(nodes: Vector[DocNode]): Vector[MountKey] =

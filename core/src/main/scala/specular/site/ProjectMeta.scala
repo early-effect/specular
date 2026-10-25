@@ -81,7 +81,6 @@ object ProjectMeta:
           displayVersion = display,
         )
     }
-  end config
 
   def toJson(meta: ProjectMeta): String =
     meta.toJsonPretty
@@ -109,7 +108,6 @@ object ProjectMeta:
       displayVersion = wire.displayVersion,
       pages = wire.pages.getOrElse(Vector.empty),
     ).withSanitizedLinks
-    end for
   end parseJson
 
   /** The decoded shape before required fields are checked, so a missing one is a [[RequiredMetaField]]. */
@@ -153,3 +151,4 @@ enum ProjectMetaError:
   def message: String = this match
     case MissingField(field) => s"missing ${field.key}"
     case Malformed(detail)   => s"malformed metadata.json: $detail"
+end ProjectMetaError

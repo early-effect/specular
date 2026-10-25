@@ -15,3 +15,4 @@ object ExampleRunner:
         ZIO.scoped(example.body)
       def run(illustration: AscentIllustration): UIO[ascent.ast.UI[Any]] =
         ZIO.scoped(illustration.body))
+end ExampleRunner

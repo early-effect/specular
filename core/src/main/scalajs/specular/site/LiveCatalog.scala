@@ -23,7 +23,6 @@ object LiveCatalog:
           // Mount into the existing grid: wrapping in another `.specular-catalog-grid` collapses `auto-fill`.
           _ <- AscentApp.mount(CatalogCards.cardFragment(projects, cardClass), root)
         yield ()
-  end bootstrap
 
   private def readAllowlist: UIO[Vector[String]] =
     ZIO.succeed:

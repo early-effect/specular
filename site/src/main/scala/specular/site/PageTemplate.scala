@@ -296,5 +296,4 @@ object PageTemplate:
           ),
         ),
       )
-  end Live
 end PageTemplate

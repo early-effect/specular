@@ -46,7 +46,6 @@ object HubNest:
     else if !s.matches("[A-Za-z0-9][A-Za-z0-9._-]*") then Left(HubNestError.IllegalSegment(s))
     else if Reserved.contains(s.toLowerCase) then Left(HubNestError.ReservedSegment(s))
     else Right(SiteSegment(s))
-  end validateSegment
 
   /** Empty candidate list is a no-op nest (hub with no aggregate). Non-empty must all be valid members. */
   def members(candidates: Seq[Candidate]): Either[HubNestError, Seq[Member]] =
@@ -72,10 +71,6 @@ object HubNest:
               ok.groupBy(_.segment).collectFirst { case (seg, group) if group.size > 1 => seg -> group } match
                 case Some((seg, group)) => Left(HubNestError.DuplicateSegment(seg, group.map(_.project)))
                 case None               => Right(ok)
-          end match
-      end match
-    end if
-  end members
 
   def copies(hubDir: File, members: Seq[Member]): Seq[Copy] =
     members.map(m => Copy(project = m.project, from = m.from, to = new File(hubDir, m.segment.value)))

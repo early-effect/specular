@@ -40,7 +40,6 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
         }.assert(c => assertTrue(c.failures.headOption.contains("boom"))),
       ),
     )
-  end SampleDoc
 
   object SuiteDoc extends DocSpecSuite:
     def doc = page("Suite")(
@@ -103,7 +102,6 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
               outcomes.lift(1).exists(outcome => outcome._2 && outcome._1.contains("ex-1")),
             ),
         )
-        end for
       },
       test("an unasserted illustration emits no test; an asserted one does") {
         val doc = page("Ill")(
@@ -264,7 +262,6 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
           case Exit.Success(_)     => Vector(label -> Outcome.Passed)
           case Exit.Failure(cause) => Vector(label -> Outcome.fromCause(cause))
         }
-  end walkOutcomes
 
   private enum Outcome:
     case Passed
@@ -288,5 +285,4 @@ object DocTestInterpreterSpec extends ZIOSpecDefault:
           cause.dieOption match
             case Some(t) => Defect(t)
             case None    => Other(cause)
-  end Outcome
 end DocTestInterpreterSpec

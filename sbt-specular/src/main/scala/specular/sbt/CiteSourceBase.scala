@@ -55,8 +55,6 @@ object CiteSourceBase:
             case _                              => None
         else None
       catch case _: IllegalArgumentException => None
-    end if
-  end repoWeb
 
   private def isHex(c: Char): Boolean =
     c.isDigit || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')

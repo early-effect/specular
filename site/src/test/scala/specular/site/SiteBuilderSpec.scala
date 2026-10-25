@@ -49,7 +49,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("type=\"module\""),
         html.contains("assets/client.js"),
       )
-      end for
     },
     test("section headings get ids and auto TOC appears for 2+ sections") {
       val doc = page("Guide")(
@@ -69,7 +68,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("href=\"#beta\""),
         html.contains("specular-heading-anchor"),
       )
-      end for
     },
     test("auto TOC is omitted for a single section") {
       val doc = page("Short")(
@@ -83,7 +81,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("id=\"only\""),
         !html.contains("specular-page-toc"),
       )
-      end for
     },
     test("pageToc force-on shows TOC for a single section") {
       val doc = page("Forced")(
@@ -96,7 +93,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html <- ZIO.attempt(Files.readString(tmp.resolve("forced.html")))
         _    <- ZIO.succeed(out)
       yield assertTrue(html.contains("specular-page-toc"), html.contains("href=\"#only\""))
-      end for
     },
     test("value examples render source and result panels") {
       val doc = page("Values")(
@@ -123,7 +119,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         visible(html).contains("ZIO.succeed"),
         html.contains(">ok<") || html.contains("ok"),
       )
-      end for
     },
     test("typed-E exampleZIO success renders A in the result panel") {
       final case class DemoErr(msg: String)
@@ -143,7 +138,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         visible(html).contains("ZIO.succeed"),
         html.contains("ok"),
       )
-      end for
     },
     test("unexpected typed E fails the site build with E in the message") {
       final case class DemoErr(msg: String)
@@ -178,7 +172,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("DemoErr"),
         html.contains("nope"),
       )
-      end for
     },
     test("exampleError whose body succeeds fails the site build") {
       val doc = page("Typed Oops")(
@@ -225,7 +218,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         visible(html).contains("ZIO.fail"),
         html.contains("boom"),
       )
-      end for
     },
     test("two pages do not share CSS across renders") {
       val pageA = page("Page A")(example { E.div(OnlyA, "a") })
@@ -242,7 +234,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         !cssB.contains(OnlyA.className),
         cssB.contains(OnlyB.className) || htmlB.contains(OnlyB.className),
       )
-      end for
     },
     test("multi-page site has nav links and index") {
       val pages = Vector(
@@ -276,7 +267,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         meta.contains("\"name\""),
         meta.contains("Alpha") || meta.contains("alpha"),
       )
-      end for
     },
     test("landing site renders catalog and metadata") {
       val catalog = ProjectCatalog(
@@ -330,7 +320,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         meta.contains("early-effect"),
         meta.contains("1.0.0"),
       )
-      end for
     },
     test("a versionless hub renders chrome with no version segment") {
       // An org hub is a site, not a published artifact: no version to advertise.
@@ -355,7 +344,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         !index.contains("v ·"),
         !index.contains("· ·"),
       )
-      end for
     },
     test("a versioned site still shows the version in landing chrome") {
       val model = SiteModel(
@@ -415,7 +403,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         index.contains("data-card-class"),
         index.contains("Specular"),
       )
-      end for
     },
     test("catalog cards escape hostile text and drop javascript hrefs") {
       val catalog = ProjectCatalog(
@@ -445,7 +432,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         !index.contains("javascript:alert"),
         index.contains("href=\"#\"") || !index.contains("""href="javascript:"""),
       )
-      end for
     },
     test("docs index shows install snippet from meta") {
       val model = SiteModel(
@@ -472,7 +458,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         page.contains("""href="images/logo.svg""""),
         page.contains("""type="image/svg+xml""""),
       )
-      end for
     },
     test("displayVersion drives install snippet and chrome, not build version") {
       val model = SiteModel(
@@ -504,7 +489,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         meta.contains("\"displayVersion\""),
         meta.contains("0.0.6"),
       )
-      end for
     },
     test("docs index uses summary, plugin snippets, and logo hub link") {
       val model = SiteModel(
@@ -537,7 +521,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         page.contains("aria-label=\"Organization hub\""),
         page.contains("href=\"./index.html\""),
       )
-      end for
     },
     test("docs header links GitHub from meta.homepage") {
       val model = SiteModel(
@@ -565,7 +548,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         page.contains("specular-header-icon-github"),
         Files.exists(tmp.resolve("images/github.svg")),
       )
-      end for
     },
     test("docs header prefers brand.links over homepage") {
       val model = SiteModel(
@@ -591,7 +573,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         page.contains(">Source<") || page.contains("Source"),
         !page.contains("https://github.com/early-effect/zipx"),
       )
-      end for
     },
     test("docs chrome ships a CSS-only mobile nav drawer") {
       val model = SiteModel(
@@ -625,7 +606,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         theme.contains("position: fixed"),
         theme.contains("translateX(-100"),
       )
-      end for
     },
     test("theme.css includes GFM table styles") {
       val model = SiteModel(title = "Docs", pages = Vector(page("Intro")(md"hi")))
@@ -639,7 +619,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         theme.contains("nth-child"),
         theme.contains("max-width: 720"),
       )
-      end for
     },
     test("copy buttons appear by default and can be disabled") {
       val withCopy = SiteModel(
@@ -661,7 +640,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         !offHtml.contains("specular-copy"),
         !offHtml.contains("specular-code"),
       )
-      end for
     },
     test("a DomExample renders a mount point, the file excerpt, and the no-JS fallback") {
       val doc = page("Interactive")(
@@ -685,7 +663,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains(MountPoint.FallbackClass),
         html.contains("enable JavaScript"),
       )
-      end for
     },
     test("a DOM illustration SSRs a quiet mount point and no example chrome") {
       val doc = page("Figure")(
@@ -709,7 +686,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
           !wrap.contains("specular-source"),
           !wrap.contains("<figure"),
         )
-      end for
     },
     test("a DomExample can override the no-JS fallback") {
       val doc = page("Fallback")(
@@ -723,7 +699,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("custom placeholder"),
         !html.contains("enable JavaScript"),
       )
-      end for
     },
     test("whole-file mode drops the leading header but keeps the body") {
       val doc = page("Whole")(exampleDom("whole").fromSource(FixturePath))
@@ -738,7 +713,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         !visible(html).contains("package specular.site"),
         !visible(html).contains("import java.util.Locale"),
       )
-      end for
     },
     test("a region that overlaps another key's region resolves to its own text") {
       val doc = page("Inner")(exampleDom("inner").fromSource(FixturePath, "shout"))
@@ -750,7 +724,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         visible(html).contains("hello, $name"),
         !visible(html).contains("def greeting"),
       )
-      end for
     },
     test("an illustration SSRs the tree with no example chrome") {
       val doc = page("Poster")(
@@ -774,7 +747,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
           !wrap.contains("specular-snapshot"),
           !wrap.contains(MountPoint.Attr),
         )
-      end for
     },
     test("a live illustration carries a mount attribute and still has no source panel") {
       val doc = page("Live")(
@@ -790,7 +762,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         !html.contains(s"""${MountPoint.Attr}="live-ex-1""""),
         !html.contains("specular-code"),
       )
-      end for
     },
     // One scan covers both kinds: an ascent `.interactive` example is keyed the same way.
     test("an interactive ascent example also carries a mount attribute") {
@@ -807,7 +778,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         // The static example is not on the dispatch table.
         !html.contains(s"""${MountPoint.Attr}="mixed-ex-1""""),
       )
-      end for
     },
     test("an unresolvable DomExample source fails the build, naming path and marker") {
       val doc = page("Broken")(
@@ -847,7 +817,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains(s"""${MountPoint.Attr}="a.b_c-1""""),
         !html.contains("onload"),
       )
-      end for
     },
     test("duplicate mount keys across pages fail the build") {
       val model = SiteModel(
@@ -891,7 +860,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         html.contains("id=\"two-ex-1\""),
         html.contains("id=\"two-ex-2\""),
       )
-      end for
     },
     test("a DomExample in a nested section leaves TOC, nav, and metadata intact") {
       val model = SiteModel(
@@ -921,7 +889,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         meta.contains("Interactive"),
         index.contains("Interactive"),
       )
-      end for
     },
     test("duplicate slugs fail the build") {
       val model = SiteModel(
@@ -966,7 +933,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         !html.contains("mixed-ex-2"),
         !html.contains("View source"),
       )
-      end for
     },
     test("two views of one symbol both render") {
       val whole  = cite(MountPoint.Attr)
@@ -1008,7 +974,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
           visible(figure).contains("no.such.Symbol"),
           !figure.contains("specular-source"),
         ).label(ex.message)
-      end for
     },
     test("the same cite twice on one page fails") {
       val doc = page("Dup")(cite(MountPoint.Attr), cite(MountPoint.Attr))
@@ -1062,7 +1027,6 @@ object SiteBuilderSpec extends ZIOSpecDefault:
           !badHtml.contains("View source"),
           !badHtml.contains("javascript:"),
         )
-      end for
     },
   ).provide(
     Theme.live,

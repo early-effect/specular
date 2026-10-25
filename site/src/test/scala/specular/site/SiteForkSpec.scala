@@ -79,7 +79,6 @@ object SiteForkSpec extends ZIOSpecDefault:
             Some(found -> Option(loader.getParent))
       .flatten
       .toList
-  end testClasspath
 
   private def fileUrl(uri: URI): Option[Path] =
     if uri.getScheme == "file" then Try(Path.of(uri)).toOption else None
@@ -104,7 +103,6 @@ object SiteForkWrite:
     val dir = Path.of(fromArg)
     Files.createDirectories(dir)
     Files.writeString(dir.resolve("wrote.txt"), "one")
-end SiteForkWrite
 
 /** Fork target. Exits 4. */
 object SiteForkFail:

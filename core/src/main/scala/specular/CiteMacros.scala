@@ -22,8 +22,6 @@ private[specular] object CiteMacros:
             Position.ofMacroExpansion,
           )
         else quoted(sym, Position.ofMacroExpansion)
-    end match
-  end citeTypeImpl
 
   def citeMemberImpl[M](member: Expr[M])(using Quotes): Expr[SourceCite] =
     import quotes.reflect.*
@@ -56,8 +54,6 @@ private[specular] object CiteMacros:
       case Select(_, _)                             => Some(term.symbol)
       case Ident(_)                                 => Some(term.symbol)
       case _                                        => None
-    end match
-  end peel
 
   private def isParam(using Quotes)(term: quotes.reflect.Term): Boolean =
     import quotes.reflect.*
@@ -112,8 +108,6 @@ private[specular] object CiteMacros:
             format = CiteFormat.Inherit,
           )
         }
-    end match
-  end quoted
 
   private def jarPath(path: String): Boolean =
     path.startsWith("jar:") || path.contains(".jar!") || path.contains(".jar/") || path.endsWith(".jar")
