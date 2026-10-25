@@ -20,8 +20,6 @@ object SafeHref:
           case Some(_)                                       => None
           case None                                          => Some(href)
       catch case _: IllegalArgumentException => None
-    end if
-  end sanitize
 
   def sanitizeOrHash(raw: String): String =
     sanitize(raw).getOrElse("#")

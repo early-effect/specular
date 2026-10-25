@@ -25,13 +25,13 @@ final case class NavModel(roots: Vector[NavNode]):
         case NavGroup(_, kids) => go(kids)
       }
     go(roots)
-end NavModel
 
 object NavModel:
   def apply(nodes: NavNode*): NavModel = NavModel(nodes.toVector)
 
   def flat(pages: Vector[DocPage]): NavModel =
     NavModel(pages.map(NavPage(_)))
+end NavModel
 
 /** Summons the [[DocPage]] for a leaf site-map type (typically a `DocSpec` singleton). */
 trait PageOf[A]:
@@ -72,7 +72,6 @@ object SiteNav:
       .filter(_.nonEmpty)
       .map(_.capitalize)
       .mkString(" ")
-  end humanize
 end SiteNav
 
 private[site] object SiteNavInternal:

@@ -89,12 +89,8 @@ object DomSourceLoader:
               else if real.getFileName.nn.toString != resolved.getFileName.nn.toString then
                 Left(DomSourceError.CaseMismatch(rel, real.getFileName.nn.toString))
               else Right(real)
-            end if
           .mapError(DomSourceError.Unreadable(rel, _))
           .flatMap(ZIO.fromEither(_))
-      end if
-    end if
-  end containedFile
 
   /** Strict-UTF-8 read with a size cap; malformed bytes are a [[DomSourceError.NotUtf8]]. */
   private def readText(file: Path): IO[DomSourceError, String] =
@@ -139,8 +135,6 @@ object DomSourceLoader:
           nonBlank(dedent(cleaned).mkString("\n"), DomSourceError.EmptyRegion(ref))
       case first :: second :: rest =>
         Left(DomSourceError.AmbiguousMarker(ref, NonEmptyChunk(first + 1, (second :: rest).map(_ + 1)*)))
-    end match
-  end region
 
   private def isBegin(line: String, marker: String): Boolean =
     val t = line.trim

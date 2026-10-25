@@ -15,3 +15,4 @@ object HtmlSsr:
     ZLayer.succeed(new HtmlSsr:
       def renderFragment[R](ui: UI[R]): URIO[R, String] = Html.render(ui)
       def renderPage[R](ui: UI[R]): URIO[R, Html.Page]  = Html.renderPage(ui))
+end HtmlSsr

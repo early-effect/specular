@@ -32,7 +32,6 @@ object SourceFormatter:
       .flatMap(unwrap)
       .map(_.trim)
       .filter(_.nonEmpty)
-  end formatWrapped
 
   private def unwrap(formatted: String): Option[String] =
     val lines = formatted.linesIterator.toVector

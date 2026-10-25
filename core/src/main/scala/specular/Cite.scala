@@ -7,6 +7,7 @@ enum CiteView:
 
   /** Scaladoc, annotations, and the header. The body is dropped. A `val` or type alias is already a header. */
   case Signature
+end CiteView
 
 /** Whether a cite is reformatted. [[CiteFormat.Inherit]] uses the site default (`specularCiteFormat`, as-written unless
   * set).
@@ -50,7 +51,6 @@ final case class CiteSymbol(
     */
   def sourceName: String =
     fullName.split('.').filter(_.nonEmpty).map(_.stripSuffix("$")).mkString(".")
-end CiteSymbol
 
 /** `cite[A]` pins `A`, then takes a member or the whole definition.
   *

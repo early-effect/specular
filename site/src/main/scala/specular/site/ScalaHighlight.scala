@@ -40,7 +40,6 @@ object ScalaHighlight:
           (buf, tok.end)
     if cursor < source.length then buf += UI.Text(source.substring(cursor))
     buf.toVector
-  end reconstruct
 
   private def kind(tok: Token): Option[String] =
     tok match

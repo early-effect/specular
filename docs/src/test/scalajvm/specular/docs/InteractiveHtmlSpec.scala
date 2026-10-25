@@ -51,7 +51,6 @@ object InteractiveHtmlSpec extends ZIOSpecDefault:
         val nextAcc = if inTag && end >= 0 then acc :+ html.substring(start, end) else acc
         if end < 0 then nextAcc else go(end, nextAcc)
     go(0, Vector.empty)
-  end mountAttrValues
 
   def spec = suite("Interactive page HTML")(
     test("the raw-DOM example SSRs a keyed mount point with a no-JS fallback") {

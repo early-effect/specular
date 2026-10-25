@@ -80,7 +80,6 @@ object CiteResolver:
           endLine = lines.end,
           anchor = cite.anchor,
         )
-        end for
 
   /** The path confinement a cite uses. Absolute paths are accepted only when their real path sits under `root`. */
   private[specular] def locateReported(reported: String, root: Path): IO[CiteError, Path] =
@@ -93,7 +92,6 @@ object CiteResolver:
         contained(trimmed, root).catchSome { case _: CiteError.NotFound =>
           locateBySuffix(trimmed, root)
         }
-  end locateReported
 
   /** A citation with no text is a failure. The site must not render an empty panel. */
   private[specular] def requireText(fullName: String, text: String): Either[CiteError, String] =
@@ -308,7 +306,6 @@ object CiteResolver:
             if paths.nonEmpty then paths else walk(current.getParent)
           case _ => walk(current.getParent)
     walk(root)
-  end nearestUrls
 
   private def launcher(loader: ClassLoader): Boolean =
     val name = loader.getClass.getName
@@ -330,7 +327,6 @@ object CiteResolver:
       .flatMap(text => scala.util.Try(Paths.get(text).nn).toOption)
       .filter(path => Files.exists(path))
       .toList
-  end propertyClasspath
 
   /** Scala 2 `scala-library`: `Predef` as a classfile with no TASTy beside it. Named jars are decided by file name. A
     * content-addressed file has no name to trust, so the entries are read.
@@ -346,7 +342,6 @@ object CiteResolver:
         .Using(new JarFile(path.toFile.nn)): jar =>
           jar.getJarEntry("scala/Predef.class") != null && jar.getJarEntry("scala/Predef.tasty") == null
         .getOrElse(false)
-  end scala2Library
 
   private def presentForInspector(path: Path): ZIO[Scope, CiteError, Option[Path]] =
     ZIO.attemptBlockingIO(classify(path)).mapError(CiteError.Unreadable(path.toString, _)).flatMap {
@@ -548,7 +543,6 @@ object CiteResolver:
         if jarSpec.startsWith("file:") then scala.util.Try(Paths.get(new java.net.URI(jarSpec)).nn).toOption
         else scala.util.Try(Paths.get(jarSpec).nn).toOption
       jar.map((_, entry))
-  end jarEntry
 
   private def unpack(jarPath: Path, entry: String): IO[CiteError, Path] =
     ZIO
@@ -575,8 +569,6 @@ object CiteResolver:
               Files.deleteIfExists(tmp)
               Left(ioe)
     finally jar.close()
-    end try
-  end extract
 
   private def resources(name: String): Vector[URL] =
     loaders.flatMap { loader =>
@@ -614,7 +606,6 @@ object CiteResolver:
     named.toVector.flatMap { tasty =>
       Vector(tasty, tasty.stripSuffix(".tasty") + "$package.tasty")
     }
-  end tastyFromSource
 
   private def tastyFromFullName(fullName: String): Vector[String] =
     val parts = fullName.split('.').toVector.filter(_.nonEmpty).map(_.stripSuffix("$"))
@@ -686,7 +677,6 @@ object CiteResolver:
         .attempt(strictUtf8.decode(java.nio.ByteBuffer.wrap(bytes).nn).nn.toString)
         .refineOrDie { case _: CharacterCodingException => CiteError.NotUtf8(shown) }
     yield text
-  end readFile
 
   private def strictUtf8 =
     StandardCharsets.UTF_8.nn
@@ -733,7 +723,6 @@ object CiteResolver:
         if trimmed.isEmpty || trimmed.startsWith("//") then acc
         else loop(i - 1, (from, lineText) :: acc)
     loop(line, Nil).toVector
-  end linesAbove
 
   private final case class HeaderScan(start: Option[Int], depth: Int, inDoc: Boolean)
 
@@ -799,8 +788,6 @@ object CiteResolver:
           case _           => Left(CiteError.UnreadableSignature(fullName, "expected one definition"))
       case Parsed.Error(_, message, _) =>
         Left(CiteError.UnreadableSignature(fullName, message))
-    end match
-  end parseOne
 
   private def cutBody(fullName: String, text: String, stat: Stat): Either[CiteError, String] =
     stat match
@@ -851,7 +838,6 @@ object CiteResolver:
           else line
         }
         .mkString("\n")
-  end dedent
 
   private def formatDefinition(fullName: String, text: String, root: Path): IO[CiteError, String] =
     for
@@ -877,7 +863,6 @@ object CiteResolver:
         .flatMap:
           case Right(config) => ZIO.succeed(config)
           case Left(err)     => ZIO.fail(CiteError.FormatFailed(fullName, err.toString))
-  end scalafmtConfig
 
   private def fallbackConfig: ScalafmtConfig =
     ScalafmtConfig.default.withDialect(scala.meta.dialects.Scala3)

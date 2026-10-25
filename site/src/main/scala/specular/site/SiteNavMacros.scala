@@ -24,5 +24,4 @@ private[site] object SiteNavMacros:
         if humanizedType.nonEmpty then humanizedType else SiteNav.humanize($fieldLabel)
       }
     }
-  end groupLabelImpl
 end SiteNavMacros

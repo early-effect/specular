@@ -82,7 +82,6 @@ object FakeDom:
     el.appendChild(fallback)
     doc.roots.push(el)
     el
-  end mountPoint
 
   /** View a stub element as the `org.scalajs.dom.Element` the [[Mounter]] hook speaks. */
   def asElement(el: FakeElement): org.scalajs.dom.Element =

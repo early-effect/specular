@@ -76,8 +76,6 @@ object LandingTemplate:
           ),
         ),
       )
-      end for
-    end wrap
 
     private def renderHero(
         hero: Option[Hero],
@@ -129,7 +127,6 @@ object LandingTemplate:
         ) ++ linkEls,
         Vector(attr("class", classes.hero)),
       )
-    end renderHero
 
     private def renderSection(section: HomeSection, classes: ThemeClasses): UIO[UI[Any]] =
       section match
@@ -137,7 +134,6 @@ object LandingTemplate:
           ZIO.succeed(renderCatalog(catalog, classes))
         case ProseSection(markdown) =>
           md.toUi(markdown).map(ui => el("section", Vector(ui), Vector(attr("class", classes.content))))
-    end renderSection
 
     private def renderCatalog(catalog: ProjectCatalog, classes: ThemeClasses): UI[Any] =
       val safeUrls = catalog.metadataUrls.filter(ProjectMeta.isAllowedMetaUrl)

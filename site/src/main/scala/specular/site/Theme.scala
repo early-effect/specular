@@ -37,7 +37,6 @@ object ThemeTokens:
     fontSans = CssToken("ui-sans-serif, system-ui, sans-serif"),
     radius = CssToken("6px"),
   )
-end ThemeTokens
 
 /** Shared site theme CSS. */
 trait Theme:

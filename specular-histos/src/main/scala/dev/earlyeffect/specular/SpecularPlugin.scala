@@ -101,7 +101,6 @@ object SpecularPlugin extends HistosPlugin:
       "-Dspecular.cite.format=as-written",
       s"-Dspecular.meta.scalaVersion=${cell.version.value}",
     ) ++ noted ++ docsUrl
-  end jvmOptions
 
   private def metaProps(module: ModuleView): List[String] =
     List(

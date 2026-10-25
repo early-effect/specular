@@ -101,7 +101,6 @@ object MarkdownRenderer:
         Vector(attr("class", "specular-source")),
       )
       PageTemplate.codeBlock(pre, copyCode)
-    end sourcePre
 
     private def listItems(list: ListBlock, copyCode: Boolean): Vector[UI[Any]] =
       collect(list).collect { case li: ListItem =>

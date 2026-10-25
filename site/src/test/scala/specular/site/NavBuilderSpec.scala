@@ -21,7 +21,6 @@ object NavBuilderSpec extends ZIOSpecDefault:
         html.contains("index.html"),
         html.contains("specular-nav-home"),
       )
-      end for
     },
     test("renders nested nav groups with active page inside a group") {
       val overview  = page("Overview")(md"o")
@@ -44,7 +43,6 @@ object NavBuilderSpec extends ZIOSpecDefault:
         html.contains("nav-item-active"),
         html.contains("Injection"),
       )
-      end for
     },
   ).provide(NavBuilder.live, HtmlSsr.live)
 end NavBuilderSpec

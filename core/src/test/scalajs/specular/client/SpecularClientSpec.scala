@@ -39,7 +39,6 @@ object SpecularClientSpec extends ZIOSpecDefault:
           el.childrenWithClass(MountPoint.FallbackClass).isEmpty,
           el.getAttribute(MountPoint.MountedAttr) != null,
         )
-        end for
       },
       test("a registered key with no node on this page is a silent no-op") {
         val doc = FakeDom.install()
@@ -56,7 +55,6 @@ object SpecularClientSpec extends ZIOSpecDefault:
           }
           got <- ran.get
         yield assertTrue(got == Vector("here"))
-        end for
       },
       test("a node whose key is not registered gets a visible error box, not a blank panel") {
         val doc = FakeDom.install()
@@ -91,7 +89,6 @@ object SpecularClientSpec extends ZIOSpecDefault:
           bad.childrenWithClass(MountPoint.ErrorClass).length == 1,
           good.childrenWithClass(MountPoint.ErrorClass).isEmpty,
         )
-        end for
       },
       // A defect, not a typed failure: `.exit` has to catch this too, or one `null` blanks the page.
       test("a mounter that dies with a defect is also isolated") {
@@ -114,7 +111,6 @@ object SpecularClientSpec extends ZIOSpecDefault:
           bad.childrenWithClass(MountPoint.ErrorClass).length == 1,
           good.childrenWithClass(MountPoint.ErrorClass).isEmpty,
         )
-        end for
       },
       test("a never-ending mounter does not starve the ones after it") {
         val doc = FakeDom.install()
@@ -132,7 +128,6 @@ object SpecularClientSpec extends ZIOSpecDefault:
           }
           got <- ran.get
         yield assertTrue(got == Vector("after"))
-        end for
       },
       // The reason mounters get the *page's* scope: a per-mount `ZIO.scoped` would release this at setup.
       test("a resource a mounter acquires is not released while the page scope lives") {
@@ -149,7 +144,6 @@ object SpecularClientSpec extends ZIOSpecDefault:
           }
           after <- released.get
         yield assertTrue(!inside, after)
-        end for
       },
       test("a second scan is idempotent, so a hot reload does not double-mount") {
         val doc = FakeDom.install()
@@ -163,7 +157,6 @@ object SpecularClientSpec extends ZIOSpecDefault:
           }
           got <- count.get
         yield assertTrue(got == 1, el.getAttribute(MountPoint.MountedAttr) != null)
-        end for
       },
       // The site build rejects duplicate keys, so this cannot arise from a DocSpec; pinned as documented behavior.
       test("two nodes sharing one key both mount") {
@@ -182,7 +175,6 @@ object SpecularClientSpec extends ZIOSpecDefault:
           a.getAttribute(MountPoint.MountedAttr) != null,
           b.getAttribute(MountPoint.MountedAttr) != null,
         )
-        end for
       },
       test("an empty document is a no-op") {
         val _ = FakeDom.install()
@@ -193,7 +185,6 @@ object SpecularClientSpec extends ZIOSpecDefault:
           }
           got <- ran.get
         yield assertTrue(!got)
-        end for
       },
       test("a blank mount attribute is ignored rather than dispatched") {
         val doc = FakeDom.install()
@@ -210,7 +201,6 @@ object SpecularClientSpec extends ZIOSpecDefault:
           el.getAttribute(MountPoint.MountedAttr) == null,
           el.childrenWithClass(MountPoint.ErrorClass).isEmpty,
         )
-        end for
       },
     ),
     suite("keys")(

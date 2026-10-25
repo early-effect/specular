@@ -66,7 +66,6 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
         html.contains("Name"),
         html.contains("a"),
       )
-      end for
     },
     test("renders links") {
       for
@@ -118,7 +117,6 @@ object MarkdownRendererSpec extends ZIOSpecDefault:
         !html.contains("mermoid-node"),
         !html.contains("specular-tok-kw"),
       )
-      end for
     },
     test("a nonsense mermaid fence does not fail") {
       val md =

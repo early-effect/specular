@@ -272,8 +272,6 @@ object SpecularPlugin extends AutoPlugin:
                   }
                 }
                 .dependsOn(members.map(m => LocalProject(m.project) / specularSite)*)
-          end match
-        end if
       }.value
     },
     specularSite := Def.uncached {
@@ -366,7 +364,6 @@ object SpecularPlugin extends AutoPlugin:
     val metaFile = dir / "metadata.json"
     if metaFile.exists then log.info(s"specularSite: wrote ${metaFile.getName}")
     log.info(s"specularSite: ready at $dir")
-  end runBuildMain
 
   /** [[SiteFork]] is the shared fork. `sys.error` stays here so the messages above do not move. */
   private def forkMain(
@@ -394,7 +391,6 @@ object SpecularPlugin extends AutoPlugin:
         sys.error(error.message)
       case Left(error) =>
         sys.error(error.message)
-  end forkMain
 
   private final class SbtSiteLog(log: Logger) extends SiteForkLog:
     def info(line: String): Unit  = log.info(line)

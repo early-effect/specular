@@ -11,12 +11,14 @@ final class Box(val n: Int):
   def pick(n: Int): Int = n
 
   def pick(s: String): Int = s.length
+end Box
 
 object Box:
 
   /** Orphan doc. */
 
   val seed: Int = 1
+end Box
 
 opaque type Answer = Int
 

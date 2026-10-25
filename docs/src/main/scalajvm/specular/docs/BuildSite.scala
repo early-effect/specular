@@ -62,7 +62,6 @@ sbt docs/specularSite""",
         ),
       ),
     )
-  end site
 
   override def layers: ZLayer[Any, Nothing, SiteBuilder] =
     EarlyEffectTheme.layers
@@ -79,5 +78,4 @@ sbt docs/specularSite""",
         SiteError.WriteFailed(index, err)
       }
     promote *> EarlyEffectTheme.writeLogo(out)
-  end afterBuild
 end BuildSite

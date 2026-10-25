@@ -21,7 +21,6 @@ private[site] object PageToc:
       val n   = used.getOrElse(key, 0) + 1
       used(key) = n
       if n == 1 then key else s"$key-$n"
-    end idFor
   end AnchorIds
 
   def show(pageToc: Option[Boolean], topLevelCount: Int): Boolean =
@@ -58,5 +57,4 @@ private[site] object PageToc:
         UI.Element[Any]("ul", Vector.empty, items),
       ),
     )
-  end render
 end PageToc

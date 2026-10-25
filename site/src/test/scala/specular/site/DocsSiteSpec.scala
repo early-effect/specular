@@ -63,7 +63,6 @@ object DocsSiteSpec extends ZIOSpecDefault:
         meta.contains("demo-lib"),
         meta.contains("1.2.3"),
       )
-      end for
     },
     test("plugin artifactKind changes default install snippet") {
       val props = demoMeta ++ Map("specular.meta.name" -> "specular", "specular.meta.artifactKind" -> "plugin")
@@ -91,17 +90,14 @@ object DocsSiteSpec extends ZIOSpecDefault:
         css.contains("min-width: 0.0px"),
         !css.contains(".mermoid-"),
       )
-      end for
     },
     test("themedStack takes the caller's theme instead") {
       val tmp    = Files.createTempDirectory("docs-site-custom-theme")
       val tokens = ThemeTokens.default.copy(bg = CssToken("#0d1117"), radius = CssToken("12px"))
-      val build  =
-        for
-          _   <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(themeProbeSite, tmp))
-          css <- ZIO.attempt(Files.readString(tmp.resolve("assets/theme.css")))
-        yield css
-      build.provideLayer(Theme.fromTokens(tokens) >>> DocsSite.themedStack).map { css =>
+      (for
+        _   <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(themeProbeSite, tmp))
+        css <- ZIO.attempt(Files.readString(tmp.resolve("assets/theme.css")))
+      yield css).provideLayer(Theme.fromTokens(tokens) >>> DocsSite.themedStack).map { css =>
         assertTrue(
           css.contains("--specular-bg: #0d1117;"),
           css.contains("--specular-radius: 12px;"),
