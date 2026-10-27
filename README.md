@@ -262,7 +262,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
-| `specularHistos` | (unpublished) | Histos `site` task. Depends on `histos-api` `0.0.1-SNAPSHOT`, so it is not in a Central release |
+| `specularHistos` | `specular-histos` | Histos `site` task. Snapshot ship `0.0.1`. Provided dependency on `histos-api` `0.0.1-SNAPSHOT`, so it is not in the `specular` release |
 | `docs` | (unpublished) | Dogfood site for specular itself |
 
 ---

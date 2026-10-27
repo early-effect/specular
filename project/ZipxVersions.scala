@@ -11,6 +11,9 @@ object MyVersions extends ZipxVersions:
 
   val release = ShipGroup("specular", "0.21.2")("core", "zioTest", "site", "eeDocsTheme", "plugin")
 
+  /** Histos `site` task. Not a member of [[release]]: that release must not depend on a snapshot. */
+  val histosAdapter = ShipGroup("specular-histos", "0.0.1")("specularHistos")
+
   val zio        = Lib("dev.zio", "zio", "2.1.27")
   val zioTest    = zio.mod("zio-test")
   val zioTestSbt = zio.mod("zio-test-sbt")

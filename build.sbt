@@ -327,13 +327,14 @@ lazy val plugin = project
     scriptedBufferLog := false,
   )
 
-/** Histos adapter. Unpublished while `histos-api` is `0.0.1-SNAPSHOT`: a release cannot depend on that pointer.
+/** Histos adapter. Snapshot ship `specular-histos`, not a member of the `specular` release.
   *
   * Scala 3.10, the compiler that produced the api jar. `specular-site` stays on 3.9, and 3.10 reads that tasty.
   *
   * zipx refuses a `<line>-SNAPSHOT` pointer inside `update`, and a catalog row would force that pointer onto every
   * module. The dependency is Provided because the Histos launcher supplies the api at runtime. This project's `update`
-  * is `updateFull`, so the pointer refusal stays in force for the modules that ship.
+  * is `updateFull`, so the pointer refusal stays in force for the modules that ship. `zipx-release` with `ships=all`
+  * would try to release this ship and refuse. Release `specular` by name.
   */
 lazy val specularHistos = project
   .in(file("specular-histos"))
@@ -342,7 +343,6 @@ lazy val specularHistos = project
     name               := "specular-histos",
     scalaVersion       := "3.10.0",
     crossScalaVersions := Seq("3.10.0"),
-    publish / skip     := true,
     scalacOptions ++= commonScalacOptions,
     resolvers += "central-snapshots" at "https://central.sonatype.com/repository/maven-snapshots/",
     // A pointer revision is not a zipx changing snapshot, so a cached update keeps the first resolved api jar.
