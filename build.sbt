@@ -345,7 +345,8 @@ lazy val specularHistos = project
     publish / skip     := true,
     scalacOptions ++= commonScalacOptions,
     resolvers += "central-snapshots" at "https://central.sonatype.com/repository/maven-snapshots/",
-    // Changing so a republish of the 0.0.1-SNAPSHOT pointer is resolved, not a cached build.
+    // A pointer revision is not a zipx changing snapshot, so a cached update keeps the first resolved api jar.
+    forceUpdatePeriod := Some(scala.concurrent.duration.Duration.Zero),
     libraryDependencies += ("rocks.earlyeffect" %% "histos-api" % "0.0.1-SNAPSHOT" % Provided).withIsChanging(true),
     update := updateFull.value,
     zioTestSettings,

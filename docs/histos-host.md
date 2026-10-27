@@ -67,7 +67,7 @@ The test in this repo checks `contribute` (the id, the task name, `Seal.Open`, t
 
 This step is in the Histos repo. The Specular session does not paper over it.
 
-`TaskDep.Compile` is an action dependency on the docs module's cells. `histos-api` `0.0.1-SNAPSHOT` (`0.0.1-20261021.204409-6`) puts the classpath that compile used on `RunRequest.compiled`: one `CellClasspath` per cell, with `compile` and `test` path lists. The adapter forks when that list has one docs JVM cell. The fork classpath is `test` (main classes, test classes, and the resolved jars). It does not walk `.histos/classes`, and it does not call Coursier again. Zero cells, an empty `test` list, or more than one JVM Scala version refuses before the fork.
+`TaskDep.Compile` is an action dependency on the docs module's cells. `histos-api` `0.0.1-SNAPSHOT` puts the classpath that compile used on `RunRequest.compiled`: one `CellClasspath` per cell, with `compile` and `test` path lists. The adapter forks when that list has one docs JVM cell. The fork classpath is `test` (main classes, test classes, and the resolved jars). It does not walk `.histos/classes`, and it does not call Coursier again. Zero cells, an empty `test` list, or more than one JVM Scala version refuses before the fork.
 
 Class directories today land at `.histos/classes/<module>/<scala>/jvm` and `.histos/test-classes/<module>/<scala>/jvm`. Those paths are the engine's. The adapter treats the classpath on the request as the contract.
 
