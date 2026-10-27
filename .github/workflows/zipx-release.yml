@@ -3,7 +3,7 @@ name: zipx release
 "on":
   push:
     tags:
-      - v*
+      - "*/v*"
   workflow_dispatch:
     inputs:
       ships:
@@ -44,7 +44,7 @@ jobs:
           sbt-disk-cache: "false"
           cache-mode: restore
           purge: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'purge') }}
-          cache-epoch: "7b53e30bb67758ff"
+          cache-epoch: "5b26506dc2900867"
       - name: Tag is on the default branch
         if: github.event_name == 'push'
         run: |
@@ -123,7 +123,6 @@ jobs:
     name: docs
     needs:
       - release
-    if: github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
       pages: write
