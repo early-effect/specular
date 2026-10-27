@@ -17,13 +17,10 @@ object SpecularPluginSpec extends ZIOSpecDefault:
 
   def spec = suite("specular-histos")(
     test("contribute is the open docs site task") {
-      val contribution = Specular.plugin.contribute
-      val expectedDeps = ProjectName.from("docs") match
-        case Right(name) => List(List(TaskDep.Compile(name, None, Some(Jvm))))
-        case Left(_)     => Nil
-      val expectedInputs = ProjectName.from("docs") match
-        case Right(name) => List(List(DeclaredInput.Note(name, NoteKey("main"))))
-        case Left(_)     => Nil
+      val docs           = ProjectName("docs")
+      val contribution   = Specular.plugin.contribute
+      val expectedDeps   = List(List(TaskDep.Compile(docs, None, Some(Jvm))))
+      val expectedInputs = List(List(DeclaredInput.Note(docs, NoteKey("main"))))
       assertTrue(
         Specular.plugin.id == PluginId("dev.earlyeffect.specular"),
         (Specular.plugin eq SpecularPlugin),
@@ -38,7 +35,6 @@ object SpecularPluginSpec extends ZIOSpecDefault:
         ),
         contribution.tasks.map(_.dependsOn) == expectedDeps,
         contribution.tasks.map(_.inputs) == expectedInputs,
-        expectedDeps.nonEmpty,
         contribution.commands == List(
           CommandSpec(CommandName("site"), Nil, TaskName("site"), PluginDetail("build the docs site"))
         ),
@@ -75,40 +71,78 @@ object SpecularPluginSpec extends ZIOSpecDefault:
     test("run does not fork when the classpath is present and the main note is missing") {
       for
         repo   <- ZIO.attempt(Files.createTempDirectory("specular-histos-nomain").nn)
-        failed <- Specular.plugin.run(request(repo, main = None)).flip
+        failed <- Specular.plugin.run(request(repo, Nil)).flip
         wrote = Files.exists(repo.resolve("target/site/wrote.txt"))
       yield assertTrue(failed == PluginRunError.Failed(PluginDetail("docs module has no main class note")), !wrote)
     },
     test("run forks the main on the docs JVM test classpath") {
       for
-        repo <- ZIO.attempt(Files.createTempDirectory("specular-histos-fork").nn)
-        ran  <- Specular.plugin.run(request(repo, main = Some("dev.earlyeffect.specular.ForkProbe"))).either
-        path = repo.resolve("target/site/wrote.txt")
-        text <- ZIO.attempt(if Files.exists(path) then Files.readString(path) else "missing")
+        repo  <- ZIO.attempt(Files.createTempDirectory("specular-histos-fork").nn)
+        ran   <- Specular.plugin.run(request(repo, List(forkMain))).either
+        wrote <- ZIO.attempt(read(repo.resolve("target/site/wrote.txt")))
+        props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
         shown = ran.fold(_.message, _ => "ok")
-      yield assertTrue(shown == "ok", text == "one")
+      yield assertTrue(
+        shown == "ok",
+        wrote == "one",
+        props == "basePath=.\ndocsUrl=absent\nname=absent\n",
+      )
     },
-    test("main records the DocsSite class as a note function") {
-      val mark: ModuleDef => ModuleDef = Specular.main("dev.earlyeffect.specular.ForkProbe")
-      assertTrue(mark.isInstanceOf[ModuleDef => ModuleDef])
+    test("run passes the base path and meta notes to the fork") {
+      for
+        repo  <- ZIO.attempt(Files.createTempDirectory("specular-histos-notes").nn)
+        ran   <- Specular.plugin.run(request(repo, List(forkMain, baseNote, docsNote, nameNote))).either
+        props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
+        shown = ran.fold(_.message, _ => "ok")
+      yield assertTrue(
+        shown == "ok",
+        props == "basePath=/histos\ndocsUrl=https://earlyeffect.rocks/histos\nname=histos\n",
+      )
+    },
+    test("settings are pipes on the module's own platform") {
+      val pipes: List[ModuleDef[Jvm.type] => ModuleDef[Jvm.type]] = List(
+        Specular.main("dev.earlyeffect.specular.ForkProbe"),
+        Specular.basePath("/histos"),
+        Specular.docsUrl("https://earlyeffect.rocks/histos"),
+        Specular.name("histos"),
+        Specular.organization("rocks.earlyeffect"),
+        Specular.version("0.0.1"),
+        Specular.title("Histos"),
+        Specular.description("A build tool"),
+        Specular.homepage("https://earlyeffect.rocks/histos"),
+        Specular.displayVersion("0.0.1"),
+        Specular.artifactKind("library"),
+      )
+      assertTrue(pipes.size == 11)
     },
   )
 
-  private def request(repo: Path, main: Option[String]): RunRequest =
-    ProjectName.from("docs") match
-      case Left(_)     => PluginFixture.request(Specular.plugin.id, TaskName("site"), repo)
-      case Right(docs) =>
-        val notes = main.toList.flatMap: name =>
-          NoteText.from(name).toOption.map(text => ModuleNote(Specular.plugin.id, NoteKey("main"), text))
-        val cell = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
-        PluginFixture
-          .request(
-            Specular.plugin.id,
-            TaskName("site"),
-            repo,
-            modules = List(ModuleView(docs, "docs", notes)),
-          )
-          .copy(compiled = List(cell))
+  private val forkMain: ModuleNote =
+    ModuleNote(Specular.plugin.id, NoteKey("main"), NoteText("dev.earlyeffect.specular.ForkProbe"))
+
+  private val baseNote: ModuleNote =
+    ModuleNote(Specular.plugin.id, NoteKey("basePath"), NoteText("/histos"))
+
+  private val docsNote: ModuleNote =
+    ModuleNote(Specular.plugin.id, NoteKey("docsUrl"), NoteText("https://earlyeffect.rocks/histos"))
+
+  private val nameNote: ModuleNote =
+    ModuleNote(Specular.plugin.id, NoteKey("name"), NoteText("histos"))
+
+  private def request(repo: Path, notes: List[ModuleNote]): RunRequest =
+    val docs = ProjectName("docs")
+    val cell = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
+    PluginFixture
+      .request(
+        Specular.plugin.id,
+        TaskName("site"),
+        repo,
+        modules = List(ModuleView(docs, "docs", notes)),
+      )
+      .copy(compiled = List(cell))
+
+  private def read(path: Path): String =
+    if Files.exists(path) then Files.readString(path) else "missing"
 
   /** URLs of the loader that defined this adapter, not the sbt server above it. */
   /** The forked JVM does not see this process's parent loader, so the walk includes Scala. */
@@ -139,7 +173,7 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       case _ => Nil
 end SpecularPluginSpec
 
-/** Fork target. Writes one file under `-Dspecular.site.dir`. */
+/** Fork target. Writes the site file and the properties this adapter is responsible for. */
 object ForkProbe:
   def main(args: Array[String]): Unit =
     val _   = args
@@ -148,3 +182,11 @@ object ForkProbe:
     val dir = Path.of(raw)
     Files.createDirectories(dir)
     Files.writeString(dir.resolve("wrote.txt"), "one")
+    val base = property("specular.site.basePath")
+    val docs = property("specular.meta.docsUrl")
+    val name = property("specular.meta.name")
+    Files.writeString(dir.resolve("props.txt"), s"basePath=$base\ndocsUrl=$docs\nname=$name\n")
+
+  private def property(key: String): String =
+    sys.props.get(key).map(_.trim).filter(_.nonEmpty).getOrElse("absent")
+end ForkProbe
