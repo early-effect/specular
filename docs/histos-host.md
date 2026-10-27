@@ -33,7 +33,9 @@ The plugin id, task, and job are the ones the Histos fixture already loads:
 - `CiJob(JobName("docs"), TaskName("site"), JobWhen.Always)`
 - `Seal.Open`. A site task is local. Hermetic plus an empty `Need` set is the only sendable plugin task, and this task is not that.
 
-The header a Histos build will use, once the adapter is published, is `plugin(dep"rocks.earlyeffect::specular-histos:<specular version>")`, then `Projects(use(Specular.plugin), docs.pipe(Specular.main("com.example.docs.BuildSite")))`. The fixture's `dev.earlyeffect::specular:0.2.0` is not this coordinate. `Specular.main` is the `DocsSite` object the fork starts. The plugin process does not load that class.
+The header a Histos build will use, once the adapter is published, is `plugin(dep"rocks.earlyeffect::specular-histos:<specular version>")`, then `Projects(use(Specular.plugin), docs.pipe(Specular.main("com.example.docs.BuildSite")).pipe(Specular.basePath("/repo")).pipe(Specular.docsUrl("https://example.github.io/repo")))`. The fixture's `dev.earlyeffect::specular:0.2.0` is not this coordinate. `Specular.main` is the `DocsSite` object the fork starts. The plugin process does not load that class.
+
+`Specular.basePath`, `Specular.docsUrl`, and the other `specular.meta.*` fields (`name`, `organization`, `version`, `title`, `description`, `homepage`, `displayVersion`, `artifactKind`) are notes on the docs module. The generated job is `./histos run dev.earlyeffect.specular/site` and cannot set environment variables, so the adapter does not read `SPECULAR_BASE_PATH` or `SPECULAR_DOCS_URL`. A missing base path is `.`. A missing docs URL is omitted. The cell's Scala version is not a note. The adapter passes the version on that classpath cell. `SPECULAR_STRIP_CI` stays an sbt concern: a Histos build states its version as a note.
 
 ## 1. Move the fork into `specular-site`
 
@@ -59,7 +61,7 @@ The user's docs project is still a normal module: DocSpecs on Compile, thin `Doc
 
 Preview stays on `sbt-ascent-preview`. The Scala.js client stays on `sbt-splice` for sbt repos. Neither is part of this module. A Histos repo that has a docs client copies `client.js` into the site assets in a later task, after Histos has linked that Js module. The JVM site does not wait on it.
 
-The test in this repo checks `contribute`: the id, the task name, `Seal.Open`, the docs job, and that `sbt-specular` is not on the adapter's classpath. Running a full site is the Histos proof, after step 3.
+The test in this repo checks `contribute` (the id, the task name, `Seal.Open`, the docs job, and that `sbt-specular` is not on the adapter's classpath) and forks a main on the classpath the request already carries. That fork sees the base path and the meta notes, and the default base path when those notes are absent. Running a full site is the Histos proof, after step 3.
 
 ## 3. Histos has to hand the adapter a classpath
 

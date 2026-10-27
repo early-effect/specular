@@ -5,6 +5,9 @@ import histos.{Jvm, ProjectName}
 import specular.site.{SiteFork, SiteForkError, SiteForkLog}
 
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentLinkedQueue
+
+import scala.jdk.CollectionConverters.*
 
 import zio.{Scope, ZIO}
 
@@ -16,6 +19,9 @@ import zio.{Scope, ZIO}
   * `run` forks only when `RunRequest.compiled` has the docs module's JVM cell. The fork classpath is that cell's `test`
   * list: main classes, test classes, and the resolved jars. The main class is the `main` note. The plugin does not walk
   * `.histos/classes`, and it does not resolve again.
+  *
+  * The base path and the docs URL are notes on the docs module. The generated CI job cannot set environment variables,
+  * so this task does not read them. A missing base path is `.`. A missing docs URL is omitted.
   */
 object SpecularPlugin extends HistosPlugin:
   val id: PluginId = PluginId("dev.earlyeffect.specular")
@@ -25,6 +31,19 @@ object SpecularPlugin extends HistosPlugin:
   private val indexName: OutputName    = OutputName("index")
   private val metadataName: OutputName = OutputName("metadata")
   private val mainKey: NoteKey         = NoteKey("main")
+  private val basePathKey: NoteKey     = NoteKey("basePath")
+
+  private val metaKeys: List[NoteKey] = List(
+    NoteKey("name"),
+    NoteKey("organization"),
+    NoteKey("version"),
+    NoteKey("title"),
+    NoteKey("description"),
+    NoteKey("homepage"),
+    NoteKey("docsUrl"),
+    NoteKey("displayVersion"),
+    NoteKey("artifactKind"),
+  )
 
   private val jdkFlags: List[String] = List(
     "--sun-misc-unsafe-memory-access=allow",
@@ -32,16 +51,14 @@ object SpecularPlugin extends HistosPlugin:
   )
 
   def contribute: Contribution =
-    ProjectName.from("docs") match
-      case Left(_)     => Contribution(Nil, Nil, Nil)
-      case Right(docs) =>
-        Contribution(
-          tasks = List(siteTask(docs)),
-          commands = List(
-            CommandSpec(CommandName("site"), Nil, TaskName("site"), PluginDetail("build the docs site"))
-          ),
-          jobs = List(CiJob(JobName("docs"), TaskName("site"), JobWhen.Always)),
-        )
+    val docs = ProjectName("docs")
+    Contribution(
+      tasks = List(siteTask(docs)),
+      commands = List(
+        CommandSpec(CommandName("site"), Nil, TaskName("site"), PluginDetail("build the docs site"))
+      ),
+      jobs = List(CiJob(JobName("docs"), TaskName("site"), JobWhen.Always)),
+    )
 
   def run(request: RunRequest): ZIO[Scope, PluginRunError, PluginOutput] =
     ZIO.fromEither(plan(request)).flatMap(fork)
@@ -87,34 +104,21 @@ object SpecularPlugin extends HistosPlugin:
       case None       => Left(refuse("docs module has no main class note"))
 
   private def jvmOptions(request: RunRequest, cell: CellClasspath): List[String] =
-    val dir     = siteDirectory(request.repo)
-    val base    = env("SPECULAR_BASE_PATH").getOrElse(".")
-    val docs    = request.modules.find(_.name.value == "docs")
-    val noted   = docs.toList.flatMap(metaProps)
-    val docsUrl =
-      if noted.exists(_.startsWith("-Dspecular.meta.docsUrl=")) then Nil
-      else env("SPECULAR_DOCS_URL").toList.map(url => s"-Dspecular.meta.docsUrl=$url")
+    val dir   = siteDirectory(request.repo)
+    val docs  = request.modules.find(_.name.value == "docs")
+    val base  = docs.flatMap(note(_, basePathKey)).map(_.trim).filter(_.nonEmpty).getOrElse(".")
+    val noted = docs.toList.flatMap(metaProps)
     jdkFlags ++ List(
       s"-Dspecular.site.dir=$dir",
       s"-Dspecular.source.root=${request.repo}",
       s"-Dspecular.site.basePath=$base",
       "-Dspecular.cite.format=as-written",
       s"-Dspecular.meta.scalaVersion=${cell.version.value}",
-    ) ++ noted ++ docsUrl
+    ) ++ noted
 
   private def metaProps(module: ModuleView): List[String] =
-    List(
-      "name",
-      "organization",
-      "version",
-      "title",
-      "description",
-      "homepage",
-      "docsUrl",
-      "displayVersion",
-      "artifactKind",
-    ).flatMap: key =>
-      NoteKey.from(key).toOption.flatMap(noteKey => note(module, noteKey).map(value => s"-Dspecular.meta.$key=$value"))
+    metaKeys.flatMap: key =>
+      note(module, key).map(_.trim).filter(_.nonEmpty).map(value => s"-Dspecular.meta.${key.value}=$value")
 
   private def note(module: ModuleView, key: NoteKey): Option[String] =
     module.notes.collectFirst:
@@ -122,9 +126,6 @@ object SpecularPlugin extends HistosPlugin:
 
   private def siteDirectory(repo: Path): Path =
     repo.resolve("target").resolve("site")
-
-  private def env(name: String): Option[String] =
-    sys.env.get(name).map(_.trim).filter(_.nonEmpty)
 
   private def fork(planned: SiteFork.Request): ZIO[Scope, PluginRunError, PluginOutput] =
     ZIO
@@ -154,9 +155,13 @@ object SpecularPlugin extends HistosPlugin:
     )
 
   private final class LineLog extends SiteForkLog:
-    private val outLines          = scala.collection.mutable.ListBuffer.empty[String]
-    private val errLines          = scala.collection.mutable.ListBuffer.empty[String]
-    def info(line: String): Unit  = outLines += line
-    def error(line: String): Unit = errLines += line
-    def lines: List[String]       = outLines.toList ++ errLines.toList
+    private val outLines         = new ConcurrentLinkedQueue[String]
+    private val errLines         = new ConcurrentLinkedQueue[String]
+    def info(line: String): Unit =
+      val _ = outLines.add(line)
+
+    def error(line: String): Unit =
+      val _ = errLines.add(line)
+    def lines: List[String] = outLines.iterator.asScala.toList ++ errLines.iterator.asScala.toList
+  end LineLog
 end SpecularPlugin
