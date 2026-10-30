@@ -1,3 +1,4 @@
+import org.scalajs.linker.interface.{ModuleKind, Report}
 import sbt.nio.Keys.{fileInputs, watchOnTermination}
 
 MyVersions.settings
@@ -160,6 +161,10 @@ lazy val specularPreviewStop =
   taskKey[Unit]("Stop this project's preview watch and Preview JVM")
 lazy val specularServe =
   taskKey[Unit]("Serve an already-built site via DocsServe (one-shot; do not ~)")
+lazy val editorLinkFast =
+  taskKey[File]("fastLinkJS the extension host and copy it to editor/out/extension.js")
+lazy val editorLinkFull =
+  taskKey[File]("fullLinkJS the extension host and copy it to editor/out/extension.js")
 
 lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
   .settings(
@@ -307,10 +312,10 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
         ),
   )
 
-/** Shared editor algebra. Unpublished: the VS Code host and the webview link this, they do not publish it.
+/** Shared editor algebra plus the unpublished VS Code host. The webview links a separate project.
   *
-  * JVM tests read dogfood sources. `editorJS` compiles the same Scala with no host main and no ascent dependency, which
-  * is the proof the scanner is Scala.js-clean.
+  * JVM tests read dogfood sources. Host sources live on the JS row only (`src/host/scala`), so the JVM compile stays
+  * free of `vscode`. Neither row depends on ascent.
   */
 lazy val editor = (projectMatrix in file("editor"))
   .settings(
@@ -324,7 +329,30 @@ lazy val editor = (projectMatrix in file("editor"))
       testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     ),
   )
-  .jsPlatform(scalaVersions = scalaVersions)
+  .jsPlatform(
+    scalaVersions,
+    Nil,
+    (p: Project) =>
+      p.settings(
+        // Matrix base is `editor/`. `baseDirectory` on this row is `.sbt/matrix/editorJS`.
+        Compile / unmanagedSourceDirectories += projectMatrixBaseDirectory.value / "src" / "host" / "scala",
+        scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule)),
+        editorLinkFast := Def.uncached {
+          copyLinkedModule(
+            (Compile / fastLinkJS).value.data,
+            (Compile / fastLinkJS / scalaJSLinkerOutputDirectory).value,
+            projectMatrixBaseDirectory.value / "out" / "extension.js",
+          )
+        },
+        editorLinkFull := Def.uncached {
+          copyLinkedModule(
+            (Compile / fullLinkJS).value.data,
+            (Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value,
+            projectMatrixBaseDirectory.value / "out" / "extension.js",
+          )
+        },
+      ),
+  )
 
 lazy val plugin = project
   .in(file("sbt-specular"))
@@ -372,6 +400,16 @@ lazy val specularHistos = project
     zioTestSettings,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
   )
+
+/** Copy the single public module out of the linker directory into the file VS Code loads. */
+def copyLinkedModule(report: Report, outputDir: File, dest: File): File =
+  report.publicModules.toList match
+    case only :: Nil =>
+      IO.createDirectory(dest.getParentFile)
+      IO.copyFile(outputDir / only.jsFileName, dest)
+      dest
+    case found =>
+      sys.error(s"Expected one linked module for $dest, found ${found.length}")
 
 /** Copy spliced JS then fork BuildSite. Callers must already have compiled Test and resolved classpath.
   *

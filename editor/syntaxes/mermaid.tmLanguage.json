@@ -1,0 +1,27 @@
+{
+  "scopeName": "source.mermaid",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#arrow" },
+    { "include": "#keyword" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "%%.*$",
+      "name": "comment.line.mermaid"
+    },
+    "string": {
+      "match": "\"(?:\\\\.|[^\"\\\\])*\"",
+      "name": "string.quoted.double.mermaid"
+    },
+    "arrow": {
+      "match": "-->|---|-.->|==>|->>|-->>",
+      "name": "keyword.operator.arrow.mermaid"
+    },
+    "keyword": {
+      "match": "\\b(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram-v2|erDiagram|subgraph|end|participant|class|state|direction)\\b",
+      "name": "keyword.control.mermaid"
+    }
+  }
+}
