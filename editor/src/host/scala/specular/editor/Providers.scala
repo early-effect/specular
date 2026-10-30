@@ -48,7 +48,18 @@ final class Providers(session: Session) extends js.Object:
             case HostLanguage.Mermaid  => ("Edit as Mermaid", "specular.editMermaid")
           val args = js.Array[js.Any](document.uri.text, ordinal)
           lenses.push(lens(document, host.literalSpan, title, command, args))
+          if host.language == HostLanguage.Mermaid then
+            lenses.push(
+              lens(
+                document,
+                host.literalSpan,
+                "Preview diagram",
+                "specular.previewDiagram",
+                js.Array(document.uri.text, ordinal),
+              )
+            )
       }
+      analysis.pages.foreach(page => addStructure(document, page.children, lenses))
     }
     lenses
 
@@ -144,6 +155,24 @@ final class Providers(session: Session) extends js.Object:
     val result = new CodeAction(title)
     result.command = command(title, commandId, args)
     result
+
+  private def addStructure(document: TextDocument, nodes: Vector[PageNode], lenses: js.Array[CodeLens]): Unit =
+    nodes.foreach {
+      case PageNode.Section(_, _, children, _) =>
+        addStructure(document, children, lenses)
+      case PageNode.Example(_, _, Some(_), span) =>
+        lenses.push(
+          lens(document, span, "Show structure", "specular.showStructure", js.Array(document.uri.text, span.start))
+        )
+      case PageNode.Illustration(_, _, Some(_), span) =>
+        lenses.push(
+          lens(document, span, "Show structure", "specular.showStructure", js.Array(document.uri.text, span.start))
+        )
+      case PageNode.Prose(_, _)                 => ()
+      case PageNode.Example(_, _, None, _)      => ()
+      case PageNode.Illustration(_, _, None, _) => ()
+      case PageNode.Other(_)                    => ()
+    }
 
   private def looseHosts(analysis: FileAnalysis): Vector[StringHost] =
     analysis.hosts.filter { host =>

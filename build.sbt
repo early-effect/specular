@@ -86,7 +86,7 @@ lazy val root = (project in file("."))
   .aggregate(
     (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++
       eeDocsTheme.projectRefs ++ docs.projectRefs ++ editor.projectRefs ++
-      Seq[ProjectReference](plugin, specularHistos))*
+      Seq[ProjectReference](plugin, specularHistos, editorView))*
   )
   .settings(
     name           := "specular",
@@ -165,6 +165,10 @@ lazy val editorLinkFast =
   taskKey[File]("fastLinkJS the extension host and copy it to editor/out/extension.js")
 lazy val editorLinkFull =
   taskKey[File]("fullLinkJS the extension host and copy it to editor/out/extension.js")
+lazy val editorViewLinkFast =
+  taskKey[File]("fastLinkJS the editor webview and copy it to editor/out/webview.js")
+lazy val editorViewLinkFull =
+  taskKey[File]("fullLinkJS the editor webview and copy it to editor/out/webview.js")
 
 lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
   .settings(
@@ -352,6 +356,38 @@ lazy val editor = (projectMatrix in file("editor"))
           )
         },
       ),
+  )
+
+/** Peek and diagram preview. Not a matrix row: it must not see the host facade, or the webview would link `require("vscode")`. */
+lazy val editorView = project
+  .in(file("editor"))
+  .enablePlugins(ScalaJSPlugin)
+  .settings(
+    name           := "specular-editor-view",
+    publish / skip := true,
+    scalacOptions ++= commonScalacOptions,
+    MyVersions.editorViewLib,
+    Compile / unmanagedSourceDirectories := Seq(
+      baseDirectory.value / "src" / "main" / "scala",
+      baseDirectory.value / "src" / "view" / "scala",
+    ),
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.NoModule)),
+    scalaJSUseMainModuleInitializer := true,
+    Compile / mainClass             := Some("specular.editor.WebviewMain"),
+    editorViewLinkFast := Def.uncached {
+      copyLinkedModule(
+        (Compile / fastLinkJS).value.data,
+        (Compile / fastLinkJS / scalaJSLinkerOutputDirectory).value,
+        baseDirectory.value / "out" / "webview.js",
+      )
+    },
+    editorViewLinkFull := Def.uncached {
+      copyLinkedModule(
+        (Compile / fullLinkJS).value.data,
+        (Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value,
+        baseDirectory.value / "out" / "webview.js",
+      )
+    },
   )
 
 lazy val plugin = project

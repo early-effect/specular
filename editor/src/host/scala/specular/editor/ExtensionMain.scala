@@ -33,6 +33,7 @@ final class Session(context: ExtensionContext):
     api.window.createTextEditorDecorationType(js.Dynamic.literal(backgroundColor = "rgba(140, 140, 140, 0.12)"))
   private val fragments = new Fragments(this)
   private val providers = new Providers(this)
+  private val structure = new StructurePanel(this, context)
   private var held      = Map.empty[String, Held]
   private var gens      = Map.empty[String, Int]
   private var oversized = Set.empty[String]
@@ -54,6 +55,8 @@ final class Session(context: ExtensionContext):
     own(api.commands.registerCommand("specular.editMermaid", onEdit(HostLanguage.Mermaid)))
     own(api.commands.registerCommand("specular.insertSnippet", on0(insertSnippetAtCursor)))
     own(api.commands.registerCommand("specular.openPreview", on0(openPreview)))
+    own(api.commands.registerCommand("specular.showStructure", onPair(showStructure)))
+    own(api.commands.registerCommand("specular.previewDiagram", onPair(previewDiagram)))
     own(api.workspace.onDidOpenTextDocument((doc: TextDocument) => onOpen(doc)))
     own(api.workspace.onDidChangeTextDocument((event: TextDocumentChangeEvent) => onChange(event)))
     own(api.workspace.onDidCloseTextDocument((doc: TextDocument) => onClose(doc)))
@@ -99,6 +102,14 @@ final class Session(context: ExtensionContext):
       case EditError.BadScaffoldName(_, _)    => (None, None)
     log(editName(error), None, start, end, uri.text)
     warn(editSentence(error))
+
+  def reportView(error: ViewMessageError, uri: Uri): Unit =
+    error match
+      case ViewMessageError.Malformed(offset) =>
+        log("Malformed", None, Some(offset), Some(offset), uri.text)
+      case ViewMessageError.UnknownKind(kind) =>
+        log("UnknownKind", Some(kind), None, None, uri.text)
+    warn("The view message could not be read")
 
   def editName(error: EditError): String =
     error match
@@ -362,6 +373,82 @@ final class Session(context: ExtensionContext):
         warn("The preview task did not start"),
     )
 
+  private def showStructure(uri: Option[String], start: Option[Int]): Unit =
+    located(uri, start) { (doc, at) =>
+      analyze(doc.getText()) match
+        case Left(error) =>
+          reportAnalyze(error, doc.uri)
+        case Right(found) =>
+          peekAt(found, at) match
+            case Some(peek) => structure.showPeek(doc.uri.text, peek)
+            case None       => warn("No structure at the cursor")
+    }
+
+  private def previewDiagram(uri: Option[String], ordinal: Option[Int]): Unit =
+    (uri, ordinal) match
+      case (Some(key), Some(index)) =>
+        document(key) match
+          case Some(doc) => diagramAt(doc, index)
+          case None      => warn("Open the Scala file first")
+      case _ =>
+        activeScala match
+          case None =>
+            warn("Open a Scala file first")
+          case Some(editor) =>
+            val doc = editor.document
+            val at  = doc.offsetAt(editor.selection.active)
+            analyze(doc.getText()) match
+              case Left(error) =>
+                reportAnalyze(error, doc.uri)
+              case Right(found) =>
+                val hit = found.hosts.zipWithIndex.find { (host, _) =>
+                  host.language == HostLanguage.Mermaid && !host.interpolated &&
+                  host.interiorSpan.start <= at && at < host.interiorSpan.end
+                }
+                hit match
+                  case Some((_, index)) => diagramAt(doc, index)
+                  case None             => warn("No mermaid literal at the cursor")
+
+  private def diagramAt(doc: TextDocument, ordinal: Int): Unit =
+    analyze(doc.getText()) match
+      case Left(error) =>
+        reportAnalyze(error, doc.uri)
+      case Right(found) =>
+        found.hosts.lift(ordinal) match
+          case Some(host) if host.language == HostLanguage.Mermaid && !host.interpolated =>
+            decodedInterior(doc.getText(), host) match
+              case Left(error) => reportEdit(error, doc.uri)
+              case Right(text) => structure.showDiagram(doc.uri.text, text)
+          case _ =>
+            warn("No mermaid literal at the cursor")
+
+  private def located(uri: Option[String], start: Option[Int])(body: (TextDocument, Int) => Unit): Unit =
+    (uri, start) match
+      case (Some(key), Some(at)) =>
+        document(key) match
+          case Some(doc) => body(doc, at)
+          case None      => warn("Open the Scala file first")
+      case _ =>
+        activeScala match
+          case Some(editor) => body(editor.document, editor.document.offsetAt(editor.selection.active))
+          case None         => warn("Open a Scala file first")
+
+  private def peekAt(found: FileAnalysis, at: Int): Option[AscentPeek] =
+    val hits                                = Vector.newBuilder[(Int, AscentPeek)]
+    def walk(nodes: Vector[PageNode]): Unit =
+      nodes.foreach {
+        case PageNode.Section(_, _, children, _) =>
+          walk(children)
+        case PageNode.Example(_, _, Some(peek), span) if span.start <= at && at < span.end =>
+          hits += ((span.end - span.start, peek))
+        case PageNode.Illustration(_, _, Some(peek), span) if span.start <= at && at < span.end =>
+          hits += ((span.end - span.start, peek))
+        case _ =>
+          ()
+      }
+    found.pages.foreach(page => walk(page.children))
+    hits.result().minByOption(_._1).map(_._2)
+
   private def reportAnalyze(error: AnalyzeError, uri: Uri): Unit =
     error match
       case AnalyzeError.ScanFailure(span, reason) =>
@@ -402,12 +489,17 @@ final class Session(context: ExtensionContext):
   private def tooBig(text: String): Boolean =
     new TextEncoder().encode(text).length > MaxBytes
 
-  private def own(disposable: Disposable): Unit =
+  private[editor] def own(disposable: Disposable): Unit =
     context.subscriptions.push(disposable)
     ()
 
   private def on0(body: () => Unit): js.Function =
     (() => body()): js.Function0[Unit]
+
+  private def onPair(body: (Option[String], Option[Int]) => Unit): js.Function =
+    (
+        (uri: js.UndefOr[String], second: js.UndefOr[Double]) => body(uri.toOption, second.toOption.map(_.toInt)),
+    ): js.Function2[js.UndefOr[String], js.UndefOr[Double], Unit]
 
   private def onEdit(language: HostLanguage): js.Function =
     (

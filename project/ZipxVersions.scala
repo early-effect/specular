@@ -55,6 +55,7 @@ object MyVersions extends ZipxVersions:
   def citeJvm    = library(scalameta, scalafmtCore, tastyInspector)
   def siteLib    = library(ascentHtml, ascentPreview, heddle, commonmark, commonmarkGfm, scalafmtCore, scalameta)
   def zioTestLib = library(zioTest, zioTestSbt)
-  def docsJs     = library(ascentJs, ascentCss, zioTest)
+  def docsJs       = library(ascentJs, ascentCss, zioTest)
+  def editorViewLib = library(ascentJs, zio)
   def docsFigures = library(mermoidAscent)
 end MyVersions

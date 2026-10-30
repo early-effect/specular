@@ -32,6 +32,14 @@
       {
         "command": "specular.openPreview",
         "title": "Specular: Open preview"
+      },
+      {
+        "command": "specular.showStructure",
+        "title": "Specular: Show structure"
+      },
+      {
+        "command": "specular.previewDiagram",
+        "title": "Specular: Preview diagram"
       }
     ],
     "configuration": {

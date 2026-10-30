@@ -124,6 +124,11 @@ object VsCode:
     val Right: Int = js.native
 
   @js.native
+  @JSImport("vscode", "ViewColumn")
+  object ViewColumn extends js.Object:
+    val Beside: Int = js.native
+
+  @js.native
   @JSGlobal("TextEncoder")
   class TextEncoder extends js.Object:
     def encode(input: String): Uint8Array = js.native
@@ -132,6 +137,11 @@ object VsCode:
   @JSGlobal("TextDecoder")
   class TextDecoder extends js.Object:
     def decode(input: Uint8Array): String = js.native
+
+  @js.native
+  @JSGlobal("crypto")
+  object WebCrypto extends js.Object:
+    def randomUUID(): String = js.native
 
   @js.native
   trait Command extends js.Object
@@ -166,7 +176,8 @@ object VsCode:
   @js.native
   trait TextEditor extends js.Object:
     def document: TextDocument                                                                  = js.native
-    def selection: Selection                                                                    = js.native
+    var selection: Selection                                                                    = js.native
+    def revealRange(range: Range): Unit                                                         = js.native
     def setDecorations(decorationType: TextEditorDecorationType, ranges: js.Array[Range]): Unit =
       js.native
 
@@ -201,6 +212,7 @@ object VsCode:
   @js.native
   trait FileSystem extends js.Object:
     def stat(uri: Uri): js.Promise[FileStat]                       = js.native
+    def readFile(uri: Uri): js.Promise[Uint8Array]                 = js.native
     def writeFile(uri: Uri, content: Uint8Array): js.Promise[Unit] = js.native
 
   @js.native
@@ -227,8 +239,24 @@ object VsCode:
     def createOutputChannel(name: String): OutputChannel                                      = js.native
     def createStatusBarItem(alignment: Int, priority: Int): StatusBarItem                     = js.native
     def createTextEditorDecorationType(options: js.Object): TextEditorDecorationType          = js.native
-    def onDidChangeActiveTextEditor(listener: js.Function1[js.Any, Unit]): Disposable         = js.native
-    def tabGroups: TabGroups                                                                  = js.native
+    def createWebviewPanel(viewType: String, title: String, showOptions: Int, options: js.Object): WebviewPanel =
+      js.native
+    def onDidChangeActiveTextEditor(listener: js.Function1[js.Any, Unit]): Disposable = js.native
+    def tabGroups: TabGroups                                                          = js.native
+
+  @js.native
+  trait WebviewPanel extends Disposable:
+    def webview: Webview                                       = js.native
+    def reveal(): Unit                                         = js.native
+    def onDidDispose(listener: js.Function0[Unit]): Disposable = js.native
+
+  @js.native
+  trait Webview extends js.Object:
+    var html: String                                                          = js.native
+    def cspSource: String                                                     = js.native
+    def asWebviewUri(localResource: Uri): Uri                                 = js.native
+    def postMessage(message: js.Any): js.Promise[Boolean]                     = js.native
+    def onDidReceiveMessage(listener: js.Function1[js.Any, Unit]): Disposable = js.native
 
   @js.native
   trait TabGroups extends js.Object:
