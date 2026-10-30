@@ -84,7 +84,8 @@ addCommandAlias("release", "; publishSigned; sonaRelease")
 lazy val root = (project in file("."))
   .aggregate(
     (core.projectRefs ++ zioTest.projectRefs ++ site.projectRefs ++
-      eeDocsTheme.projectRefs ++ docs.projectRefs ++ Seq[ProjectReference](plugin, specularHistos))*
+      eeDocsTheme.projectRefs ++ docs.projectRefs ++ editor.projectRefs ++
+      Seq[ProjectReference](plugin, specularHistos))*
   )
   .settings(
     name           := "specular",
@@ -305,6 +306,25 @@ lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
           Compile / mainClass := Some("specular.docs.ClientMain"),
         ),
   )
+
+/** Shared editor algebra. Unpublished: the VS Code host and the webview link this, they do not publish it.
+  *
+  * JVM tests read dogfood sources. `editorJS` compiles the same Scala with no host main and no ascent dependency, which
+  * is the proof the scanner is Scala.js-clean.
+  */
+lazy val editor = (projectMatrix in file("editor"))
+  .settings(
+    name           := "specular-editor",
+    publish / skip := true,
+    scalacOptions ++= commonScalacOptions,
+  )
+  .jvmPlatform(
+    scalaVersions = scalaVersions,
+    settings = zioTestSettings ++ Seq(
+      testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    ),
+  )
+  .jsPlatform(scalaVersions = scalaVersions)
 
 lazy val plugin = project
   .in(file("sbt-specular"))

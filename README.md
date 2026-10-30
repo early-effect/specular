@@ -264,6 +264,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
 | `specularHistos` | `specular-histos` | Histos `site` task. Snapshot ship `0.0.1`. Provided dependency on `histos-api` `0.0.1-SNAPSHOT`, so it is not in the `specular` release |
 | `docs` | (unpublished) | Dogfood site for specular itself |
+| `editor` | (unpublished) | Specular-aware editor algebra: string hosts, page outline, literal peek, range edits |
 
 ---
 
