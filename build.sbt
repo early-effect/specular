@@ -52,6 +52,9 @@ usePgpKeyHex(sys.env.getOrElse("PGP_KEY_HEX", "MISSING_KEY_HEX"))
 zipxJavaVersion      := JdkVersion("25")
 zipxWorkflowDispatch := true
 zipxTestTask         := zipxTasks.session(testFull, LocalProject("plugin") / scripted)
+// specular-histos has no release. It depends on a histos-api snapshot, so the release workflow refuses it.
+// MatchBump would inherit site's patch and compare that bump to the catalog number itself.
+zipxModverPropagate := ModverPropagate.Never
 zipxCapabilities += ZipxCentral.snapshots
 zipxCapabilities += ZipxCentral.pullRequestSnapshots("snapshots")
 zipxCapabilities += ZipxDocs.pages()
