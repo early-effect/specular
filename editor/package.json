@@ -3,7 +3,22 @@
   "displayName": "Specular",
   "publisher": "early-effect",
   "version": "0.0.1",
-  "description": "Edit Specular pages: markdown and mermaid fragments, outline, and the preview task.",
+  "description": "Tests-as-docs for Scala: markdown inside a DocSpec, and a live Specular preview.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/early-effect/specular.git"
+  },
+  "homepage": "https://github.com/early-effect/specular",
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "scala",
+    "documentation",
+    "markdown",
+    "preview"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -31,7 +46,9 @@
       },
       {
         "command": "specular.openPreview",
-        "title": "Specular: Open preview"
+        "title": "Open Preview",
+        "category": "Specular",
+        "icon": "$(open-preview)"
       },
       {
         "command": "specular.showStructure",
@@ -49,13 +66,20 @@
           "type": "string",
           "default": "sbt docs/specularPreview",
           "description": "Shell command the Open preview lens runs. In this repo that is the docs preview task."
+        },
+        "specular.previewOrigin": {
+          "type": "string",
+          "default": "http://localhost:8765",
+          "description": "Origin of the specularPreview server. The split preview opens <origin>/<slug>.html."
         }
       }
     },
     "languages": [
       {
         "id": "mermaid",
-        "aliases": ["Mermaid"]
+        "aliases": [
+          "Mermaid"
+        ]
       }
     ],
     "grammars": [
@@ -63,7 +87,26 @@
         "language": "mermaid",
         "scopeName": "source.mermaid",
         "path": "./syntaxes/mermaid.tmLanguage.json"
+      },
+      {
+        "scopeName": "specular.markdown-string",
+        "path": "./syntaxes/markdown-in-scala.json",
+        "injectTo": [
+          "source.scala"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.markdown": "markdown"
+        }
       }
-    ]
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "specular.openPreview",
+          "when": "editorLangId == scala && specular.hasPage",
+          "group": "navigation"
+        }
+      ]
+    }
   }
 }

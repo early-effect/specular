@@ -61,6 +61,15 @@ enum PageNode:
 /** One `def doc = page(...)` (or a simple ascribed type in front of `page`). */
 final case class PageTree(title: String, titleSpan: Span, children: Vector[PageNode], span: Span)
 
+/** Site file name for a page title. Matches `DocPage.slug`, so the preview URL is `<origin>/<slug>.html`. */
+object PageSlug:
+  def apply(title: String): String =
+    title.toLowerCase
+      .map(c => if c.isLetterOrDigit then c else '-')
+      .replaceAll("-+", "-")
+      .stripPrefix("-")
+      .stripSuffix("-")
+
 /** Hosts anywhere in the file, and every `def doc` page. An ordinary Scala file is `hosts` empty and `pages` empty. */
 final case class FileAnalysis(hosts: Vector[StringHost], pages: Vector[PageTree])
 

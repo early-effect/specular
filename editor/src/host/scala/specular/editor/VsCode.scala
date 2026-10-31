@@ -126,6 +126,7 @@ object VsCode:
   @js.native
   @JSImport("vscode", "ViewColumn")
   object ViewColumn extends js.Object:
+    val One: Int    = js.native
     val Beside: Int = js.native
 
   @js.native
@@ -144,6 +145,15 @@ object VsCode:
     def randomUUID(): String = js.native
 
   @js.native
+  @JSGlobal("fetch")
+  def fetch(url: String): js.Promise[FetchResponse] = js.native
+
+  @js.native
+  trait FetchResponse extends js.Object:
+    def ok: Boolean                = js.native
+    def text(): js.Promise[String] = js.native
+
+  @js.native
   trait Command extends js.Object
 
   @js.native
@@ -151,9 +161,15 @@ object VsCode:
     def dispose(): Unit = js.native
 
   @js.native
+  trait Memento extends js.Object:
+    def get(key: String): js.UndefOr[js.Any]                 = js.native
+    def update(key: String, value: js.Any): js.Promise[Unit] = js.native
+
+  @js.native
   trait ExtensionContext extends js.Object:
     def subscriptions: js.Array[Disposable] = js.native
     def extensionUri: Uri                   = js.native
+    def workspaceState: Memento             = js.native
 
   @js.native
   trait Uri extends js.Object:
@@ -161,8 +177,13 @@ object VsCode:
     def path: String   = js.native
     def query: String  = js.native
     def fsPath: String = js.native
+
+    /** `Uri.toString` is a method. Reading it as a property yields the function, and the host dies on activate. */
     @JSName("toString")
-    def text: String = js.native
+    def stringify(): String = js.native
+  end Uri
+
+  extension (uri: Uri) def text: String = uri.stringify()
 
   @js.native
   trait TextDocument extends js.Object:
@@ -236,23 +257,28 @@ object VsCode:
       js.native
     def showOpenDialog(options: js.UndefOr[js.Object]): js.Promise[js.UndefOr[js.Array[Uri]]] = js.native
     def showTextDocument(document: js.Any): js.Promise[TextEditor]                            = js.native
+    def showTextDocument(document: TextDocument, options: js.Object): js.Promise[TextEditor]  = js.native
     def createOutputChannel(name: String): OutputChannel                                      = js.native
     def createStatusBarItem(alignment: Int, priority: Int): StatusBarItem                     = js.native
     def createTextEditorDecorationType(options: js.Object): TextEditorDecorationType          = js.native
     def createWebviewPanel(viewType: String, title: String, showOptions: Int, options: js.Object): WebviewPanel =
       js.native
-    def onDidChangeActiveTextEditor(listener: js.Function1[js.Any, Unit]): Disposable = js.native
-    def tabGroups: TabGroups                                                          = js.native
+    def registerWebviewPanelSerializer(viewType: String, serializer: js.Object): Disposable = js.native
+    def onDidChangeActiveTextEditor(listener: js.Function1[js.Any, Unit]): Disposable       = js.native
+    def tabGroups: TabGroups                                                                = js.native
 
   @js.native
   trait WebviewPanel extends Disposable:
     def webview: Webview                                       = js.native
+    var title: String                                          = js.native
     def reveal(): Unit                                         = js.native
+    def reveal(viewColumn: Int, preserveFocus: Boolean): Unit  = js.native
     def onDidDispose(listener: js.Function0[Unit]): Disposable = js.native
 
   @js.native
   trait Webview extends js.Object:
     var html: String                                                          = js.native
+    var options: js.Object                                                    = js.native
     def cspSource: String                                                     = js.native
     def asWebviewUri(localResource: Uri): Uri                                 = js.native
     def postMessage(message: js.Any): js.Promise[Boolean]                     = js.native
@@ -279,9 +305,11 @@ object VsCode:
     def fs: FileSystem                                                                             = js.native
     def applyEdit(edit: WorkspaceEdit): js.Promise[Boolean]                                        = js.native
     def openTextDocument(uri: Uri): js.Promise[TextDocument]                                       = js.native
+    def findFiles(include: String, exclude: String): js.Promise[js.Array[Uri]]                     = js.native
     def onDidChangeTextDocument(listener: js.Function1[TextDocumentChangeEvent, Unit]): Disposable = js.native
     def onDidOpenTextDocument(listener: js.Function1[TextDocument, Unit]): Disposable              = js.native
     def onDidCloseTextDocument(listener: js.Function1[TextDocument, Unit]): Disposable             = js.native
+    def onDidSaveTextDocument(listener: js.Function1[TextDocument, Unit]): Disposable              = js.native
     def registerFileSystemProvider(scheme: String, provider: js.Object): Disposable                = js.native
 
   @js.native
@@ -291,10 +319,40 @@ object VsCode:
     def registerCodeLensProvider(selector: js.Object, provider: js.Object): Disposable                = js.native
     def registerCodeActionsProvider(selector: js.Object, provider: js.Object): Disposable             = js.native
     def setTextDocumentLanguage(document: TextDocument, languageId: String): js.Promise[TextDocument] = js.native
+    def getDiagnostics(resource: Uri): js.Array[Diagnostic]                                           = js.native
+    def onDidChangeDiagnostics(listener: js.Function1[js.Any, Unit]): Disposable                      = js.native
+
+  /** Webview state for the split preview. Fields are absent when the panel has not stored any. */
+  @js.native
+  trait PreviewState extends js.Object:
+    def key: js.UndefOr[String]    = js.native
+    def url: js.UndefOr[String]    = js.native
+    def base: js.UndefOr[String]   = js.native
+    def title: js.UndefOr[String]  = js.native
+    def anchor: js.UndefOr[String] = js.native
+
+  /** Offsets posted by the preview error list. The host message is a plain object. */
+  @js.native
+  trait PreviewJump extends js.Object:
+    def start: Double = js.native
+    def end: Double   = js.native
+
+  /** A shift-click in the preview frame. Absent on the error-list message. */
+  @js.native
+  trait PreviewFollow extends js.Object:
+    def follow: js.UndefOr[String] = js.native
+
+  /** `severity` is omitted when the diagnostic is an error. `0` is Error. */
+  @js.native
+  trait Diagnostic extends js.Object:
+    def message: js.Any           = js.native
+    def range: Range              = js.native
+    def severity: js.UndefOr[Int] = js.native
 
   @js.native
   trait Commands extends js.Object:
-    def registerCommand(command: String, callback: js.Function): Disposable = js.native
+    def registerCommand(command: String, callback: js.Function): Disposable             = js.native
+    def executeCommand(command: String, arg1: js.Any, arg2: js.Any): js.Promise[js.Any] = js.native
 
   @js.native
   trait Tasks extends js.Object:

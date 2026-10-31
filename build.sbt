@@ -1,6 +1,8 @@
 import org.scalajs.linker.interface.{ModuleKind, Report}
 import sbt.nio.Keys.{fileInputs, watchOnTermination}
 
+import scala.sys.process.*
+
 MyVersions.settings
 
 ThisBuild / scalaVersion := (MyVersions.scala: String)
@@ -169,6 +171,18 @@ lazy val editorViewLinkFast =
   taskKey[File]("fastLinkJS the editor webview and copy it to editor/out/webview.js")
 lazy val editorViewLinkFull =
   taskKey[File]("fullLinkJS the editor webview and copy it to editor/out/webview.js")
+lazy val linkHostTest =
+  taskKey[File]("fastLinkJS the extension-host test and copy it to editor/out/host-test.js")
+lazy val editorHostRun =
+  taskKey[Unit]("Open VS Code on the fixture and fail unless Edit as Markdown shows the fragment text")
+lazy val editorPackage =
+  taskKey[File](
+    "Full-link the extension and write target/specular-editor-<version>.vsix. A dirty tree gets a dev prerelease."
+  )
+lazy val editorPublish =
+  taskKey[Unit](
+    "Publish that VSIX to the VS Code Marketplace and Open VSX. Refuses a snapshot. Needs VSCE_PAT and OVSX_PAT."
+  )
 
 lazy val docs: ProjectMatrix = (projectMatrix in file("docs"))
   .settings(
@@ -390,6 +404,106 @@ lazy val editorView = project
     },
   )
 
+/** Extension-host check. Not aggregated: CI's `testFull` does not launch VS Code. */
+lazy val editorHost = project
+  .in(file("editor"))
+  .enablePlugins(ScalaJSPlugin)
+  .settings(
+    name           := "specular-editor-host-test",
+    publish / skip := true,
+    scalacOptions ++= commonScalacOptions,
+    Compile / unmanagedSourceDirectories := Seq(baseDirectory.value / "src" / "host-test" / "scala"),
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule)),
+    scalaJSUseMainModuleInitializer := false,
+    linkHostTest := Def.uncached {
+      copyLinkedModule(
+        (Compile / fastLinkJS).value.data,
+        (Compile / fastLinkJS / scalaJSLinkerOutputDirectory).value,
+        baseDirectory.value / "out" / "host-test.js",
+      )
+    },
+    editorHostRun := Def.uncached {
+      val log       = streams.value.log
+      val _         = (editor.js(scala3Version) / editorLinkFast).value
+      val jsFile    = linkHostTest.value
+      val editorDir = baseDirectory.value
+      val root      = (ThisBuild / baseDirectory).value
+      val userDir   = root / "target" / "editor-host-user"
+      val result    = root / "target" / "editor-host-result.txt"
+      val extDir    = root / "target" / "editor-host-extensions"
+      val codeBin   = file("/Applications/Visual Studio Code.app/Contents/MacOS/Code")
+      if !codeBin.exists then sys.error(s"VS Code binary is not at $codeBin")
+      val installed = file(sys.props("user.home")) / ".vscode" / "extensions"
+      val scalaSyntax = IO
+        .listFiles(installed)
+        .find(_.getName.startsWith("scala-lang.scala-"))
+        .getOrElse(sys.error(s"Scala syntax extension is not installed under $installed"))
+      IO.createDirectory(userDir)
+      IO.createDirectory(extDir)
+      val link = extDir / scalaSyntax.getName
+      if !java.nio.file.Files.exists(link.toPath, java.nio.file.LinkOption.NOFOLLOW_LINKS) then
+        val _ = java.nio.file.Files.createSymbolicLink(link.toPath, scalaSyntax.toPath)
+      IO.delete(result)
+      // The `code` CLI returns immediately when a window is already open, so this launches the app binary.
+      // The Scala language id comes from scala-lang.scala. Metals stays out of this directory.
+      // Cursor exports VSCODE_IPC_HOOK and VSCODE_CLI. The app binary then talks to Cursor and rejects these flags.
+      val cmd = Seq(
+        "env",
+        "-u",
+        "ELECTRON_RUN_AS_NODE",
+        "-u",
+        "VSCODE_CLI",
+        "-u",
+        "VSCODE_IPC_HOOK",
+        "-u",
+        "VSCODE_PID",
+        "-u",
+        "VSCODE_ESM_ENTRYPOINT",
+        "-u",
+        "VSCODE_PROCESS_TITLE",
+        "-u",
+        "VSCODE_CRASH_REPORTER_PROCESS_TYPE",
+        "-u",
+        "VSCODE_NLS_CONFIG",
+        "-u",
+        "VSCODE_CODE_CACHE_PATH",
+        "-u",
+        "VSCODE_CWD",
+        "-u",
+        "VSCODE_HANDLES_UNCAUGHT_ERRORS",
+        codeBin.getAbsolutePath,
+        "--disable-workspace-trust",
+        "--user-data-dir",
+        userDir.getAbsolutePath,
+        "--extensions-dir",
+        extDir.getAbsolutePath,
+        "--extensionDevelopmentPath",
+        editorDir.getAbsolutePath,
+        "--extensionTestsPath",
+        jsFile.getAbsolutePath,
+        (editorDir / "src" / "host-test" / "fixture").getAbsolutePath,
+      )
+      log.info(cmd.mkString(" "))
+      val sample = (root / "docs" / "src" / "main" / "scala" / "specular" / "docs" / "Citations.scala").getAbsolutePath
+      val exit = Process(
+        cmd,
+        None,
+        "SPECULAR_HOST_RESULT" -> result.getAbsolutePath,
+        "SPECULAR_HOST_SAMPLE" -> sample,
+      ).!
+      val body = if result.exists then IO.read(result).trim else ""
+      if exit != 0 || body != "PASS" then sys.error(s"editor host test exited $exit: $body")
+    },
+    Test / testQuick := Def.uncached {
+      editorHostRun.value
+      sbt.protocol.testing.TestResult.Passed
+    },
+    Test / testFull := Def.uncached {
+      editorHostRun.value
+      sbt.protocol.testing.TestResult.Passed
+    },
+  )
+
 lazy val plugin = project
   .in(file("sbt-specular"))
   .dependsOn(site.jvm(scala3Version))
@@ -439,13 +553,50 @@ lazy val specularHistos = project
 
 /** Copy the single public module out of the linker directory into the file VS Code loads. */
 def copyLinkedModule(report: Report, outputDir: File, dest: File): File =
+  IO.createDirectory(dest.getParentFile)
+  IO.copyFile(linkedModule(report, outputDir), dest)
+  dest
+
+/** The one public module the linker wrote. */
+def linkedModule(report: Report, outputDir: File): File =
   report.publicModules.toList match
     case only :: Nil =>
-      IO.createDirectory(dest.getParentFile)
-      IO.copyFile(outputDir / only.jsFileName, dest)
-      dest
+      outputDir / only.jsFileName
     case found =>
-      sys.error(s"Expected one linked module for $dest, found ${found.length}")
+      sys.error(s"Expected one linked module, found ${found.length}")
+
+// Bare settings land on ThisBuild, and a ThisBuild task runs once per project. These stay on the root
+// and do not aggregate, or every module would package its own version into the same directory.
+LocalRootProject / editorPackage / aggregate := false
+LocalRootProject / editorPublish / aggregate := false
+
+LocalRootProject / editorPackage := Def.uncached {
+  val log = streams.value.log
+  val extensionJs = linkedModule(
+    (editor.js(scala3Version) / Compile / fullLinkJS).value.data,
+    (editor.js(scala3Version) / Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value,
+  )
+  val webviewJs = linkedModule(
+    (editorView / Compile / fullLinkJS).value.data,
+    (editorView / Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value,
+  )
+  EditorVsix.write(
+    log,
+    (ThisBuild / baseDirectory).value,
+    EditorVsix.versionOf((core.jvm(scala3Version) / version).value),
+    extensionJs,
+    webviewJs,
+  )
+}
+
+LocalRootProject / editorPublish := Def.uncached {
+  val raw = (core.jvm(scala3Version) / version).value
+  val ver = EditorVsix.versionOf(raw)
+  if !ver.release then
+    sys.error(s"Refusing to publish ${ver.semver} from $raw. Tag a release (vX.Y.Z) first.")
+  EditorVsix.requirePublishAuth()
+  EditorVsix.publish(streams.value.log, (LocalRootProject / editorPackage).value)
+}
 
 /** Copy spliced JS then fork BuildSite. Callers must already have compiled Test and resolved classpath.
   *

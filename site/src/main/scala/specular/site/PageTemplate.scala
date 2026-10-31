@@ -25,6 +25,32 @@ object PageTemplate:
   private def attr(name: String, value: String): Attr[Any] =
     Attr.StaticAttr(name, AttrValue.Str(value))
 
+  /** Shift-click inside the preview iframe navigates this page and asks the editor to open the Scala file.
+    *
+    * The preview is a cross-origin frame, so only this page can see the shift key. A normal browser window is not
+    * framed, and the listener returns before it changes the click. The browser's own shift-click opens a new window, so
+    * the listener cancels that and navigates this frame itself, after telling the editor. Same-origin `.html` links are
+    * the site's own pages. Anything else keeps the browser's shift-click.
+    */
+  private[site] val followScript: String =
+    """document.addEventListener("click", function (e) {
+      |  if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.button !== 0) return;
+      |  if (window.parent === window) return;
+      |  var node = e.target;
+      |  if (!node || !node.closest) return;
+      |  var link = node.closest("a[href]");
+      |  if (!link) return;
+      |  var url;
+      |  try { url = new URL(link.href); } catch (err) { return; }
+      |  if (url.origin !== window.location.origin) return;
+      |  if (!url.pathname.endsWith(".html")) return;
+      |  e.preventDefault();
+      |  e.stopPropagation();
+      |  window.parent.postMessage({ source: "specular-follow", href: url.href }, "*");
+      |  window.location.assign(url.href);
+      |}, true);
+      |""".stripMargin
+
   /** Clipboard helper for [[SiteModel.copyCode]] buttons (no Ascent client required). */
   private val copyScript: String =
     """document.addEventListener("click",function(e){var t=e.target;if(!t||!t.closest)return;var b=t.closest("button.specular-copy");if(!b)return;var p=b.parentElement;if(!p)return;var c=p.querySelector("pre.specular-source code");if(!c||!navigator.clipboard)return;navigator.clipboard.writeText(c.textContent||"").then(function(){b.setAttribute("aria-label","Copied");b.classList.add("specular-copy-done");setTimeout(function(){b.setAttribute("aria-label","Copy code");b.classList.remove("specular-copy-done")},1500)})});"""
@@ -193,7 +219,8 @@ object PageTemplate:
         copyScriptTag =
           if model.copyCode then Vector(el("script", Vector(UI.Text(copyScript)), Vector.empty))
           else Vector.empty
-        headerLabel = model.meta.flatMap(_.versionBadge) match
+        followScriptTag = Vector(el("script", Vector(UI.Text(followScript)), Vector.empty))
+        headerLabel     = model.meta.flatMap(_.versionBadge) match
           case Some(badge) => s"${model.title} · $badge"
           case None        => model.title
         footerKids = BuiltWith.credit(model.meta.flatMap(_.versionBadge))
@@ -263,7 +290,7 @@ object PageTemplate:
             ) ++ faviconLinks(model) ++ Vector(
               el("link", Vector.empty, Vector(attr("rel", "stylesheet"), attr("href", "assets/theme.css"))),
               el("link", Vector.empty, Vector(attr("rel", "stylesheet"), attr("href", s"assets/${page.slug}.css"))),
-            ) ++ scriptTags ++ copyScriptTag,
+            ) ++ scriptTags ++ copyScriptTag ++ followScriptTag,
           ),
           el(
             "body",

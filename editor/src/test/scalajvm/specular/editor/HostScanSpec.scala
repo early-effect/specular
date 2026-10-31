@@ -77,6 +77,76 @@ object HostScanSpec extends ZIOSpecDefault:
         }
       }
     },
+    test("a caret in a section names the site heading") {
+      val outer = PageNode.Section(
+        "Outer",
+        Span(0, 0),
+        Vector(PageNode.Section("Inner", Span(0, 0), Vector.empty, Span(12, 18))),
+        Span(10, 20),
+      )
+      val repeated = PageTree(
+        "T",
+        Span(0, 0),
+        Vector(
+          PageNode.Section("Same", Span(0, 0), Vector.empty, Span(0, 10)),
+          PageNode.Section("Same", Span(0, 0), Vector.empty, Span(20, 30)),
+        ),
+        Span(0, 40),
+      )
+      val nested = PageTree("T", Span(0, 0), Vector(outer), Span(0, 40))
+      Support.read("docs/src/main/scala/specular/docs/GettingStarted.scala").map { text =>
+        Support.onRight(analyze(text)) { analysis =>
+          val page    = analysis.pages
+          val started = page.headOption
+          val prose   = started.toVector.flatMap(_.children).collectFirst { case node: PageNode.Prose => node }
+          val section = started.toVector.flatMap(_.children).collectFirst { case node: PageNode.Section => node }
+          assertTrue(
+            PreviewAnchor(repeated, 5).contains("same"),
+            PreviewAnchor(repeated, 25).contains("same-2"),
+            PreviewAnchor(nested, 11).contains("outer"),
+            PreviewAnchor(nested, 15).contains("inner"),
+            started.exists(doc => prose.exists(node => PreviewAnchor(doc, node.span.start).isEmpty)),
+            started.exists(doc =>
+              section.exists(node => PreviewAnchor(doc, node.span.start).contains("1-add-the-artifacts"))
+            ),
+          )
+        }
+      }
+    },
+    test("a heading id lands on that section title") {
+      val repeated = PageTree(
+        "T",
+        Span(1, 2),
+        Vector(
+          PageNode.Section("Same", Span(3, 4), Vector.empty, Span(0, 10)),
+          PageNode.Section("Same", Span(5, 6), Vector.empty, Span(20, 30)),
+        ),
+        Span(0, 40),
+      )
+      Support.read("docs/src/main/scala/specular/docs/GettingStarted.scala").map { text =>
+        Support.onRight(analyze(text)) { analysis =>
+          val started = analysis.pages.headOption
+          val section = started.toVector.flatMap(_.children).collectFirst { case node: PageNode.Section => node }
+          assertTrue(
+            PreviewAnchor.locate(repeated, Some("same")) == Span(3, 4),
+            PreviewAnchor.locate(repeated, Some("same-2")) == Span(5, 6),
+            PreviewAnchor.locate(repeated, None) == Span(1, 2),
+            PreviewAnchor.locate(repeated, Some("missing")) == Span(1, 2),
+            started.exists(doc => PreviewAnchor.locate(doc, None) == doc.titleSpan),
+            started.exists(doc =>
+              section.exists(node => PreviewAnchor.locate(doc, Some("1-add-the-artifacts")) == node.titleSpan)
+            ),
+          )
+        }
+      }
+    },
+    test("a page title slugs like the site") {
+      assertTrue(
+        PageSlug("Getting started") == "getting-started",
+        PageSlug("1. Add the artifacts") == "1-add-the-artifacts",
+        PageSlug("---") == "",
+      )
+    },
     test("GettingStarted has one page") {
       val escaped = "md\"\"\"\\u0022\"\"\""
       Support.read("docs/src/main/scala/specular/docs/GettingStarted.scala").map { text =>

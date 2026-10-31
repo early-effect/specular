@@ -1,0 +1,32 @@
+{
+  "scopeName": "specular.markdown-string",
+  "injectionSelector": "L:source.scala",
+  "patterns": [
+    {
+      "begin": "(md)(\"\"\")",
+      "beginCaptures": {
+        "1": { "name": "keyword.interpolation.scala" },
+        "2": { "name": "punctuation.definition.string.begin.scala" }
+      },
+      "end": "(\"\"\")",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.string.end.scala" }
+      },
+      "contentName": "meta.embedded.block.markdown",
+      "patterns": [{ "include": "text.html.markdown" }]
+    },
+    {
+      "begin": "(md)(\")",
+      "beginCaptures": {
+        "1": { "name": "keyword.interpolation.scala" },
+        "2": { "name": "punctuation.definition.string.begin.scala" }
+      },
+      "end": "(\")",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.string.end.scala" }
+      },
+      "contentName": "meta.embedded.block.markdown",
+      "patterns": [{ "include": "text.html.markdown" }]
+    }
+  ]
+}

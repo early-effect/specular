@@ -60,7 +60,9 @@ object LandingTemplate:
             } ++ PageTemplate.faviconLinks(model) ++ Vector(
               el("link", Vector.empty, Vector(attr("rel", "stylesheet"), attr("href", "assets/theme.css"))),
               el("link", Vector.empty, Vector(attr("rel", "stylesheet"), attr("href", "assets/index.css"))),
-            ) ++ scriptTags,
+            ) ++ scriptTags ++ Vector(
+              el("script", Vector(UI.Text(PageTemplate.followScript)), Vector.empty)
+            ),
           ),
           el(
             "body",

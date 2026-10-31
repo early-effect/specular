@@ -34,6 +34,7 @@ final class Session(context: ExtensionContext):
   private val fragments = new Fragments(this)
   private val providers = new Providers(this)
   private val structure = new StructurePanel(this, context)
+  private val preview   = new PagePreview(this)
   private var held      = Map.empty[String, Held]
   private var gens      = Map.empty[String, Int]
   private var oversized = Set.empty[String]
@@ -65,8 +66,13 @@ final class Session(context: ExtensionContext):
       if isScalaFile(doc) then analyzeNow(doc)
     }
     refreshStatus()
+    refreshPageContext()
+    preview.install()
+
+  def workspaceState: Memento = context.workspaceState
 
   def stop(): Unit =
+    preview.shutdown()
     val subs = context.subscriptions
     var i    = 0
     while i < subs.length do
@@ -172,6 +178,7 @@ final class Session(context: ExtensionContext):
         case Right(found) =>
           held = held.updated(key, Held(doc.version, Right(found)))
           if found.hosts.isEmpty && found.pages.isEmpty then clear(doc) else paint(doc, found)
+    refreshPageContext()
 
   private def paint(doc: TextDocument, found: FileAnalysis): Unit =
     val plain = js.Array[Range]()
@@ -197,6 +204,7 @@ final class Session(context: ExtensionContext):
 
   private def refreshChrome(): Unit =
     refreshStatus()
+    refreshPageContext()
     activeScala.foreach { editor =>
       held.get(editor.document.uri.text).foreach {
         case Held(version, Right(found)) if version == editor.document.version =>
@@ -205,6 +213,13 @@ final class Session(context: ExtensionContext):
           clear(editor.document)
       }
     }
+
+  private def refreshPageContext(): Unit =
+    val has = api.window.activeTextEditor.toOption.exists { editor =>
+      val doc = editor.document
+      isScalaFile(doc) && analysis(doc).exists(_.pages.nonEmpty)
+    }
+    after(api.commands.executeCommand("setContext", "specular.hasPage", has.asInstanceOf[js.Any]))(_ => ())
 
   private def refreshStatus(): Unit =
     val show = api.window.activeTextEditor.toOption.exists { editor =>
@@ -271,7 +286,7 @@ final class Session(context: ExtensionContext):
     (uri, ordinal) match
       case (Some(key), Some(index)) =>
         document(key) match
-          case Some(doc) => openFragment(doc, index, Some(language))
+          case Some(doc) => selectInterior(doc, index, Some(language))
           case None      => warn("Open the Scala file first")
       case _ =>
         editAtCursor(language)
@@ -290,29 +305,29 @@ final class Session(context: ExtensionContext):
             found.hosts.zipWithIndex.find { (host, _) =>
               !host.interpolated && host.language == language && host.interiorSpan.start <= at && at < host.interiorSpan.end
             } match
-              case Some((_, index)) => openFragment(doc, index, Some(language))
+              case Some((_, index)) => selectInterior(doc, index, Some(language))
               case None             =>
                 val kind = language match
                   case HostLanguage.Markdown => "markdown"
                   case HostLanguage.Mermaid  => "mermaid"
                 warn(s"No $kind literal at the cursor")
 
-  private def openFragment(doc: TextDocument, ordinal: Int, expected: Option[HostLanguage]): Unit =
+  /** Puts the caret in the literal. Selecting the whole interior would delete it on the next keystroke. */
+  private def selectInterior(doc: TextDocument, ordinal: Int, expected: Option[HostLanguage]): Unit =
     analyze(doc.getText()) match
       case Left(error) =>
         reportAnalyze(error, doc.uri)
       case Right(found) =>
         found.hosts.lift(ordinal) match
           case Some(host) if !host.interpolated && expected.forall(_ == host.language) =>
-            val uri = Fragments.uri(doc, host, ordinal)
-            fragments.remember(uri, doc, ordinal, host)
-            after(api.workspace.openTextDocument(uri)) { opened =>
-              after(api.languages.setTextDocumentLanguage(opened, Fragments.languageId(host.language))) { shown =>
-                after(api.window.showTextDocument(shown))(_ => refreshStatus())
-              }
+            val range = spanRange(doc, host.interiorSpan)
+            val caret = range.start
+            after(api.window.showTextDocument(doc)) { editor =>
+              editor.selection = new Selection(caret, caret)
+              editor.revealRange(range)
             }
           case _ =>
-            warn("That text is no longer the literal this fragment edits")
+            warn("That literal is no longer in this file")
 
   private def insertSnippetAtCursor(): Unit =
     activeScala match
@@ -346,32 +361,12 @@ final class Session(context: ExtensionContext):
         }
 
   private def openPreview(): Unit =
-    val command = api.workspace.getConfiguration("specular").get("previewCommand", "sbt docs/specularPreview")
-    val task    = new Task(
-      js.Dynamic.literal(`type` = "specular", task = "preview"),
-      TaskScope.Workspace,
-      "Specular preview",
-      "specular",
-      new ShellExecution(command),
-    )
-    task.isBackground = true
-    task.problemMatchers = js.Array(
-      js.Dynamic.literal(
-        owner = "specular",
-        pattern = js.Dynamic.literal(regexp = "^$"),
-        background = js.Dynamic.literal(
-          activeOnStart = true,
-          beginsPattern = "^(sbt:|\\[info\\])",
-          endsPattern = "ascentPreview: watching|^http://localhost:[0-9]+/",
-        ),
-      )
-    )
-    branch(api.tasks.executeTask(task))(
-      _ => (),
-      err =>
-        consoleError(err)
-        warn("The preview task did not start"),
-    )
+    activeScala match
+      case None =>
+        warn("Open a Scala file first")
+      case Some(editor) =>
+        val doc = editor.document
+        preview.open(doc, doc.offsetAt(editor.selection.active))
 
   private def showStructure(uri: Option[String], start: Option[Int]): Unit =
     located(uri, start) { (doc, at) =>
