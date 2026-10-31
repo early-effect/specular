@@ -355,6 +355,16 @@ lazy val editor = (projectMatrix in file("editor"))
         // Matrix base is `editor/`. `baseDirectory` on this row is `.sbt/matrix/editorJS`.
         Compile / unmanagedSourceDirectories += projectMatrixBaseDirectory.value / "src" / "host" / "scala",
         scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule)),
+        // `activate` is a top-level export, so a test link emits require("vscode"). Node has no such module.
+        // The algebra specs run on the JVM row. CI must not launch VS Code.
+        Test / testQuick := Def.uncached {
+          val _ = (Compile / compile).value
+          sbt.protocol.testing.TestResult.Passed
+        },
+        Test / testFull := Def.uncached {
+          val _ = (Compile / compile).value
+          sbt.protocol.testing.TestResult.Passed
+        },
         editorLinkFast := Def.uncached {
           copyLinkedModule(
             (Compile / fastLinkJS).value.data,

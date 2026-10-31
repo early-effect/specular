@@ -24,7 +24,7 @@ Three artifacts, one site program.
 
 `specular-site` stays on Scala 3.9.0. `specular-histos` compiles with Scala 3.10.0, the compiler that produced `histos-api`. Scala 3.10 reads the 3.9 tasty of `specular-site`. Compiling the adapter with 3.9 does not read the api jar. `sbt-specular` stays on the Scala sbt 2 already uses.
 
-`specular-histos` is its own snapshot ship at `0.0.1`, published by `zipxSnapshotPublish` on main as `0.0.1-<sha>-SNAPSHOT`. It is not in the `specular` `0.21.2` release. A release cannot depend on `histos-api` `0.0.1-SNAPSHOT`, so `zipx-release` with `ships=all` refuses. Release the `specular` ship by name. `sbt-specular` releases are unchanged.
+`specular-histos` is its own snapshot ship at `0.0.2`, published by `zipxSnapshotPublish` on main as `0.0.2-<sha>-SNAPSHOT`. It is not in the `specular` `0.21.2` release. A release cannot depend on `histos-api` `0.0.1-SNAPSHOT`, so `zipx-release` with `ships=all` refuses. Release the `specular` ship by name. `sbt-specular` releases are unchanged.
 
 The plugin id, task, and job are the ones the Histos fixture already loads:
 
@@ -33,7 +33,7 @@ The plugin id, task, and job are the ones the Histos fixture already loads:
 - `CiJob(JobName("docs"), TaskName("site"), JobWhen.Always)`
 - `Seal.Open`. A site task is local. Hermetic plus an empty `Need` set is the only sendable plugin task, and this task is not that.
 
-The header a Histos build uses is `plugin(dep"rocks.earlyeffect::specular-histos:0.0.1-<sha>-SNAPSHOT")`, then `Projects(use(Specular.plugin), docs.pipe(Specular.main("com.example.docs.BuildSite")).pipe(Specular.basePath("/repo")).pipe(Specular.docsUrl("https://example.github.io/repo")))`. That sha is the commit `zipxSnapshotPublish` published, not the `specular` `0.21.2` line and not the `0.0.1-SNAPSHOT` pointer. The fixture's `dev.earlyeffect::specular:0.2.0` is not this coordinate. `Specular.main` is the `DocsSite` object the fork starts. The plugin process does not load that class.
+The header a Histos build uses is `plugin(dep"rocks.earlyeffect::specular-histos:0.0.2-<sha>-SNAPSHOT")`, then `Projects(use(Specular.plugin), docs.pipe(Specular.main("com.example.docs.BuildSite")).pipe(Specular.basePath("/repo")).pipe(Specular.docsUrl("https://example.github.io/repo")))`. That sha is the commit `zipxSnapshotPublish` published, not the `specular` `0.21.2` line and not the `0.0.1-SNAPSHOT` pointer. The fixture's `dev.earlyeffect::specular:0.2.0` is not this coordinate. `Specular.main` is the `DocsSite` object the fork starts. The plugin process does not load that class.
 
 `Specular.basePath`, `Specular.docsUrl`, and the other `specular.meta.*` fields (`name`, `organization`, `version`, `title`, `description`, `homepage`, `displayVersion`, `artifactKind`) are notes on the docs module. The generated job is `./histos run dev.earlyeffect.specular/site` and cannot set environment variables, so the adapter does not read `SPECULAR_BASE_PATH` or `SPECULAR_DOCS_URL`. A missing base path is `.`. A missing docs URL is omitted. The cell's Scala version is not a note. The adapter passes the version on that classpath cell. `SPECULAR_STRIP_CI` stays an sbt concern: a Histos build states its version as a note.
 
