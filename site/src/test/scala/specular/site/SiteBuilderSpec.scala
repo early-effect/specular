@@ -257,6 +257,9 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         alpha.contains("specular-brand"),
         alpha.contains("index.html"),
         alpha.contains("specular-nav-home"),
+        alpha.contains("specular-follow"),
+        alpha.contains("location.assign"),
+        index.contains("specular-follow"),
         theme.nonEmpty,
         theme.contains("--specular-bg"),
         theme.contains("specular-brand-logo"),
@@ -336,6 +339,7 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         _     <- ZIO.serviceWithZIO[SiteBuilder](_.buildSite(model, tmp))
         index <- ZIO.attempt(Files.readString(tmp.resolve("index.html")))
       yield assertTrue(
+        index.contains("specular-follow"),
         index.contains("Early Effect · "),
         index.contains("Built with specular"),
         index.contains(s"""href="${BuiltWith.href}""""),
@@ -637,8 +641,10 @@ object SiteBuilderSpec extends ZIOSpecDefault:
         onHtml.contains("specular-copy"),
         onHtml.contains("specular-code"),
         onHtml.contains("Copy code"),
+        onHtml.contains("specular-follow"),
         !offHtml.contains("specular-copy"),
         !offHtml.contains("specular-code"),
+        offHtml.contains("specular-follow"),
       )
     },
     test("a DomExample renders a mount point, the file excerpt, and the no-JS fallback") {

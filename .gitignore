@@ -20,7 +20,11 @@ local.sbt
 .bsp
 
 # VS Code
-.vscode/
+.vscode/*
+!.vscode/launch.json
+
+# Extension host bundle. Produced by editorJS fastLinkJS / fullLinkJS.
+editor/out/
 
 # Metals
 .bloop/

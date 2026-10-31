@@ -264,6 +264,8 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
 | `specularHistos` | `specular-histos` | Histos `site` task. Snapshot ship `0.0.1`. Provided dependency on `histos-api` `0.0.1-SNAPSHOT`, so it is not in the `specular` release |
 | `docs` | (unpublished) | Dogfood site for specular itself |
+| `editor` | (unpublished) | Specular-aware editor: scan algebra and the Scala.js VS Code host |
+| `editorView` | (unpublished) | Ascent peek and mermaid source preview. Linked apart from the host so the webview never loads `vscode` |
 
 ---
 
@@ -274,8 +276,17 @@ sbt testFull                  # unit + DocSpec tests (plain `test` is testQuick 
 sbt docs/specularSite         # spliceFull JS client + write target/site (incl. metadata.json)
 sbt docs/specularPreview      # watch docs: spliceFast + rebuild in place (http://localhost:8765)
 sbt docs/specularPreviewStop  # stop the watch and Preview JVM (sbt prompt)
+sbt editorHost/testFull       # launch VS Code and fail unless Edit as Markdown stays in the Scala file
 ./scripts/install-git-hooks   # once per clone: pre-commit runs scalafmtCheckAll
 ```
+
+`sbt editorHost/testFull` links the host and opens a throwaway VS Code window on `editor/src/host-test/fixture`. It fails unless Edit as Markdown keeps that Scala editor and leaves the cursor inside `hello from the fragment`. It is not part of the aggregated `testFull`, because that job does not launch VS Code.
+
+### Extension package
+
+`sbt editorPackage` full-links the extension and writes `target/specular-editor-<version>.vsix`. The version is the published library's (`core`), not the placeholder in `editor/package.json`. Install that file from the Extensions view in VS Code or Cursor. A tree that is not on a release tag gets a `dev` prerelease. `editorPublish` refuses those.
+
+`sbt editorPublish` uploads that VSIX to the VS Code Marketplace and to [Open VSX](https://open-vsx.org). Cursor installs third-party extensions from Open VSX, so both uploads are the publish. It runs only for a release version (`1.2.3`, no snapshot and no `+` build metadata). Export `VSCE_PAT` (Marketplace, publisher `early-effect`) and `OVSX_PAT` (Open VSX, namespace `early-effect`) first. Create those two publisher accounts once, before the first upload. A version that is already published is left in place, so a retry can finish the registry that failed.
 
 `sbt docs/specularPreview` rebuilds the site (spliceFast), starts Preview, and watches sources. From a
 terminal it stays in the foreground until interrupt. At an sbt prompt it returns so `test` / `compile`
