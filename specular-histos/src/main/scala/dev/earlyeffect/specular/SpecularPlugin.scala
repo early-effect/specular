@@ -2,9 +2,8 @@ package dev.earlyeffect.specular
 
 import histos.plugin.*
 import histos.{Jvm, ProjectName}
-import specular.site.{SiteFork, SiteForkError, SiteForkLog}
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path, StandardCopyOption}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.jdk.CollectionConverters.*
@@ -53,15 +52,18 @@ object SpecularPlugin extends HistosPlugin:
   def contribute: Contribution =
     val docs = ProjectName("docs")
     Contribution(
-      tasks = List(siteTask(docs)),
+      tasks = List(siteTask(docs), EditorPackage.taskSpec),
       commands = List(
         CommandSpec(CommandName("site"), Nil, TaskName("site"), PluginDetail("build the docs site"))
+      ) ++ EditorPackage.commands,
+      jobs = List(
+        CiJob(JobName("docs"), TaskName("site"), JobWhen.Always, site = Some(RepoPath("target/site")))
       ),
-      jobs = List(CiJob(JobName("docs"), TaskName("site"), JobWhen.Always)),
     )
 
   def run(request: RunRequest): ZIO[Scope, PluginRunError, PluginOutput] =
-    ZIO.fromEither(plan(request)).flatMap(fork)
+    if request.id.name == EditorPackage.task then EditorPackage.run(request)
+    else ZIO.fromEither(copyClient(request).flatMap(_ => plan(request))).flatMap(fork)
 
   private def siteTask(docs: ProjectName): DeclaredTask =
     DeclaredTask(
@@ -73,8 +75,23 @@ object SpecularPlugin extends HistosPlugin:
         DeclaredOutput(indexName, indexPath),
         DeclaredOutput(metadataName, metadataPath),
       ),
-      dependsOn = List(TaskDep.Compile(docs, None, Some(Jvm))),
+      dependsOn = List(TaskDep.Compile(docs, None, Some(Jvm)), TaskDep.Link(docs, None)),
     )
+
+  /** The linked docs script becomes `target/site/assets/client.js` before the fork. A request with no script is a direct
+    * test of the fork, and it skips the copy.
+    */
+  private def copyClient(request: RunRequest): Either[PluginRunError, Unit] =
+    request.linked.find(_.module.value == "docs") match
+      case None => Right(())
+      case Some(linked) =>
+        val dest = siteDirectory(request.repo).resolve("assets").resolve("client.js")
+        try
+          Files.createDirectories(dest.getParent)
+          Files.copy(linked.script, dest, StandardCopyOption.REPLACE_EXISTING)
+          Right(())
+        catch
+          case _: java.io.IOException => Left(refuse("could not copy the linked docs script"))
 
   private def plan(request: RunRequest): Either[PluginRunError, SiteFork.Request] =
     docsCell(request).flatMap: cell =>

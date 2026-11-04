@@ -44,10 +44,11 @@ object DomSourceLoader:
         case None         => wholeFile(text, ref))
     yield body
 
-  /** Root for repo-relative paths: `-Dspecular.source.root`, else the nearest ancestor holding `build.sbt`.
+  /** Root for repo-relative paths: `-Dspecular.source.root`, else the nearest ancestor holding `histos.scala` or
+    * `build.sbt`.
     *
-    * The property matters because `projectMatrix` starts forked JVMs under `.sbt/matrix/<id>`, so the working directory
-    * is not the repo root (the same reason `DocsServe` prefers an explicit site path).
+    * The property matters because a forked site JVM may start outside the repo root (the same reason `DocsServe`
+    * prefers an explicit site path).
     */
   val sourceRoot: IO[Config.Error, Path] =
     ZIO
@@ -56,14 +57,14 @@ object DomSourceLoader:
         case Some(p) => Paths.get(p).nn.toAbsolutePath.nn.normalize.nn
         case None    => repoRoot)
 
-  /** Nearest ancestor of the working directory containing `build.sbt`, else the working directory. */
+  /** Nearest ancestor of the working directory containing `histos.scala` or `build.sbt`, else the working directory. */
   def repoRoot: Path =
     val cwd = Paths.get("").nn.toAbsolutePath.nn.normalize.nn
     Iterator
       .iterate(Option(cwd))(_.flatMap(p => Option(p.getParent)))
       .takeWhile(_.isDefined)
       .flatten
-      .find(p => Files.exists(p.resolve("build.sbt")))
+      .find(p => Files.exists(p.resolve("histos.scala")) || Files.exists(p.resolve("build.sbt")))
       .getOrElse(cwd)
 
   /** Resolve `raw` under `root`, rejecting absolute paths and anything escaping the root (symlinks included). */

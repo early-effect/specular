@@ -3,7 +3,7 @@
 
 # sbt specific
 .sbt/
-dist/*
+dist/
 target/
 lib_managed/
 src_managed/
@@ -16,8 +16,13 @@ project/local-plugins.sbt
 .sbt-scripted/
 local.sbt
 
-# Bloop
-.bsp
+# Histos. Products stay local. `.bsp/histos.json` is the Metals connection file.
+.scala-build/
+.histos/
+.bsp/*
+!.bsp/histos.json
+*/.bsp/
+*.class
 
 # VS Code
 .vscode/*

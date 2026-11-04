@@ -3,10 +3,7 @@ package dev.earlyeffect.specular
 import histos.plugin.*
 import histos.{Jvm, ModuleDef, ProjectName, ScalaVersion}
 
-import java.net.{URI, URLClassLoader}
 import java.nio.file.{Files, Path}
-
-import scala.util.Try
 
 import zio.*
 import zio.test.*
@@ -19,26 +16,34 @@ object SpecularPluginSpec extends ZIOSpecDefault:
     test("contribute is the open docs site task") {
       val docs           = ProjectName("docs")
       val contribution   = Specular.plugin.contribute
-      val expectedDeps   = List(List(TaskDep.Compile(docs, None, Some(Jvm))))
-      val expectedInputs = List(List(DeclaredInput.Note(docs, NoteKey("main"))))
+      val expectedDeps   = List(List(TaskDep.Compile(docs, None, Some(Jvm)), TaskDep.Link(docs, None)))
+      val expectedInputs = List(
+        List(DeclaredInput.Note(docs, NoteKey("main"))),
+        List(DeclaredInput.Note(ProjectName("editor"), NoteKey("version"))),
+      )
       assertTrue(
         Specular.plugin.id == PluginId("dev.earlyeffect.specular"),
         (Specular.plugin eq SpecularPlugin),
-        contribution.tasks.map(_.name) == List(TaskName("site")),
-        contribution.tasks.map(_.seal) == List(Seal.Open),
-        contribution.tasks.map(_.needs) == List(Set.empty[Need]),
+        contribution.tasks.map(_.name) == List(TaskName("site"), EditorPackage.task),
+        contribution.tasks.map(_.seal) == List(Seal.Open, Seal.Open),
+        contribution.tasks.map(_.needs) == List(Set.empty[Need], Set.empty[Need]),
         contribution.tasks.map(_.outputs) == List(
           List(
             DeclaredOutput(OutputName("index"), RepoPath("target/site/index.html")),
             DeclaredOutput(OutputName("metadata"), RepoPath("target/site/metadata.json")),
-          )
+          ),
+          List(DeclaredOutput(OutputName("vsix"), RepoPath("target/specular-editor.vsix"))),
         ),
-        contribution.tasks.map(_.dependsOn) == expectedDeps,
+        contribution.tasks.map(_.dependsOn) == expectedDeps ++ List(
+          List(TaskDep.Link(ProjectName("editorHost"), None), TaskDep.Link(ProjectName("editorView"), None))
+        ),
         contribution.tasks.map(_.inputs) == expectedInputs,
         contribution.commands == List(
           CommandSpec(CommandName("site"), Nil, TaskName("site"), PluginDetail("build the docs site"))
+        ) ++ EditorPackage.commands,
+        contribution.jobs == List(
+          CiJob(JobName("docs"), TaskName("site"), JobWhen.Always, site = Some(RepoPath("target/site")))
         ),
-        contribution.jobs == List(CiJob(JobName("docs"), TaskName("site"), JobWhen.Always)),
       )
     },
     test("the entry resource names SpecularPlugin") {
@@ -99,6 +104,16 @@ object SpecularPluginSpec extends ZIOSpecDefault:
         props == "basePath=/histos\ndocsUrl=https://earlyeffect.rocks/histos\nname=histos\n",
       )
     },
+    test("a snapshot extension version is a dev prerelease") {
+      val snapshot = EditorPackage.versionOf("0.21.3-SNAPSHOT")
+      val release  = EditorPackage.versionOf("0.21.2")
+      val build    = EditorPackage.versionOf("0.21.2+3-abcd1234")
+      assertTrue(
+        snapshot == Right(EditorPackage.Version("0.21.3-dev.snapshot", false)),
+        release == Right(EditorPackage.Version("0.21.2", true)),
+        build == Right(EditorPackage.Version("0.21.2-dev.3.abcd1234", false)),
+      )
+    },
     test("settings are pipes on the module's own platform") {
       val pipes: List[ModuleDef[Jvm.type] => ModuleDef[Jvm.type]] = List(
         Specular.main("dev.earlyeffect.specular.ForkProbe"),
@@ -144,33 +159,23 @@ object SpecularPluginSpec extends ZIOSpecDefault:
   private def read(path: Path): String =
     if Files.exists(path) then Files.readString(path) else "missing"
 
-  /** URLs of the loader that defined this adapter, not the sbt server above it. */
-  /** The forked JVM does not see this process's parent loader, so the walk includes Scala. */
+  /** The test JVM is forked with this module's classpath. The child loads `ForkProbe` from that list. */
   private def testClasspath: List[Path] =
-    val start  = classOf[ForkProbe.type].getClassLoader
-    val system = ClassLoader.getSystemClassLoader
-    Iterator
-      .unfold(Option(start)): current =>
-        current match
-          case None                                                 => None
-          case Some(loader) if system != null && (loader eq system) => None
-          case Some(loader)                                         =>
-            val found = loader match
-              case urls: URLClassLoader => urls.getURLs.toList.flatMap(url => fileUrl(url.toURI))
-              case _                    => Nil
-            Some(found -> Option(loader.getParent))
-      .flatten
-      .toList
+    propertyClasspath
 
-  private def fileUrl(uri: URI): Option[Path] =
-    if uri.getScheme == "file" then Try(Path.of(uri)).toOption else None
-
-  /** URLs of the loader that defined this adapter, not the sbt server above it. */
   private def classpathEntries: List[String] =
-    classOf[SpecularPlugin.type].getClassLoader match
-      case urls: URLClassLoader =>
-        urls.getURLs.toList.flatMap(url => Try(url.toURI.toString).toOption)
-      case _ => Nil
+    propertyClasspath.map(_.toString)
+
+  private def propertyClasspath: List[Path] =
+    val raw = Option(java.lang.System.getProperty("java.class.path")).getOrElse("")
+    raw
+      .split(java.io.File.pathSeparatorChar)
+      .iterator
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .flatMap(text => scala.util.Try(Path.of(text)).toOption)
+      .filter(path => Files.exists(path))
+      .toList
 end SpecularPluginSpec
 
 /** Fork target. Writes the site file and the properties this adapter is responsible for. */
