@@ -1,0 +1,9 @@
+#!/bin/sh
+# Runs the installed Histos. build.properties selects the toolchain.
+set -eu
+shim=${HISTOS_HOME:-$HOME/.histos}/bin/histos
+if [ ! -x "$shim" ]; then
+  echo "histos is not installed. Run the install script, then export PATH=\"\$HOME/.histos/bin:\$PATH\"" >&2
+  exit 1
+fi
+exec "$shim" "$@"

@@ -306,12 +306,14 @@ object DomSourceLoaderSpec extends ZIOSpecDefault:
         for
           fromProp <- withProvider(Map("specular.source.root" -> root.toString))(DomSourceLoader.sourceRoot)
           fallback <- withProvider(Map.empty)(DomSourceLoader.sourceRoot)
-          hasBuild <- ZIO.attempt(Files.exists(fallback.resolve("build.sbt")))
+          hasBuild <- ZIO.attempt(
+            Files.exists(fallback.resolve("histos.scala")) || Files.exists(fallback.resolve("build.sbt"))
+          )
         // `sourceRoot` normalizes but deliberately does not realpath (it must work for a root that does not exist
         // yet), so compare against the normalized path. On macOS those differ: /var is a symlink to /private/var.
         yield assertTrue(
           fromProp == root.toAbsolutePath.nn.normalize.nn,
-          hasBuild, // the fallback walk finds this repo's own build.sbt
+          hasBuild, // the fallback walk finds this repo's histos.scala or build.sbt
         )
       }
     },

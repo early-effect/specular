@@ -3,9 +3,7 @@ package specular.site
 import zio.*
 import zio.test.*
 
-import java.net.{URI, URLClassLoader}
 import java.nio.file.{Files, Path}
-import scala.util.Try
 
 object SiteForkSpec extends ZIOSpecDefault:
   def spec = suite("SiteFork")(
@@ -62,26 +60,17 @@ object SiteForkSpec extends ZIOSpecDefault:
       siteDirectory = dir,
     )
 
-  /** sbt runs this spec on a layered loader. `java.class.path` is the server, not the test classes. */
+  /** The test JVM is forked with this module's classpath. That property is the list the child can load. */
   private def testClasspath: List[Path] =
-    val start  = classOf[SiteForkWrite.type].getClassLoader
-    val system = ClassLoader.getSystemClassLoader
-    Iterator
-      .unfold(Option(start)): current =>
-        current match
-          case None                                                 => None
-          case Some(loader) if system != null && (loader eq system) => None
-          case Some(loader)                                         =>
-            val found = loader match
-              case urls: URLClassLoader =>
-                urls.getURLs.toList.flatMap(url => fileUrl(url.toURI))
-              case _ => Nil
-            Some(found -> Option(loader.getParent))
-      .flatten
+    val raw = Option(java.lang.System.getProperty("java.class.path")).getOrElse("")
+    raw
+      .split(java.io.File.pathSeparatorChar)
+      .iterator
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .flatMap(text => scala.util.Try(Path.of(text)).toOption)
+      .filter(path => Files.exists(path))
       .toList
-
-  private def fileUrl(uri: URI): Option[Path] =
-    if uri.getScheme == "file" then Try(Path.of(uri)).toOption else None
 
   private final class MemLog extends SiteForkLog:
     private val outLines          = scala.collection.mutable.ListBuffer.empty[String]

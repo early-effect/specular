@@ -63,12 +63,17 @@ object Support:
 
   private def root: Task[Path] =
     def walk(dir: Path): Task[Path] =
-      ZIO.attempt(Files.isRegularFile(dir.resolve("build.sbt"))).flatMap { found =>
-        if found then ZIO.succeed(dir)
-        else
-          Option(dir.getParent) match
-            case Some(parent) => walk(parent)
-            case None         => ZIO.fail(new java.io.IOException(s"build.sbt not found above ${dir.toString}"))
-      }
+      ZIO
+        .attempt(
+          Files.isRegularFile(dir.resolve("histos.scala")) || Files.isRegularFile(dir.resolve("build.sbt"))
+        )
+        .flatMap { found =>
+          if found then ZIO.succeed(dir)
+          else
+            Option(dir.getParent) match
+              case Some(parent) => walk(parent)
+              case None         =>
+                ZIO.fail(new java.io.IOException(s"histos.scala or build.sbt not found above ${dir.toString}"))
+        }
     ZIO.attempt(Path.of(sys.props("user.dir")).toAbsolutePath).flatMap(walk)
 end Support
