@@ -38,7 +38,7 @@ docs
   .pipe(Specular.docsUrl("https://example.github.io/repo"))
 ```
 
-The plugin id is `dev.earlyeffect.specular`. The site command is `./histos run dev.earlyeffect.specular/site`. The generated job is `docs`, and it deploys `target/site` to GitHub Pages.
+The plugin id is `dev.earlyeffect.specular`. The site command is `./histos run dev.earlyeffect.specular/site`. The generated job is `docs`. It builds the site and does not deploy it: Histos attaches a GitHub Pages deploy to any job that names a site directory, and the `github-pages` environment rejects a pull request ref.
 
 Notes on the docs module are `main`, `basePath`, `name`, `organization`, `version`, `title`, `description`, `homepage`, `docsUrl`, `displayVersion`, and `artifactKind`. The generated job cannot set environment variables, so the adapter does not read `SPECULAR_BASE_PATH` or `SPECULAR_DOCS_URL`. A missing base path is `.`. A missing docs URL is omitted. The classpath cell supplies the Scala version.
 

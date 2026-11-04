@@ -57,7 +57,7 @@ object SpecularPlugin extends HistosPlugin:
         CommandSpec(CommandName("site"), Nil, TaskName("site"), PluginDetail("build the docs site"))
       ) ++ EditorPackage.commands,
       jobs = List(
-        CiJob(JobName("docs"), TaskName("site"), JobWhen.Always, site = Some(RepoPath("target/site")))
+        CiJob(JobName("docs"), TaskName("site"), JobWhen.Always)
       ),
     )
 

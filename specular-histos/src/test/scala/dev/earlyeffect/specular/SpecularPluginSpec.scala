@@ -42,7 +42,7 @@ object SpecularPluginSpec extends ZIOSpecDefault:
           CommandSpec(CommandName("site"), Nil, TaskName("site"), PluginDetail("build the docs site"))
         ) ++ EditorPackage.commands,
         contribution.jobs == List(
-          CiJob(JobName("docs"), TaskName("site"), JobWhen.Always, site = Some(RepoPath("target/site")))
+          CiJob(JobName("docs"), TaskName("site"), JobWhen.Always)
         ),
       )
     },

@@ -51,22 +51,12 @@ jobs:
       - run: "./histos run versions"
   docs:
     runs-on: ubuntu-26.04
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     permissions:
       contents: read
-      pages: write
-      id-token: write
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: "./histos run dev.earlyeffect.specular/site"
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: "target/site"
-      - id: deployment
-        uses: actions/deploy-pages@v5
   workflow:
     runs-on: ubuntu-26.04
     steps:

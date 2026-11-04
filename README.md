@@ -306,8 +306,9 @@ examples need the docs module's JavaScript link, which the site task copies to
 
 ### Publishing docs (GitHub Pages)
 
-The generated `docs` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the site task
-and deploys `target/site` to **GitHub Pages** at `https://early-effect.github.io/specular/`.
+The generated `docs` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the site task.
+It does not deploy. A job that names a site directory also requests the `github-pages` environment,
+and that environment rejects a pull request ref.
 
 The docs module notes in `histos.scala` set `basePath` to `/specular` and the docs URL to the project
 site. The generated job cannot set environment variables, so a local site build uses that same base
