@@ -150,7 +150,7 @@ object build extends HistosBuild:
       )
       .description(pom"Code-first tests-as-docs site generator for Scala.")
       .url(url"https://github.com/early-effect/specular")
-      .runnerTools(RunnerTools(Some(NodeFloor(22)), None, None))
+      .runnerTools(RunnerTools(Some(NodeFloor(25)), None, None))
       .locked(
         use(Specular.plugin),
         ships(
