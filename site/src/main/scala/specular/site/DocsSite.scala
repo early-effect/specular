@@ -5,18 +5,17 @@ import zio.*
 
 import java.nio.file.{Path, Paths}
 
-/** Stock docs-site main: read fail-loud meta from sbt-specular, build HTML from [[pages]].
+/** Stock docs-site main: read the `-Dspecular.*` settings the host passed, build HTML from [[pages]].
   *
-  * By convention the subclass lives on **Compile** and is invoked via `docs/specularSite`. A Test-only layout still
-  * works because the plugin forks `(Test / fullClasspath)`. Override [[site]], [[layers]], or [[afterBuild]] when
-  * defaults are not enough.
+  * The host is `specular-histos` or `sbt-specular`. Both fork this main on the docs test classpath, which includes
+  * compile. Override [[site]], [[layers]], or [[afterBuild]] when defaults are not enough.
   */
 trait DocsSite extends ZIOAppDefault:
 
   /** Ordered site map (nav order). Must be non-empty. */
   def pages: Vector[DocPage]
 
-  /** Full site model from what sbt-specular passed; override or `copy` to customize summary, snippets, logo, client
+  /** Full site model from the settings the host passed; override or `copy` to customize summary, snippets, logo, client
     * script, etc.
     */
   def site(settings: DocsSettings): SiteModel =

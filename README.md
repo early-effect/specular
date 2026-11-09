@@ -71,37 +71,64 @@ The dogfood site expands this story for adopters:
 
 ## Installation
 
-specular is published to Maven Central under `rocks.earlyeffect`. The catalog number in
-`histos.scala` is the release (`specular` `0.21.3`). Histos does not derive it from git tags.
+specular is published to Maven Central under `rocks.earlyeffect`. The catalog numbers in
+`histos.scala` are the releases: `specular` `0.21.3` and `specular-histos` `0.0.1`. Histos does
+not derive them from git tags. `build.properties` pins the Histos toolchain at `0.2.5`.
 
 ```scala
+plugin(dep"rocks.earlyeffect::specular-histos:0.0.1")
+
 libraryDependencies ++= Seq(
   "rocks.earlyeffect" %% "specular-core"     % "<version>",
   "rocks.earlyeffect" %% "specular-site"     % "<version>",
   "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
 )
-
-// sbt plugin: injects product meta and runs specularSite (Test CP includes Compile)
-addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "<version>")
 ```
 
-`specular-core` is also available for Scala.js (`%%%`) when your docs client needs the AST.
+`specular-core` is also available for Scala.js (`%%%`) when the docs client needs the AST.
 
 ```scala
-enablePlugins(SpecularPlugin)
-specularBuildMain    := "com.example.docs.BuildSite"
-specularMetaProject  := Some(LocalProject("root")) // published module identity
-specularArtifactKind := "library" // or "plugin"
-specularSourceRoot   := (ThisBuild / baseDirectory).value // exampleDom paths are relative to this
-specularJsProject    := Some(LocalProject("docsJS")) // preview poller watches the JS client
-// edit loop: sbt docs/specularPreview (do not ~)
+use(Specular(
+  Site
+    .forProject("docs", "com.example.docs.BuildSite")
+    .basePath("/repo")
+    .name("repo")
+    .linkClient
+    .preview
+    .ci(SiteCi.Publish(SitePublish.Automatic)),
+))
 ```
 
+`main` is the `DocsSite`. Leave off `linkClient` when the site has no browser client. Leave off
+`preview` when you do not want a local server. Leave off `ci` when CI should not build the site.
+`SiteCi.Check` builds it on a pull request and on a push to the default branch and does not deploy.
+`SiteCi.Publish` builds it and publishes `target/site` with Histos's `SitePublish`: `Automatic`
+deploys on the default branch, `Manual` deploys from the generated dispatch workflow, `Both` is
+the two together.
+
 ```scala
-// docs/src/main/scalajvm/.../BuildSite.scala
 object BuildSite extends specular.site.DocsSite:
   def pages = Vector(GettingStarted.doc, Concepts.doc)
 ```
+
+```bash
+./histos test
+./histos run dev.earlyeffect.specular/site
+./histos run dev.earlyeffect.specular/preview
+./histos ~ run dev.earlyeffect.specular/site
+```
+
+`preview` builds the site once and leaves the preview server up. `~ run .../site` rebuilds on
+save. The server watches `assets/dev-stamp` and reloads the tab. The socket stays open.
+
+Repositories that still build with sbt keep using the published plugin:
+
+```scala
+addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "<version>")
+```
+
+`specularBuildMain`, `specularMetaProject`, and `sbt docs/specularPreview` stay on that plugin.
+This repository does not build itself with sbt.
 
 ---
 
@@ -143,9 +170,10 @@ object BuildSite extends DocsSite:
   def pages = Vector(GettingStarted.doc, Concepts.doc)
 ```
 
-On sbt, `sbt test` discovers DocSpecSuites and `sbt docs/specularSite` forks `BuildSite` on the Test
-classpath (which includes Compile) with `-Dspecular.meta.*` from `specularMetaProject`. This
-repository runs the same pages with `./histos test` and `./histos run dev.earlyeffect.specular/site`.
+`./histos test` discovers DocSpecSuites. `./histos run dev.earlyeffect.specular/site` forks
+`BuildSite` on the docs module's test classpath, which includes compile. The `-Dspecular.*`
+settings come from the `Site` passed to `Specular`. An sbt repository does the same fork through
+`sbt docs/specularSite`.
 
 ### Interactive examples in any framework
 
@@ -176,8 +204,8 @@ def run = ZIO.scoped {
 Mounters share the **page's** `Scope` (so an `acquireRelease`d listener survives setup), run isolated
 (one failure gets an error box, not a blank page), and are forked (a never-ending mounter cannot
 starve the rest). `exampleDom` is the one node kind that emits a test without `.assert`, so a moved
-file or deleted marker goes red under `./histos test` (and under `sbt test` in a repository that
-still uses the sbt plugin).
+file or deleted marker goes red under `./histos test` (and under `sbt test` where the sbt plugin
+is still the build).
 
 See the [Interactive examples](https://early-effect.github.io/specular/interactive-examples.html) page.
 
@@ -222,7 +250,7 @@ Scala.js sample the JVM page must not typecheck.
 |------|-----------|--------|
 | **Docs-only** | `SiteModel(title, pages)` (+ optional theme / meta) | Sidebar docs + index + `metadata.json` |
 | **Full site** | `brand`, `home` (hero, `ProjectCatalog`, …) | Landing page + optional deep links to micro-sites |
-| **Nested hub** | `specularHub := true` + `.aggregate` member docs; each member `specularSiteSegment` | One artifact: hub at the site root, members under `/<segment>/` |
+| **Nested hub** | `sbt-specular`: `specularHub := true` plus `.aggregate` of member docs; each member sets `specularSiteSegment` | One artifact: hub at the site root, members under `/<segment>/` |
 
 Themes: `Theme.default` or `Theme.fromTokens(...)`. `DocsSite.standardLayers` is the stock
 stack; `DocsSite.themedStack` is the same stack with `Theme` left as an environment hole, so
@@ -262,8 +290,8 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `zio-test` | `specular-zio-test` | Run DocSpecs as zio-test suites |
 | `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
-| `sbt-specular` | `sbt-specular` | `specularSite` task; passes `-Dspecular.meta.*` from sbt keys |
-| `specularHistos` | `specular-histos` | Histos `site` task. Its own ship, `0.0.1`. Compile-only dependency on `histos-api` `0.1.3` |
+| `sbt-specular` | `sbt-specular` | Published for repositories that still build with sbt. `specularSite` passes `-Dspecular.meta.*` from sbt keys |
+| `specularHistos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, `0.0.1`. Compile-only dependency on `histos-api` `0.2.5` |
 | `docs` | (unpublished) | Dogfood site for specular itself |
 | `editor` | (unpublished) | Specular-aware editor: scan algebra and the Scala.js VS Code host |
 | `editorView` | (unpublished) | Ascent peek and mermaid source preview. Linked apart from the host so the webview never loads `vscode` |
@@ -274,15 +302,18 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 
 ```bash
 ./histos test                                              # unit + DocSpec tests
+./histos run doc                                           # scaladoc for the two ships
 ./histos run dev.earlyeffect.specular/site                 # write target/site (incl. metadata.json)
 ./histos run dev.earlyeffect.specular/vsix                 # package the editor
 ./histos publishLocal                                      # install 0.21.3-ci and 0.0.1-ci locally
 ./histos publish release                                   # both ships, when you mean to release
+./histos workflow --check                                  # generated workflows match the graph
 ./scripts/install-git-hooks                                # once per clone: pre-commit runs scalafmt
 ```
 
-`build.properties` pins the Histos toolchain (`0.1.3`). An sbt repository still uses
-`sbt docs/specularPreview` from `sbt-specular`. That edit loop is the plugin's, not this build.
+`build.properties` pins Histos `0.2.5`. Ships are `Ship.next` in `histos.scala`. The edit loop is
+`./histos run dev.earlyeffect.specular/preview` once, then `./histos ~ run dev.earlyeffect.specular/site`.
+An sbt repository still uses `sbt docs/specularPreview`.
 
 The VS Code host check under `editor-host/host-test` is not part of `./histos test`. That run would
 launch VS Code.
@@ -290,8 +321,8 @@ launch VS Code.
 ### Extension package
 
 `./histos run dev.earlyeffect.specular/vsix` links the host and the webview and writes
-`target/specular-editor.vsix`. The version note on the `editor` module is the ship number (`0.21.3`),
-not the placeholder in `editor/package.json`. Install that file from the Extensions view in VS Code or
+`target/specular-editor.vsix`. `Site.editor` is the ship number (`0.21.3`), not the placeholder in
+`editor/package.json`. Install that file from the Extensions view in VS Code or
 Cursor. A version that is not `x.y.z` is packaged as a `dev` prerelease.
 
 `./histos run dev.earlyeffect.specular/publishEditor` uploads that VSIX when the version is a release
@@ -306,9 +337,10 @@ examples need the docs module's JavaScript link, which the site task copies to
 
 ### Publishing docs (GitHub Pages)
 
-The generated `docs` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the site task.
-It does not deploy. A job that names a site directory also requests the `github-pages` environment,
-and that environment rejects a pull request ref.
+The generated `docs` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) is a `TaskJob`.
+It runs the site task on a pull request and on a push to the default branch. It does not upload a
+directory and it does not deploy GitHub Pages. `test`, `doc`, `versions`, and `workflow` run on a
+pull request or `workflow_dispatch`. A push to the default branch starts `ci.yml` and skips the suite.
 
 The docs module notes in `histos.scala` set `basePath` to `/specular` and the docs URL to the project
 site. The generated job cannot set environment variables, so a local site build uses that same base

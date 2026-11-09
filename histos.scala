@@ -1,6 +1,7 @@
 plugin(path"specular-histos/src/main/scala")
 import histos.*
-import dev.earlyeffect.specular.Specular
+import histos.plugin.SitePublish
+import dev.earlyeffect.specular.{Site, SiteCi, Specular}
 
 object build extends HistosBuild:
   def graph =
@@ -98,22 +99,10 @@ object build extends HistosBuild:
           zioTest.on(Js),
         )
         .main(MainClass("specular.docs.ClientMain"))
-        .pipe(Specular.main("specular.docs.BuildSite"))
-        .pipe(Specular.basePath("/specular"))
-        .pipe(Specular.docsUrl("https://early-effect.github.io/specular/"))
-        .pipe(Specular.name("specular"))
-        .pipe(Specular.organization("rocks.earlyeffect"))
-        .pipe(Specular.version("0.21.3"))
-        .pipe(Specular.title("Specular"))
-        .pipe(Specular.description("Code-first tests-as-docs site generator for Scala."))
-        .pipe(Specular.homepage("https://github.com/early-effect/specular"))
-        .pipe(Specular.displayVersion("0.21.3"))
-        .pipe(Specular.artifactKind("plugin"))
     ).pipe(tested)
     val editor = flagged(
       module("editor", Jvm, Js)(scala39)
         .in(path"editor")
-        .pipe(Specular.version("0.21.3"))
     ).pipe(tested)
     val editorHost = flagged(
       module("editorHost", Js)(scala39)
@@ -132,7 +121,7 @@ object build extends HistosBuild:
       module("specularHistos", Jvm)(scala310)
         .in(path"specular-histos")
         .artifact(artifact"specular-histos")
-        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.1.3".compileOnly)
+        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.2.5".compileOnly)
     ).pipe(tested)
     Projects
       .organization(organization"rocks.earlyeffect")
@@ -151,11 +140,31 @@ object build extends HistosBuild:
       .description(pom"Code-first tests-as-docs site generator for Scala.")
       .url(url"https://github.com/early-effect/specular")
       .runnerTools(RunnerTools(Some(NodeFloor(25)), None, None))
-      .locked(
-        use(Specular.plugin),
+      .locked
+      .docCheck(
+        use(
+          Specular(
+            Site
+              .forProject("docs", "specular.docs.BuildSite")
+              .basePath("/specular")
+              .docsUrl("https://early-effect.github.io/specular/")
+              .name("specular")
+              .organization("rocks.earlyeffect")
+              .version("0.21.3")
+              .title("Specular")
+              .description("Code-first tests-as-docs site generator for Scala.")
+              .homepage("https://github.com/early-effect/specular")
+              .displayVersion("0.21.3")
+              .artifactKind("plugin")
+              .linkClient
+              .preview
+              .editor("0.21.3")
+              .ci(SiteCi.Publish(SitePublish.Automatic))
+          )
+        ),
         ships(
-          manual("specular", manual"0.21.3")(core, zioTestMod, site, eeDocsTheme, plugin),
-          manual("specular-histos", manual"0.0.1")(specularHistos),
+          Ship("specular").next(0, 21, 3)(core, zioTestMod, site, eeDocsTheme, plugin),
+          Ship("specular-histos").next(0, 0, 1)(specularHistos),
         ),
         core,
         zioTestMod,

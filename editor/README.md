@@ -7,7 +7,7 @@ A documentation page is a Scala `DocSpec`. This extension keeps you in that file
 ## Requirements
 
 - The [Scala extension](https://marketplace.visualstudio.com/items?itemName=scala-lang.scala) (Metals).
-- A Specular site served by `sbt docs/specularPreview` (default `http://localhost:8765`).
+- A Specular site served by `./histos run dev.earlyeffect.specular/preview` (default `http://localhost:8765`). Save, then `./histos ~ run dev.earlyeffect.specular/site` rebuilds and the preview reloads.
 
 ## Use
 

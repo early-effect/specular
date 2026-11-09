@@ -1,18 +1,10 @@
 # macOS
 .DS_Store
 
-# sbt specific
+# sbt. This repository builds with Histos. sbt-specular tests still write these.
 .sbt/
 dist/
 target/
-lib_managed/
-src_managed/
-project/boot/
-project/plugins/project/
-project/local-plugins.sbt
-.history
-.ensime
-.ensime_cache/
 .sbt-scripted/
 local.sbt
 
@@ -43,7 +35,6 @@ build.sbt.semanticdb
 .idea_modules
 /.worksheet/
 
-.mcp.json
 .claude/
 .cursor/
 
@@ -52,4 +43,5 @@ build.sbt.semanticdb
 
 node_modules/
 
+# Local MCP servers. `./histos mcp` is one of them.
 .mcp.json

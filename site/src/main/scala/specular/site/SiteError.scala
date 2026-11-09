@@ -54,5 +54,5 @@ enum SiteError:
       errors.map((id, error) => s"cite $id: ${error.message}").mkString("\n")
     case DuplicateCite(anchor, page) => s"Duplicate cite on $page: $anchor"
     case Settings(error)             =>
-      s"Missing or bad -Dspecular.* settings ($error). Run via sbt-specular `specularSite` with `specularMetaProject` set."
+      s"Missing or bad -Dspecular.* settings ($error). The site host passes them. On Histos they are the Site methods."
 end SiteError

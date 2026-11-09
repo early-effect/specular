@@ -1,7 +1,7 @@
 package dev.earlyeffect.specular
 
-import histos.plugin.*
-import histos.{Jvm, ModuleDef, ProjectName, ScalaVersion}
+import histos.plugin.{Site as _, *}
+import histos.{Jvm, ProjectName, ScalaVersion}
 
 import java.nio.file.{Files, Path}
 
@@ -12,78 +12,117 @@ object SpecularPluginSpec extends ZIOSpecDefault:
   private val classpathMissing =
     PluginDetail("docs compile and test classpath is not on the run request")
 
+  private def bare: HistosPlugin =
+    Specular(Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe"))
+
+  private def published: HistosPlugin =
+    Specular(
+      Site
+        .forProject("docs", "dev.earlyeffect.specular.ForkProbe")
+        .linkClient
+        .editor("0.21.3")
+        .preview
+        .ci(SiteCi.Publish(SitePublish.Automatic))
+    )
+
   def spec = suite("specular-histos")(
-    test("contribute is the open docs site task") {
-      val docs           = ProjectName("docs")
-      val contribution   = Specular.plugin.contribute
-      val expectedDeps   = List(List(TaskDep.Compile(docs, None, Some(Jvm)), TaskDep.Link(docs, None)))
-      val expectedInputs = List(
-        List(DeclaredInput.Note(docs, NoteKey("main"))),
-        List(DeclaredInput.Note(ProjectName("editor"), NoteKey("version"))),
-      )
+    test("a site with only a main class declares the site task and no job") {
+      val plugin       = bare
+      val docs         = ProjectName("docs")
+      val contribution = plugin.contribute
       assertTrue(
-        Specular.plugin.id == PluginId("dev.earlyeffect.specular"),
-        (Specular.plugin eq SpecularPlugin),
-        contribution.tasks.map(_.name) == List(TaskName("site"), EditorPackage.task),
-        contribution.tasks.map(_.seal) == List(Seal.Open, Seal.Open),
-        contribution.tasks.map(_.needs) == List(Set.empty[Need], Set.empty[Need]),
-        contribution.tasks.map(_.outputs) == List(
-          List(
-            DeclaredOutput(OutputName("index"), RepoPath("target/site/index.html")),
-            DeclaredOutput(OutputName("metadata"), RepoPath("target/site/metadata.json")),
-          ),
-          List(DeclaredOutput(OutputName("vsix"), RepoPath("target/specular-editor.vsix"))),
+        plugin.id == PluginId("dev.earlyeffect.specular"),
+        contribution.tasks.map(_.name) == List(TaskName("site")),
+        contribution.tasks.map(_.seal) == List(Seal.Open),
+        contribution.tasks.map(_.needs) == List(Set.empty[Need]),
+        contribution.tasks.map(_.dependsOn) == List(List(TaskDep.Compile(docs, None, Some(Jvm)))),
+        contribution.tasks.map(_.inputs) == List(List(DeclaredInput.Module(docs, None, Some(Jvm)))),
+        contribution.commands.map(_.name) == List(CommandName("site")),
+        contribution.jobs.isEmpty,
+      )
+    },
+    test("link, preview, editor, and publish add their own declarations") {
+      val plugin       = published
+      val docs         = ProjectName("docs")
+      val contribution = plugin.contribute
+      assertTrue(
+        contribution.tasks.map(_.name) == List(TaskName("site"), TaskName("preview"), EditorPackage.task),
+        contribution.tasks.map(_.dependsOn) == List(
+          List(TaskDep.Compile(docs, None, Some(Jvm)), TaskDep.Link(docs, None)),
+          List(TaskDep.Same(TaskName("site")), TaskDep.Compile(docs, None, Some(Jvm))),
+          List(TaskDep.Link(ProjectName("editorHost"), None), TaskDep.Link(ProjectName("editorView"), None)),
         ),
-        contribution.tasks.map(_.dependsOn) == expectedDeps ++ List(
-          List(TaskDep.Link(ProjectName("editorHost"), None), TaskDep.Link(ProjectName("editorView"), None))
+        contribution.tasks.flatMap(_.inputs) == List(
+          DeclaredInput.Module(docs, None, Some(Jvm)),
+          DeclaredInput.Directory(RepoPath("target/site")),
+          DeclaredInput.Text(InputKey("version"), "0.21.3"),
         ),
-        contribution.tasks.map(_.inputs) == expectedInputs,
-        contribution.commands == List(
-          CommandSpec(CommandName("site"), Nil, TaskName("site"), PluginDetail("build the docs site"))
-        ) ++ EditorPackage.commands,
+        contribution.tasks.map(_.needs) == List(Set.empty[Need], Set(Need.Network), Set.empty[Need]),
+        contribution.commands.map(_.name) == List(
+          CommandName("site"),
+          CommandName("serve"),
+          CommandName("vsix"),
+          CommandName("publishEditor"),
+        ),
         contribution.jobs == List(
-          CiJob(JobName("docs"), TaskName("site"), JobWhen.Always)
+          SiteJob(
+            JobName("docs"),
+            TaskName("site"),
+            histos.plugin.Site(RepoPath("target/site"), SitePublish.Automatic),
+          )
         ),
       )
     },
-    test("the entry resource names SpecularPlugin") {
-      val loader = classOf[SpecularPlugin.type].getClassLoader
+    test("a check job builds the site and does not publish it") {
+      val plugin = Specular(Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").ci(SiteCi.Check))
+      assertTrue(plugin.contribute.jobs == List(TaskJob(JobName("docs"), TaskName("site"))))
+    },
+    test("the entry resource names Specular") {
+      val loader = classOf[Specular.type].getClassLoader
       val text   = Option(loader.getResourceAsStream("META-INF/histos/plugin")).map { in =>
         try new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
         finally in.close()
       }
-      assertTrue(text.map(_.trim) == Some("dev.earlyeffect.specular.SpecularPlugin$"))
+      assertTrue(text.map(_.trim) == Some("dev.earlyeffect.specular.Specular$"))
     },
     test("sbt-specular is not on the adapter classpath") {
       val entries     = classpathEntries
       val sbtSpecular = entries.exists(path => path.contains("sbt-specular"))
       val loaded      =
         try
-          val _ = Class.forName("specular.sbt.SpecularPlugin", false, classOf[SpecularPlugin.type].getClassLoader)
+          val _ = Class.forName("specular.sbt.SpecularPlugin", false, classOf[Specular.type].getClassLoader)
           true
         catch case _: ClassNotFoundException => false
       assertTrue(entries.nonEmpty, !sbtSpecular, !loaded)
     },
     test("run does not fork without a classpath on the request") {
       for
+        plugin = bare
         repo   <- ZIO.attempt(Files.createTempDirectory("specular-histos-run").nn)
-        failed <- Specular.plugin
-          .run(PluginFixture.request(Specular.plugin.id, TaskName("site"), repo))
+        failed <- plugin
+          .run(PluginFixture.request(plugin.id, TaskName("site"), repo))
+          .provideSome[Scope](invocation)
           .flip
         wrote = Files.exists(repo.resolve("target/site/index.html"))
       yield assertTrue(failed == PluginRunError.Failed(classpathMissing), !wrote)
     },
-    test("run does not fork when the classpath is present and the main note is missing") {
+    test("run refuses an empty docs classpath before it forks") {
       for
-        repo   <- ZIO.attempt(Files.createTempDirectory("specular-histos-nomain").nn)
-        failed <- Specular.plugin.run(request(repo, Nil)).flip
+        _    <- ZIO.succeed(bare)
+        repo <- ZIO.attempt(Files.createTempDirectory("specular-histos-empty").nn)
+        plugin = bare
+        failed <- plugin.run(request(repo)).provideSome[Scope](invocation).flip
         wrote = Files.exists(repo.resolve("target/site/wrote.txt"))
-      yield assertTrue(failed == PluginRunError.Failed(PluginDetail("docs module has no main class note")), !wrote)
+      yield assertTrue(
+        failed == PluginRunError.Failed(PluginDetail("docs JVM test classpath is empty")),
+        !wrote,
+      )
     },
     test("run forks the main on the docs JVM test classpath") {
       for
+        plugin = bare
         repo  <- ZIO.attempt(Files.createTempDirectory("specular-histos-fork").nn)
-        ran   <- Specular.plugin.run(request(repo, List(forkMain))).either
+        ran   <- plugin.run(request(repo, classpath = true)).provideSome[Scope](invocation).either
         wrote <- ZIO.attempt(read(repo.resolve("target/site/wrote.txt")))
         props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
         shown = ran.fold(_.message, _ => "ok")
@@ -93,15 +132,21 @@ object SpecularPluginSpec extends ZIOSpecDefault:
         props == "basePath=.\ndocsUrl=absent\nname=absent\n",
       )
     },
-    test("run passes the base path and meta notes to the fork") {
+    test("two sites are two plugins, and the fork sees the one it was given") {
+      val first =
+        Specular(Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").basePath("/histos").name("histos"))
+      val second = Specular(Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").basePath("/other"))
       for
-        repo  <- ZIO.attempt(Files.createTempDirectory("specular-histos-notes").nn)
-        ran   <- Specular.plugin.run(request(repo, List(forkMain, baseNote, docsNote, nameNote))).either
+        repo  <- ZIO.attempt(Files.createTempDirectory("specular-histos-two").nn)
+        ran   <- first.run(request(repo, classpath = true)).provideSome[Scope](invocation).either
         props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
         shown = ran.fold(_.message, _ => "ok")
       yield assertTrue(
+        first ne second,
+        first.contribute.jobs.isEmpty,
+        second.contribute.jobs.isEmpty,
         shown == "ok",
-        props == "basePath=/histos\ndocsUrl=https://earlyeffect.rocks/histos\nname=histos\n",
+        props == "basePath=/histos\ndocsUrl=absent\nname=histos\n",
       )
     },
     test("a snapshot extension version is a dev prerelease") {
@@ -114,46 +159,25 @@ object SpecularPluginSpec extends ZIOSpecDefault:
         build == Right(EditorPackage.Version("0.21.2-dev.3.abcd1234", false)),
       )
     },
-    test("settings are pipes on the module's own platform") {
-      val pipes: List[ModuleDef[Jvm.type] => ModuleDef[Jvm.type]] = List(
-        Specular.main("dev.earlyeffect.specular.ForkProbe"),
-        Specular.basePath("/histos"),
-        Specular.docsUrl("https://earlyeffect.rocks/histos"),
-        Specular.name("histos"),
-        Specular.organization("rocks.earlyeffect"),
-        Specular.version("0.0.1"),
-        Specular.title("Histos"),
-        Specular.description("A build tool"),
-        Specular.homepage("https://earlyeffect.rocks/histos"),
-        Specular.displayVersion("0.0.1"),
-        Specular.artifactKind("library"),
-      )
-      assertTrue(pipes.size == 11)
-    },
   )
 
-  private val forkMain: ModuleNote =
-    ModuleNote(Specular.plugin.id, NoteKey("main"), NoteText("dev.earlyeffect.specular.ForkProbe"))
+  /** `run` asks for `PluginScopes`. The site tests never acquire, so both scopes are the test scope. */
+  private def invocation: ZLayer[Scope, Nothing, PluginScopes] =
+    ZLayer.fromZIO(ZIO.scope.map(paired))
 
-  private val baseNote: ModuleNote =
-    ModuleNote(Specular.plugin.id, NoteKey("basePath"), NoteText("/histos"))
+  private def paired(invocation: Scope, generation: Scope): PluginScopes =
+    new PluginScopes:
+      def apply(life: ResourceLife): Scope = life match
+        case ResourceLife.Invocation => invocation
+        case ResourceLife.Generation => generation
 
-  private val docsNote: ModuleNote =
-    ModuleNote(Specular.plugin.id, NoteKey("docsUrl"), NoteText("https://earlyeffect.rocks/histos"))
+  private def paired(scope: Scope): PluginScopes = paired(scope, scope)
 
-  private val nameNote: ModuleNote =
-    ModuleNote(Specular.plugin.id, NoteKey("name"), NoteText("histos"))
-
-  private def request(repo: Path, notes: List[ModuleNote]): RunRequest =
+  private def request(repo: Path, classpath: Boolean = false): RunRequest =
     val docs = ProjectName("docs")
-    val cell = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
+    val cell = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, if classpath then testClasspath else Nil)
     PluginFixture
-      .request(
-        Specular.plugin.id,
-        TaskName("site"),
-        repo,
-        modules = List(ModuleView(docs, "docs", notes)),
-      )
+      .request(bare.id, TaskName("site"), repo, modules = List(ModuleView(docs, "docs", Nil)))
       .copy(compiled = List(cell))
 
   private def read(path: Path): String =
@@ -182,14 +206,16 @@ end SpecularPluginSpec
 object ForkProbe:
   def main(args: Array[String]): Unit =
     val _   = args
-    val raw = sys.props.get("specular.site.dir").map(_.trim).filter(_.nonEmpty).getOrElse("")
-    if raw.isEmpty then sys.exit(5)
-    val dir = Path.of(raw)
-    Files.createDirectories(dir)
-    Files.writeString(dir.resolve("wrote.txt"), "one")
+    val raw = sys.props.get("specular.site.dir").map(_.trim).filter(_.nonEmpty)
+    raw.foreach(write)
+
+  private def write(raw: String): Unit =
+    val dir  = Path.of(raw)
     val base = property("specular.site.basePath")
     val docs = property("specular.meta.docsUrl")
     val name = property("specular.meta.name")
+    Files.createDirectories(dir)
+    Files.writeString(dir.resolve("wrote.txt"), "one")
     Files.writeString(dir.resolve("props.txt"), s"basePath=$base\ndocsUrl=$docs\nname=$name\n")
 
   private def property(key: String): String =
