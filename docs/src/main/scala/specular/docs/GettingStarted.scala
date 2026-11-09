@@ -11,29 +11,30 @@ object GettingStarted extends DocSpec:
   def doc = page("Getting started")(
     md"""
 This page is itself a `DocSpec`: the same source runs as a zio-test suite and builds the
-static site you are reading. Follow the steps below to wire Specular into a Scala 3 / sbt
-library.
+static site you are reading. Follow the steps below to wire Specular into a Scala 3 library
+that builds with Histos.
 """,
     section("1. Add the artifacts")(
       md"""
 Publish line is Maven Central under `rocks.earlyeffect` (see the README badge for the
 current version). DocSpecs and `BuildSite` live on **Compile**. Thin `DocSpecSuite` wrappers
-live on Test so `sbt test` discovers them:
+live on Test so `./histos test` discovers them:
 
 ```scala
-// project/plugins.sbt
-addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "<version>")
+plugin(dep"rocks.earlyeffect::specular-histos:0.0.1")
 
-// build.sbt (docs project)
-enablePlugins(SpecularPlugin)
 libraryDependencies ++= Seq(
   "rocks.earlyeffect" %% "specular-core"     % "<version>",
   "rocks.earlyeffect" %% "specular-site"     % "<version>",
   "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
 )
-specularBuildMain   := "com.example.docs.BuildSite"
-specularMetaProject := Some(LocalProject("root")) // product identity, not the docs module
-specularArtifactKind := "library" // or "plugin"
+
+use(Specular(
+  Site.forProject("docs", "com.example.docs.BuildSite")
+    .name("repo")
+    .linkClient
+    .preview,
+))
 ```
 
 `specular-core` is also available for Scala.js (`%%%`) when you ship interactive examples.
@@ -85,7 +86,7 @@ object GettingStarted extends DocSpecSuite:
 ```
 
 Put a JVM-only `DocSpecSuite` under `docs/src/test/scala` (or keep shared pages as `DocSpec` on
-Compile and add thin wrappers; see Library authors). `sbt test` discovers it like any other
+Compile and add thin wrappers; see Library authors). `./histos test` discovers it like any other
 zio-test suite. Unasserted snapshots still render on the site; they just do not gate CI.
 
 If you also need a Scala.js client for `.interactive` examples, keep shared pages as
@@ -112,23 +113,19 @@ object BuildSite extends DocsSite:
 ```
 
 Also under `src/main` (`docs/src/main/scalajvm` when the docs module is cross-built).
-`sbt docs/specularSite` compiles Test (which includes Compile), splices the JS client (`spliceFull`),
-forks that main with product meta from `specularMetaProject`, and writes HTML plus `metadata.json`.
+`./histos run dev.earlyeffect.specular/site` compiles the docs module, links the JS client when
+`linkClient` is set, forks that main with the meta from `Site`, and writes HTML plus `metadata.json`.
 
 Local loop:
 
 ```bash
-sbt docs/specularPreview       # edit loop: spliceFast, Preview stays up (do not ~)
-sbt docs/specularPreviewStop   # stop the watch and Preview JVM (sbt prompt)
-sbt docs/specularPreviewOnce   # start Preview once, no watch
-sbt docs/specularSite          # publish-quality: spliceFull (what Pages deploys)
-sbt docs/specularServe         # one-shot preview of an already-built site (do not ~)
+./histos run dev.earlyeffect.specular/preview   # build once, leave the preview server up
+./histos ~ run dev.earlyeffect.specular/site    # rebuild on save; the server reloads the tab
 ```
 
-A Scala.js client is optional. When you have one, add `sbt-splice` and wire `specularJsLink` to
-`spliceFull` (copy into `assets/client.js`), `specularJsLinkDev` to `spliceFast`, and
-`specularJsProject := Some(LocalProject("docsJS"))` so the preview poller watches that client's
-Compile sources.
+A Scala.js client is optional. `linkClient` copies the linked docs script to
+`target/site/assets/client.js`. The watch follows the docs module, so the client's sources are
+included when that module is the docs module.
 """,
       example {
         E.div(A.className("demo"), E.p("Hello from Specular"))
@@ -137,33 +134,12 @@ Compile sources.
     section("5. Publish on GitHub Pages")(
       md"""
 Any static host works; GitHub Pages is the common path. Enable **Settings → Pages →
-Source: GitHub Actions**, then deploy `specularSite` output on `v*` tags (and optional
-`workflow_dispatch`).
+Source: GitHub Actions**. On a Histos build, `ci(SiteCi.Publish(SitePublish.Automatic))` is the
+deploy: a pull request builds the site, and a push to the default branch publishes `target/site`.
 
-On a zipx build, add `zipxCapabilities += ZipxDocs.pages()` and regenerate CI: that emits a `docs`
-job in `.github/workflows/ci.yml` calling the same reusable workflow. Without zipx, a caller
-workflow is enough (copy and point `sbt-project` at your docs module):
-
-```yaml
-# .github/workflows/docs.yml
-name: Docs
-on:
-  push:
-    tags: ['v*']
-  workflow_dispatch:
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-jobs:
-  deploy:
-    uses: early-effect/.github/.github/workflows/specular-docs.yml@main
-    with:
-      sbt-project: docs
-```
-
-Set `SPECULAR_BASE_PATH` and `SPECULAR_DOCS_URL` in CI so nav and `metadata.json` match
-the published project-site URL (for example `/my-lib` under `*.github.io`).
+`basePath` and `docsUrl` on the `Site` are the published project-site URL (for example `/my-lib`
+under `*.github.io`). The generated job cannot set environment variables, so a local build uses
+the same values.
 
 Next: [Concepts](concepts.html) for the AST and interpreters, or
 [Library authors](library-authors.html) for a full cookbook, including HTTP catalog hubs and

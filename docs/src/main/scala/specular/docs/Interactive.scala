@@ -161,7 +161,7 @@ Four guards, cheapest first:
 
 | Mistake | Caught by |
 | ------- | --------- |
-| File moved, renamed, or marker deleted | **`sbt test`**: every `exampleDom` emits a source-resolution test |
+| File moved, renamed, or marker deleted | **`./histos test`**: every `exampleDom` emits a source-resolution test |
 | Two examples claiming one mount key | the site build (`validatePages`) |
 | Declared key with no registered mounter | a JS-side drift spec, if you write one; otherwise the browser |
 | Anything still slipping through | a visible error box in the example, plus `console.error` |
@@ -201,7 +201,7 @@ pages' mount points are absent by design.
     section("Illegal keys do not compile")(
       md"""
 A mount key becomes an HTML attribute value and a client-side map key, so `MountKey` restricts it to
-`[A-Za-z0-9._-]+`. A literal key is checked by the compiler, so a bad one cannot reach `sbt test`,
+`[A-Za-z0-9._-]+`. A literal key is checked by the compiler, so a bad one cannot reach `./histos test`,
 let alone the site:
 """,
       expectFail("""specular.exampleDom("\" onload=\"alert(1)")""")

@@ -7,7 +7,7 @@ import zio.*
 
 import java.nio.file.{Files, Path, StandardCopyOption}
 
-/** Dogfood DocsSite: Compile main invoked by `docs/specularSite`. */
+/** Dogfood DocsSite. `./histos run dev.earlyeffect.specular/site` forks this main. */
 object BuildSite extends DocsSite:
 
   @navLabel("Start here")
@@ -40,17 +40,18 @@ object BuildSite extends DocsSite:
       summaryMarkdown = Some("A documentation page that can lie should fail the build."),
       installSnippets = Vector(
         CodeSnippet(
-          "sbt plugin (typical)",
-          s"""// project/plugins.sbt
-addSbtPlugin("$org" % "sbt-specular" % "$version")
+          "Histos",
+          s"""plugin(dep"$org::specular-histos:0.0.1")
 
-// build.sbt
-enablePlugins(SpecularPlugin)
-specularBuildMain := "com.example.docs.BuildSite"
-specularMetaProject := Some(LocalProject("root"))
+use(Specular(
+  Site.forProject("docs", "com.example.docs.BuildSite")
+    .linkClient
+    .preview
+    .ci(SiteCi.Publish(SitePublish.Automatic)),
+))
 
 // then
-sbt docs/specularSite""",
+./histos run dev.earlyeffect.specular/site""",
         ),
         CodeSnippet(
           "Libraries (optional)",

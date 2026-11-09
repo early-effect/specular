@@ -18,27 +18,29 @@ import zio.{Scope, ZIO}
 object EditorPackage:
   val task: TaskName = TaskName("vsix")
   val upload: FlagName = FlagName("upload")
-  private val versionKey: NoteKey = NoteKey("version")
+  private val versionKey: InputKey = InputKey("version")
   private val host = ProjectName("editorHost")
   private val view = ProjectName("editorView")
-  private val editor = ProjectName("editor")
   private val vsixName: OutputName = OutputName("vsix")
   private val vsixPath: RepoPath = RepoPath("target/specular-editor.vsix")
 
   final case class Version(semver: String, release: Boolean)
 
-  def taskSpec: DeclaredTask =
-    DeclaredTask(
+  def taskSpec(version: Option[String]): Option[DeclaredTask] =
+    version.map: raw =>
+      DeclaredTask(
       name = task,
       seal = Seal.Open,
       needs = Set.empty,
-      inputs = List(DeclaredInput.Note(editor, versionKey)),
+      inputs = List(DeclaredInput.Text(versionKey, raw)),
       outputs = List(DeclaredOutput(vsixName, vsixPath)),
       dependsOn = List(TaskDep.Link(host, None), TaskDep.Link(view, None)),
     )
 
-  def commands: List[CommandSpec] =
-    List(
+  def commands(version: Option[String]): List[CommandSpec] =
+    if version.isEmpty then Nil
+    else
+      List(
       CommandSpec(CommandName("vsix"), Nil, task, PluginDetail("package the VS Code extension")),
       CommandSpec(
         CommandName("publishEditor"),
@@ -64,7 +66,7 @@ object EditorPackage:
     for
       extension <- script(request, host)
       webview   <- script(request, view)
-      raw       <- note(request)
+      raw       <- text(request)
       version   <- versionOf(raw).left.map(refuse)
       _         <-
         if request.args.flag(upload) && !version.release then
@@ -116,13 +118,12 @@ object EditorPackage:
       case Some(linked) => Right(linked.script)
       case None         => Left(refuse(s"${module.value} link is not on the run request"))
 
-  private def note(request: RunRequest): Either[PluginRunError, String] =
-    request.modules.find(_.name == editor).flatMap { module =>
-      module.notes.collectFirst:
-        case ModuleNote(_, key, value) if key == versionKey => value.value
-    } match
-      case Some(value) if value.trim.nonEmpty => Right(value.trim)
-      case _                                  => Left(refuse("editor module has no version note"))
+  private def text(request: RunRequest): Either[PluginRunError, String] =
+    request.inputs.collectFirst:
+      case MaterialInput.Text(key, value) if key == versionKey => value
+    match
+      case Some(value) => Right(value)
+      case None        => Left(refuse("the editor version is not on the task"))
 
   private def stamp(json: String, semver: String): String =
     val versionLine = """"version"\s*:\s*"[^"]*"""".r

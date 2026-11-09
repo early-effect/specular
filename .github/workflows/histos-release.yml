@@ -6,13 +6,16 @@ permissions:
 jobs:
   release-specular:
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
+      - run: ./histos doctor --preflight release-specular
       - run: "./histos publish release specular"
         env:
+          HISTOS_SESSION: release
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
@@ -20,13 +23,16 @@ jobs:
           PGP_KEY_HEX: ${{ secrets.PGP_KEY_HEX }}
   release-specular-histos:
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
+      - run: ./histos doctor --preflight release-specular-histos
       - run: "./histos publish release specular-histos"
         env:
+          HISTOS_SESSION: release
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}

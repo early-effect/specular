@@ -5,7 +5,7 @@ import zio.Config
 
 import java.nio.file.{Path, Paths}
 
-/** What sbt-specular passes a site build: `-Dspecular.meta.*`, `-Dspecular.site.*`, and `-Dspecular.cite.*`.
+/** What the site host passes: `-Dspecular.meta.*`, `-Dspecular.site.*`, and `-Dspecular.cite.*`.
   *
   * Read once, through ZIO's `ConfigProvider`, by [[DocsSite.build]]. A test supplies its own provider with
   * `ZIO.withConfigProvider(ConfigProvider.fromMap(...))` instead of mutating JVM properties.

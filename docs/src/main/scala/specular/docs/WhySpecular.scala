@@ -17,15 +17,15 @@ A documentation page that can lie should fail the build.
       MermoidAscent.diagram(DocFigures.pipeline)
     }.assert { ui =>
       val text = ui.toString
-      assertTrue(text.contains("DocPage"), text.contains("sbt test"), text.contains("HTML page"))
+      assertTrue(text.contains("DocPage"), text.contains("histos test"), text.contains("HTML page"))
     },
     cite[DocSpec](_.doc),
     md"""
-The coordinate on Central is `0.20.0`.
+The library coordinate on Central is `0.21.3`. The Histos adapter is `specular-histos` `0.0.1`.
 
 ```scala
-addSbtPlugin("rocks.earlyeffect" % "sbt-specular" % "0.20.0")
-libraryDependencies += "rocks.earlyeffect" %% "specular-core" % "0.20.0"
+plugin(dep"rocks.earlyeffect::specular-histos:0.0.1")
+libraryDependencies += "rocks.earlyeffect" %% "specular-core" % "0.21.3"
 ```
 """,
     md"""
@@ -71,12 +71,12 @@ There is no second source of truth. The page you read is the page CI ran.
       example {
         E.ol(
           E.li("Write ", E.code("DocSpec")),
-          E.li(E.code("sbt test"), " gates honesty"),
-          E.li(E.code("specularSite"), " publishes HTML + ", E.code("metadata.json")),
+          E.li(E.code("./histos test"), " gates honesty"),
+          E.li(E.code("site"), " publishes HTML + ", E.code("metadata.json")),
         )
       }.assert { ui =>
         val text = ui.toString
-        assertTrue(text.contains("DocSpec"), text.contains("sbt test"), text.contains("metadata.json"))
+        assertTrue(text.contains("DocSpec"), text.contains("histos test"), text.contains("metadata.json"))
       },
     ),
     section("Why this fits Scala")(
@@ -86,8 +86,8 @@ Scala already has the ingredients Specular leans on:
 - **Types and compilers**: examples are not strings; they typecheck with your library.
 - **zio-test**: assertions you already trust in CI, not a docs-only checker.
 - **ascent**: the same Mount engine SSRs the snapshot and remounts interactives in the browser.
-- **sbt**: `sbt-specular` injects project meta (`name`, `version`, `organization`, …) so
-  published sites stay in sync with the artifact you just released.
+- **Histos**: `specular-histos` injects project meta (`name`, `version`, `organization`, …) from
+  the `Site` you pass to `use`, so published sites stay in sync with the artifact you release.
 
 If you document a ZIO or ascent library, dogfooding your own UI in the docs is a feature,
 not a distraction.

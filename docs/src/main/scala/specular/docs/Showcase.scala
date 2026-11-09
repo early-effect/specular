@@ -35,7 +35,7 @@ Emphasis with *italics*, **bold**, and `inline code`. Link out to [ascent](https
 - Interactive mounts via `.interactive`
 
 1. Write a `DocSpec`
-2. Run `sbt test`
+2. Run `./histos test`
 3. Build the site
 
 ### Quote

@@ -18,8 +18,8 @@ interactive optional extras, release cadence, and hub registration.
     section("Recommended module layout")(
       md"""
 Keep docs next to the library, not in a separate repo. **Docs-as-tests** means DocSpecs and
-`DocsSite` live on Compile; thin `DocSpecSuite` wrappers live on Test. `sbt docs/specularSite`
-forks the builder from the Test classpath (which includes Compile).
+`DocsSite` live on Compile; thin `DocSpecSuite` wrappers live on Test. `./histos run dev.earlyeffect.specular/site`
+forks the builder from the docs test classpath (which includes Compile).
 
 | Piece | Typical location |
 | ----- | ---------------- |
@@ -27,7 +27,7 @@ forks the builder from the Test classpath (which includes Compile).
 | `DocSpecSuite` wrappers | `docs/src/test/scalajvm/…` (or `src/test/scala`) |
 | `DocsSite` (`BuildSite`) | `docs/src/main/scalajvm/…` (or `src/main/scala`) |
 | `ClientMain` (optional) | `docs/src/main/scalajs/…` (linker-only JS project) |
-| Caller workflow | zipx `ZipxDocs.pages()` (or a `docs.yml` caller of `specular-docs.yml`) |
+| CI | `Site.ci`: `SiteCi.Check` builds, `SiteCi.Publish` also deploys `target/site` |
 
 Without interactives, a single `DocSpecSuite` under Test still works (page = suite). With
 interactives, keep shared pages as `DocSpec` on Compile and add thin JVM `DocSpecSuite` wrappers.
@@ -43,7 +43,7 @@ the shared logo. Branding is three one-liners on the `DocsSite`: `EarlyEffectThe
       example {
         E.ol(
           E.li("docs Test discovers DocSpecSuites"),
-          E.li("docs/specularSite SSR (Test CP includes Compile)"),
+          E.li("site task SSR (test classpath includes compile)"),
           E.li("docs JS (optional) splices client.js"),
         )
       }.assert(_ => assertTrue(true)),
@@ -82,8 +82,8 @@ is the full guide; the setup is:
    `illustrationDom(key)` for a DOM figure with no source panel, or
    `exampleDom(key).fromSource(file, marker)` for a sample
 3. A `ClientMain` calling `SpecularClient.mountAll(SpecularClient.fromPages(pages*) ++ yourMounters)`
-4. `specularSite` splicing `spliceFull` into `assets/client.js`, plus `specularJsProject` so
-   `docs/specularPreview` watches that client's Compile sources
+4. `linkClient` copies the linked docs script to `assets/client.js`. `./histos ~ run dev.earlyeffect.specular/site`
+   rebuilds when the docs module changes, and the preview server reloads the tab
 
 Use `illustration` / `illustrationIO` when the region *is* the document (a poster, a host switcher),
 not a copy-paste sample. `fromPages` registers every `.interactive` ascent example and every `.live`
@@ -121,7 +121,7 @@ optional `displayVersion`.
 
 Checklist:
 
-1. `sbt test` green (includes DocSpecs)
+1. `./histos test` green (includes DocSpecs)
 2. Tag `vX.Y.Z` → Central publish **and** docs deploy
 3. Confirm your published docs URL and `…/metadata.json` load
 4. Use a manual docs workflow run when you need a regen without a new tag (`stripCi` /
@@ -146,7 +146,7 @@ There are two hub shapes. Pick the one that matches how the sites are published.
 | --- | --- | --- |
 | When | Independently released libraries | One repo, one Pages artifact |
 | How | Hub fetches each `metadata.json` over HTTPS | Hub `.aggregate`s member docs projects |
-| Rebuild | When the URL allowlist changes | `docs/specularSite` (already what zipx runs) |
+| Rebuild | When the URL allowlist changes | the hub's site task |
 
 A library micro-site does not need either. The HTTP catalog is this section; nested sites are
 the next.

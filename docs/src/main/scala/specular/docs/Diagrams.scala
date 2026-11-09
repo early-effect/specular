@@ -15,7 +15,7 @@ object DocFigures:
       |    page --> suite["DocSpecSuite"]
       |    page --> docs["DocsSite"]
       |    suite --> interp["DocTestInterpreter"]
-      |    interp --> tested["sbt test"]
+      |    interp --> tested["histos test"]
       |    docs --> ssr["SiteBuilder"]
       |    ssr --> html["HTML page"]
       |""".stripMargin)
@@ -24,8 +24,8 @@ object DocFigures:
   val pageLife: Mermaid =
     Mermaid("""stateDiagram-v2
       |    [*] --> Source
-      |    Source --> Asserted: sbt test
-      |    Source --> Rendered: specularSite
+      |    Source --> Asserted: histos test
+      |    Source --> Rendered: site task
       |""".stripMargin)
 
   /** Page algebra drawn narrow enough for a phone column. `Section` is named in the prose. */
@@ -54,8 +54,8 @@ object DocFigures:
   val readers: Mermaid =
     Mermaid("""sequenceDiagram
       |    participant Reader
-      |    participant Test as sbt test
-      |    participant Site as specularSite
+      |    participant Test as histos test
+      |    participant Site as site task
       |    Reader->>Test: DocSpec
       |    Test-->>Reader: pass or fail
       |    Reader->>Site: same DocPage
@@ -99,19 +99,19 @@ A fenced `mermaid` block inside prose is a code block. The markdown renderer doe
       md"""
 One `DocPage` is read twice. `DocSpecSuite` lives on Test and `DocTestInterpreter` turns each
 `.assert` into a zio-test case. `DocsSite` lists the same page, and `SiteBuilder` SSR-renders
-it. `sbt test` does not build the HTML, and `specularSite` does not run the suite.
+it. `./histos test` does not build the HTML, and the site task does not run the suite.
 """,
       illustration {
         MermoidAscent.diagram(DocFigures.pipeline)
       }.assert { ui =>
         val text = ui.toString
-        assertTrue(text.contains("DocPage"), text.contains("sbt test"), text.contains("HTML page"))
+        assertTrue(text.contains("DocPage"), text.contains("histos test"), text.contains("HTML page"))
       },
     ),
     section("Read twice, not stepped through")(
       md"""
 `DocPage` has no status field. Source, asserted, and rendered are the two reads of that source:
-`sbt test` asserts what carries `.assert`, and `specularSite` renders the tree either way. An
+`./histos test` asserts what carries `.assert`, and the site task renders the tree either way. An
 example with no assertion still becomes HTML.
 """,
       illustration {
@@ -138,14 +138,14 @@ the picture.
     ),
     section("Who runs the page")(
       md"""
-A reader, `sbt test`, and `specularSite`. The test folds the page into assertions. The site
+A reader, `./histos test`, and the site task. The test folds the page into assertions. The site
 build folds the same page into HTML. Neither one calls the other.
 """,
       illustration {
         MermoidAscent.diagram(DocFigures.readers)
       }.assert { ui =>
         val text = ui.toString
-        assertTrue(text.contains("sbt test"), text.contains("specularSite"), text.contains("Reader"))
+        assertTrue(text.contains("histos test"), text.contains("site task"), text.contains("Reader"))
       },
     ),
     illustrationDom(InteractiveRegistry.DiagramPoster),
