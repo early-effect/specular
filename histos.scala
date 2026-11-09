@@ -164,7 +164,7 @@ object build extends HistosBuild:
         ),
         ships(
           Ship("specular").next(0, 21, 3)(core, zioTestMod, site, eeDocsTheme, plugin),
-          Ship("specular-histos").next(0, 0, 1)(specularHistos),
+          Ship("specular-histos").next(0, 0, 2)(specularHistos),
         ),
         core,
         zioTestMod,

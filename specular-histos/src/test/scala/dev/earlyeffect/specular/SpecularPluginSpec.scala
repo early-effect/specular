@@ -85,6 +85,14 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       }
       assertTrue(text.map(_.trim) == Some("dev.earlyeffect.specular.Specular$"))
     },
+    test("the version resource is the sha256 of the histos-api jar") {
+      val lines = resourceLines("META-INF/histos/version")
+      val jars  = classpathEntries.filter(histosApiJar)
+      for digest <- jars match
+          case path :: Nil => ZIO.attempt(sha256(Path.of(path)))
+          case _           => ZIO.succeed("missing")
+      yield assertTrue(lines == List(digest), jars.length == 1)
+    },
     test("sbt-specular is not on the adapter classpath") {
       val entries     = classpathEntries
       val sbtSpecular = entries.exists(path => path.contains("sbt-specular"))
@@ -189,6 +197,33 @@ object SpecularPluginSpec extends ZIOSpecDefault:
 
   private def classpathEntries: List[String] =
     propertyClasspath.map(_.toString)
+
+  private def resourceLines(name: String): List[String] =
+    val loader = classOf[Specular.type].getClassLoader
+    Option(loader.getResourceAsStream(name)) match
+      case None     => Nil
+      case Some(in) =>
+        try
+          new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+            .split("\n", -1)
+            .toList
+            .map(_.trim)
+            .filter(_.nonEmpty)
+        finally in.close()
+
+  /** The fork supplies this process's `histos-api.jar`, the file `Loader.digestOf` hashes. */
+  private def histosApiJar(path: String): Boolean =
+    Option(Path.of(path).getFileName).map(_.toString) match
+      case Some(name) =>
+        (name == "histos-api.jar" || name.startsWith("histos-api_")) &&
+        name.endsWith(".jar") &&
+        !name.contains("-sources") &&
+        !name.contains("-javadoc")
+      case None => false
+
+  private def sha256(path: Path): String =
+    val digest = java.security.MessageDigest.getInstance("SHA-256")
+    digest.digest(Files.readAllBytes(path)).map(byte => f"${byte & 0xff}%02x").mkString
 
   private def propertyClasspath: List[Path] =
     val raw = Option(java.lang.System.getProperty("java.class.path")).getOrElse("")

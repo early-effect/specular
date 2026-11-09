@@ -7,9 +7,9 @@ This repository builds with Histos 0.2.5. `build.properties` pins that release. 
 | Ship | Number | Members |
 | --- | --- | --- |
 | `specular` | `0.21.3` | `specular-core`, `specular-zio-test`, `specular-site`, `early-effect-docs-theme`, `sbt-specular` |
-| `specular-histos` | `0.0.1` | the Histos adapter |
+| `specular-histos` | `0.0.2` | the Histos adapter |
 
-The numbers are `Ship("specular").next(0, 21, 3)` and `Ship("specular-histos").next(0, 0, 1)`. Everyday compiles are `0.21.3-ci` and `0.0.1-ci`. `./histos publish release` publishes those numbers. The generated release workflow sets `HISTOS_SESSION=release`.
+The numbers are `Ship("specular").next(0, 21, 3)` and `Ship("specular-histos").next(0, 0, 2)`. Everyday compiles are `0.21.3-ci` and `0.0.2-ci`. `./histos publish release` publishes those numbers. The generated release workflow sets `HISTOS_SESSION=release`.
 
 `docs`, `editor`, `editor-host`, and `editor-view` are not in a ship. `.docCheck` runs `./histos run doc` on the ship members. A scaladoc warning fails that job.
 

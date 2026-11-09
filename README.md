@@ -72,7 +72,7 @@ The dogfood site expands this story for adopters:
 ## Installation
 
 specular is published to Maven Central under `rocks.earlyeffect`. The catalog numbers in
-`histos.scala` are the releases: `specular` `0.21.3` and `specular-histos` `0.0.1`. Histos does
+`histos.scala` are the releases: `specular` `0.21.3` and `specular-histos` `0.0.2`. Histos does
 not derive them from git tags. `build.properties` pins the Histos toolchain at `0.2.5`.
 
 ```scala
@@ -291,7 +291,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | Published for repositories that still build with sbt. `specularSite` passes `-Dspecular.meta.*` from sbt keys |
-| `specularHistos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, `0.0.1`. Compile-only dependency on `histos-api` `0.2.5` |
+| `specularHistos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, `0.0.2`. Compile-only dependency on `histos-api` `0.2.5` |
 | `docs` | (unpublished) | Dogfood site for specular itself |
 | `editor` | (unpublished) | Specular-aware editor: scan algebra and the Scala.js VS Code host |
 | `editorView` | (unpublished) | Ascent peek and mermaid source preview. Linked apart from the host so the webview never loads `vscode` |
@@ -305,7 +305,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 ./histos run doc                                           # scaladoc for the two ships
 ./histos run dev.earlyeffect.specular/site                 # write target/site (incl. metadata.json)
 ./histos run dev.earlyeffect.specular/vsix                 # package the editor
-./histos publishLocal                                      # install 0.21.3-ci and 0.0.1-ci locally
+./histos publishLocal                                      # install 0.21.3-ci and 0.0.2-ci locally
 ./histos publish release                                   # both ships, when you mean to release
 ./histos workflow --check                                  # generated workflows match the graph
 ./scripts/install-git-hooks                                # once per clone: pre-commit runs scalafmt
