@@ -41,14 +41,19 @@ object BuildSite extends DocsSite:
       installSnippets = Vector(
         CodeSnippet(
           "Histos",
-          s"""plugin(dep"$org::specular-histos:0.0.1")
+          s"""// histos.scala
+.plugins(PluginSources.ship(dep"$org::specular-histos:0.0.2"))
 
-use(Specular(
-  Site.forProject("docs", "com.example.docs.BuildSite")
-    .linkClient
-    .preview
-    .ci(SiteCi.Publish(SitePublish.Automatic)),
-))
+// histos.wiring.scala
+object HistosWiring:
+  def layer =
+    ZLayer.succeed(site) >>> wire[Specular]
+
+  private val site =
+    Site.forProject("docs", "com.example.docs.BuildSite")
+      .linkClient
+      .preview
+      .ci(SiteCi.Publish(SitePublish.Automatic))
 
 // then
 ./histos run dev.earlyeffect.specular/site""",

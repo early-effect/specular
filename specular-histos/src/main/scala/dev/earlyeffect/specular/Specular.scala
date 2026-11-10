@@ -11,29 +11,19 @@ import java.util.concurrent.atomic.AtomicReference
 
 import scala.jdk.CollectionConverters.*
 
-import zio.{Scope, ZIO}
+import zio.{Scope, ZIO, ZLayer}
 
-/** The plugin a Histos build passes to `use`.
-  *
-  * `use(Specular(Site.forProject("docs", "com.example.docs.BuildSite").linkClient.preview))`
-  *
-  * `apply` returns a value that closes over the site. Histos runs `contribute` and `run` on that value. The object is
-  * the jar entry: the value's `entryClass` is this object's class, so the loader checks `Specular$` and does not
-  * replace the value with it. The object holds no site.
+/** The site service. Wiring provides [[Site]]. [[Specular.layer]] builds this plugin from it.
   */
-object Specular extends HistosPlugin:
+trait Specular extends HistosPlugin
+
+object Specular:
   private[specular] val pluginId: PluginId = PluginId("dev.earlyeffect.specular")
-  val id: PluginId                         = pluginId
 
-  /** The jar entry. `use` holds the [[Bound]] from `apply`, and the loader still requires this object to be a plugin. */
-  private val fallback: HistosPlugin = new Bound(Site.forProject("docs", "specular.docs.BuildSite"))
+  def layer: ZLayer[Site, Nothing, Specular] =
+    pluginWith[Specular, Site](site => apply(site))
 
-  def apply(site: Site): HistosPlugin = new Bound(site)
-
-  def contribute: Contribution = fallback.contribute
-
-  def run(request: RunRequest): ZIO[Scope & PluginScopes, PluginRunError, PluginOutput] =
-    fallback.run(request)
+  def apply(site: Site): Specular = new Bound(site)
 
   private[specular] val indexPath: RepoPath      = RepoPath("target/site/index.html")
   private[specular] val metadataPath: RepoPath   = RepoPath("target/site/metadata.json")
@@ -61,12 +51,9 @@ object Specular extends HistosPlugin:
       case Left(_)     => PluginRunError.Defect("PluginDetail")
 end Specular
 
-/** The value `use` holds. One site, closed over. A second `Specular(other)` is a second value. */
-private final class Bound(site: Site) extends HistosPlugin:
+/** One site, closed over. A second `Specular(other)` is a second value. */
+private final class Bound(site: Site) extends Specular:
   val id: PluginId = Specular.pluginId
-
-  /** The jar names the object. This class is not that entry. */
-  override def entryClass: Class[?] = classOf[Specular.type]
 
   /** The preview URL this value already bound. The generation scope closes the process when the generation ends. */
   private val bound: AtomicReference[Option[String]] = new AtomicReference(None)
@@ -117,11 +104,12 @@ private final class Bound(site: Site) extends HistosPlugin:
     List(CommandSpec(CommandName("site"), Nil, Site.siteTask, PluginDetail("build the docs site")))
 
   private def previewCommand: List[CommandSpec] =
-    if site.serve then List(CommandSpec(CommandName("serve"), Nil, Site.previewTask, PluginDetail("serve the docs site")))
+    if site.serve then
+      List(CommandSpec(CommandName("serve"), Nil, Site.previewTask, PluginDetail("serve the docs site")))
     else Nil
 
-  /** The linked docs script becomes `target/site/assets/client.js` before the fork. A site that did not ask for a client,
-    * and a request with no script, skips the copy.
+  /** The linked docs script becomes `target/site/assets/client.js` before the fork. A site that did not ask for a
+    * client, and a request with no script, skips the copy.
     */
   private def copyClient(request: RunRequest): Either[PluginRunError, Unit] =
     if !site.client then Right(())
@@ -178,8 +166,8 @@ private final class Bound(site: Site) extends HistosPlugin:
         if value.isEmpty then Nil else List(s"-Dspecular.meta.$key=$value")
 
   /** Fork `DocsServe` once into the generation scope. The docs classpath already has it. This plugin compiles against
-    * `histos-api` only, so it does not bind the socket itself. The child prints `Open http://localhost:<port>/` and stays
-    * up. A later call on this instance returns that URL. The generation scope destroys the child.
+    * `histos-api` only, so it does not bind the socket itself. The child prints `Open http://localhost:<port>/` and
+    * stays up. A later call on this instance returns that URL. The generation scope destroys the child.
     */
   private def preview(request: RunRequest): ZIO[PluginScopes, PluginRunError, PluginOutput] =
     bound.get match
@@ -278,5 +266,4 @@ private final class Bound(site: Site) extends HistosPlugin:
     def error(line: String): Unit =
       val _ = errLines.add(line)
     def lines: List[String] = outLines.iterator.asScala.toList ++ errLines.iterator.asScala.toList
-  end LineLog
 end Bound

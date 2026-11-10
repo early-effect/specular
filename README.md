@@ -73,10 +73,12 @@ The dogfood site expands this story for adopters:
 
 specular is published to Maven Central under `rocks.earlyeffect`. The catalog numbers in
 `histos.scala` are the releases: `specular` `0.21.3` and `specular-histos` `0.0.2`. Histos does
-not derive them from git tags. `build.properties` pins the Histos toolchain at `0.2.5`.
+not derive them from git tags. `build.properties` pins the Histos toolchain at `0.2.7`.
+
+A Histos build names the adapter. `histos.wiring.scala` provides the site. Published `0.0.1` has no layer, so this Histos does not load it.
 
 ```scala
-plugin(dep"rocks.earlyeffect::specular-histos:0.0.1")
+.plugins(PluginSources.ship(dep"rocks.earlyeffect::specular-histos:0.0.2"))
 
 libraryDependencies ++= Seq(
   "rocks.earlyeffect" %% "specular-core"     % "<version>",
@@ -88,15 +90,23 @@ libraryDependencies ++= Seq(
 `specular-core` is also available for Scala.js (`%%%`) when the docs client needs the AST.
 
 ```scala
-use(Specular(
-  Site
-    .forProject("docs", "com.example.docs.BuildSite")
-    .basePath("/repo")
-    .name("repo")
-    .linkClient
-    .preview
-    .ci(SiteCi.Publish(SitePublish.Automatic)),
-))
+import dev.earlyeffect.specular.{Site, SiteCi, Specular}
+import histos.plugin.SitePublish
+import histos.plugin.{Site as _, *}
+import zio.*
+
+object HistosWiring:
+  def layer =
+    ZLayer.succeed(site) >>> wire[Specular]
+
+  private val site =
+    Site
+      .forProject("docs", "com.example.docs.BuildSite")
+      .basePath("/repo")
+      .name("repo")
+      .linkClient
+      .preview
+      .ci(SiteCi.Publish(SitePublish.Automatic))
 ```
 
 `main` is the `DocsSite`. Leave off `linkClient` when the site has no browser client. Leave off
@@ -291,7 +301,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | Published for repositories that still build with sbt. `specularSite` passes `-Dspecular.meta.*` from sbt keys |
-| `specularHistos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, `0.0.2`. Compile-only dependency on `histos-api` `0.2.5` |
+| `specularHistos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, `0.0.2`. Compile-only dependency on `histos-api` `0.2.7` |
 | `docs` | (unpublished) | Dogfood site for specular itself |
 | `editor` | (unpublished) | Specular-aware editor: scan algebra and the Scala.js VS Code host |
 | `editorView` | (unpublished) | Ascent peek and mermaid source preview. Linked apart from the host so the webview never loads `vscode` |
@@ -311,7 +321,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 ./scripts/install-git-hooks                                # once per clone: pre-commit runs scalafmt
 ```
 
-`build.properties` pins Histos `0.2.5`. Ships are `Ship.next` in `histos.scala`. The edit loop is
+`build.properties` pins Histos `0.2.7`. Ships are `Ship.next` in `histos.scala`. The edit loop is
 `./histos run dev.earlyeffect.specular/preview` once, then `./histos ~ run dev.earlyeffect.specular/site`.
 An sbt repository still uses `sbt docs/specularPreview`.
 

@@ -1,7 +1,4 @@
-plugin(path"specular-histos/src/main/scala")
 import histos.*
-import histos.plugin.SitePublish
-import dev.earlyeffect.specular.{Site, SiteCi, Specular}
 
 object build extends HistosBuild:
   def graph =
@@ -121,7 +118,7 @@ object build extends HistosBuild:
       module("specularHistos", Jvm)(scala310)
         .in(path"specular-histos")
         .artifact(artifact"specular-histos")
-        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.2.5".compileOnly)
+        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.2.7".compileOnly)
     ).pipe(tested)
     Projects
       .organization(organization"rocks.earlyeffect")
@@ -141,27 +138,8 @@ object build extends HistosBuild:
       .url(url"https://github.com/early-effect/specular")
       .runnerTools(RunnerTools(Some(NodeFloor(25)), None, None))
       .locked
-      .docCheck(
-        use(
-          Specular(
-            Site
-              .forProject("docs", "specular.docs.BuildSite")
-              .basePath("/specular")
-              .docsUrl("https://early-effect.github.io/specular/")
-              .name("specular")
-              .organization("rocks.earlyeffect")
-              .version("0.21.3")
-              .title("Specular")
-              .description("Code-first tests-as-docs site generator for Scala.")
-              .homepage("https://github.com/early-effect/specular")
-              .displayVersion("0.21.3")
-              .artifactKind("plugin")
-              .linkClient
-              .preview
-              .editor("0.21.3")
-              .ci(SiteCi.Publish(SitePublish.Automatic))
-          )
-        ),
+      .docCheck
+      .plugins(PluginSources.module(specularHistos))(
         ships(
           Ship("specular").next(0, 21, 3)(core, zioTestMod, site, eeDocsTheme, plugin),
           Ship("specular-histos").next(0, 0, 2)(specularHistos),

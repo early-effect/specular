@@ -1,6 +1,6 @@
 # Specular on Histos
 
-This repository builds with Histos 0.2.5. `build.properties` pins that release. `./histos` compiles, tests, and publishes. `sbt-specular` stays a published plugin for repositories that have not moved, and it does not depend on Histos.
+This repository builds with Histos 0.2.7. `build.properties` pins that release. `./histos` compiles, tests, and publishes. `sbt-specular` stays a published plugin for repositories that have not moved, and it does not depend on Histos.
 
 ## Ships
 
@@ -13,29 +13,39 @@ The numbers are `Ship("specular").next(0, 21, 3)` and `Ship("specular-histos").n
 
 `docs`, `editor`, `editor-host`, and `editor-view` are not in a ship. `.docCheck` runs `./histos run doc` on the ship members. A scaladoc warning fails that job.
 
-`specular-histos` compiles with Scala 3.10.0, the compiler that produced `histos-api` 0.2.5. That dependency is compile-only. The adapter does not depend on `specular-site`. A path plugin compiles `specular-histos/src/main/scala` against `histos-api` only, and that directory is the published module, so the fork lives in the adapter. `sbt-specular` still calls `specular.site.SiteFork`. The other modules stay on Scala 3.9.0.
+`specular-histos` compiles with Scala 3.10.0, the compiler that produced `histos-api` 0.2.7. That dependency is compile-only. The adapter does not depend on `specular-site`. The module compiles against `histos-api` only, and that module is what the ship publishes, so the fork lives in the adapter. `sbt-specular` still calls `specular.site.SiteFork`. The other modules stay on Scala 3.9.0.
+
+The dogfood build names the module with `PluginSources.module`. `histos.wiring.scala` provides `Site` and `wire[Specular]`. Publish writes `META-INF/histos/version` into the binary jar. The source tree does not contain that file, and it does not contain `META-INF/histos/plugin`. Published `0.0.1` has neither a layer nor a version line, so this Histos does not load it.
 
 `./histos publish release` with no name publishes both ships. A ship that depends on a snapshot is refused on its own. These two do not.
 
 ## What a Histos project uses
 
 ```scala
-plugin(dep"rocks.earlyeffect::specular-histos:0.0.1")
+.plugins(PluginSources.ship(dep"rocks.earlyeffect::specular-histos:0.0.2"))
 ```
 
-Then one site:
+Then `histos.wiring.scala`:
 
 ```scala
-use(Specular(
-  Site
-    .forProject("docs", "com.example.docs.BuildSite")
-    .basePath("/repo")
-    .docsUrl("https://example.github.io/repo")
-    .name("repo")
-    .linkClient
-    .preview
-    .ci(SiteCi.Publish(SitePublish.Automatic)),
-))
+import dev.earlyeffect.specular.{Site, SiteCi, Specular}
+import histos.plugin.SitePublish
+import histos.plugin.{Site as _, *}
+import zio.*
+
+object HistosWiring:
+  def layer =
+    ZLayer.succeed(site) >>> wire[Specular]
+
+  private val site =
+    Site
+      .forProject("docs", "com.example.docs.BuildSite")
+      .basePath("/repo")
+      .docsUrl("https://example.github.io/repo")
+      .name("repo")
+      .linkClient
+      .preview
+      .ci(SiteCi.Publish(SitePublish.Automatic))
 ```
 
 `forProject` takes the docs module and the `DocsSite` main. The other methods are the optional steps. Omitting one omits that work.

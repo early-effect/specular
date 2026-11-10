@@ -21,10 +21,10 @@ A documentation page that can lie should fail the build.
     },
     cite[DocSpec](_.doc),
     md"""
-The library coordinate on Central is `0.21.3`. The Histos adapter is `specular-histos` `0.0.1`.
+The library coordinate on Central is `0.21.3`. The Histos adapter is `specular-histos` `0.0.2`. The build names that ship. `histos.wiring.scala` provides the site to `Specular.layer`.
 
 ```scala
-plugin(dep"rocks.earlyeffect::specular-histos:0.0.1")
+.plugins(PluginSources.ship(dep"rocks.earlyeffect::specular-histos:0.0.2"))
 libraryDependencies += "rocks.earlyeffect" %% "specular-core" % "0.21.3"
 ```
 """,

@@ -21,20 +21,27 @@ current version). DocSpecs and `BuildSite` live on **Compile**. Thin `DocSpecSui
 live on Test so `./histos test` discovers them:
 
 ```scala
-plugin(dep"rocks.earlyeffect::specular-histos:0.0.1")
+.plugins(PluginSources.ship(dep"rocks.earlyeffect::specular-histos:0.0.2"))
 
 libraryDependencies ++= Seq(
   "rocks.earlyeffect" %% "specular-core"     % "<version>",
   "rocks.earlyeffect" %% "specular-site"     % "<version>",
   "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
 )
+```
 
-use(Specular(
-  Site.forProject("docs", "com.example.docs.BuildSite")
-    .name("repo")
-    .linkClient
-    .preview,
-))
+`histos.wiring.scala` provides the site:
+
+```scala
+object HistosWiring:
+  def layer =
+    ZLayer.succeed(site) >>> wire[Specular]
+
+  private val site =
+    Site.forProject("docs", "com.example.docs.BuildSite")
+      .name("repo")
+      .linkClient
+      .preview
 ```
 
 `specular-core` is also available for Scala.js (`%%%`) when you ship interactive examples.

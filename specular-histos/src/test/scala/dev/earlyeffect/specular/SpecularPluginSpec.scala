@@ -77,21 +77,24 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       val plugin = Specular(Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").ci(SiteCi.Check))
       assertTrue(plugin.contribute.jobs == List(TaskJob(JobName("docs"), TaskName("site"))))
     },
-    test("the entry resource names Specular") {
+    test("the layer builds the site it is given") {
+      val site = Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").basePath("/histos").name("histos")
+      for plugin <- ZIO.service[Specular].provide(ZLayer.succeed(site) >>> Specular.layer)
+      yield assertTrue(
+        plugin.id == PluginId("dev.earlyeffect.specular"),
+        plugin.contribute.tasks.map(_.name) == List(TaskName("site")),
+      )
+    },
+    test("the classloader does not see a plugin entry file") {
       val loader = classOf[Specular.type].getClassLoader
-      val text   = Option(loader.getResourceAsStream("META-INF/histos/plugin")).map { in =>
-        try new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+      val found  = Option(loader.getResourceAsStream("META-INF/histos/plugin")).map { in =>
+        try true
         finally in.close()
       }
-      assertTrue(text.map(_.trim) == Some("dev.earlyeffect.specular.Specular$"))
+      assertTrue(found.isEmpty)
     },
-    test("the version resource is the sha256 of the histos-api jar") {
-      val lines = resourceLines("META-INF/histos/version")
-      val jars  = classpathEntries.filter(histosApiJar)
-      for digest <- jars match
-          case path :: Nil => ZIO.attempt(sha256(Path.of(path)))
-          case _           => ZIO.succeed("missing")
-      yield assertTrue(lines == List(digest), jars.length == 1)
+    test("the source tree does not carry the api digest") {
+      assertTrue(resourceLines("META-INF/histos/version").isEmpty)
     },
     test("sbt-specular is not on the adapter classpath") {
       val entries     = classpathEntries
@@ -210,20 +213,6 @@ object SpecularPluginSpec extends ZIOSpecDefault:
             .map(_.trim)
             .filter(_.nonEmpty)
         finally in.close()
-
-  /** The fork supplies this process's `histos-api.jar`, the file `Loader.digestOf` hashes. */
-  private def histosApiJar(path: String): Boolean =
-    Option(Path.of(path).getFileName).map(_.toString) match
-      case Some(name) =>
-        (name == "histos-api.jar" || name.startsWith("histos-api_")) &&
-        name.endsWith(".jar") &&
-        !name.contains("-sources") &&
-        !name.contains("-javadoc")
-      case None => false
-
-  private def sha256(path: Path): String =
-    val digest = java.security.MessageDigest.getInstance("SHA-256")
-    digest.digest(Files.readAllBytes(path)).map(byte => f"${byte & 0xff}%02x").mkString
 
   private def propertyClasspath: List[Path] =
     val raw = Option(java.lang.System.getProperty("java.class.path")).getOrElse("")
