@@ -21,8 +21,9 @@ A documentation page that can lie should fail the build.
     },
     cite[DocSpec](_.doc),
     md"""
-Adopters depend on the published `specular` ship and on `specular-histos`. The install card
-prints those revisions from the ships this build passes to the plugin. `histos.wiring.scala`
+Adopters depend on the published `specular` ship and on `specular-histos`. The coordinates
+below are the ships from the build that generated this page. The steps are on
+[Getting started](getting-started.html). `histos.wiring.scala`
 provides `Site`, and `wire[Specular]` calls `Specular.layer`.
 
 ```scala

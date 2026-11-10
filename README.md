@@ -83,7 +83,7 @@ file means no plugins. Published `0.0.1` has no layer, so this Histos does not l
 Adopters depend on the published artifacts. The revisions are the ships. This repository does
 not. Its docs module `dependsOn` the in-repo modules, and `PluginSources.module` names the
 adapter. The docs module's `library` and `adapter` notes pass those ship revisions into the
-plugin. The install card on the site reads them back.
+plugin. Getting started on the generated site prints them in the install sample.
 
 ```scala
 val docs = module("docs", Jvm)(scala3)

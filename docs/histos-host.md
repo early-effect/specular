@@ -25,6 +25,8 @@ The dogfood build names the module with `PluginSources.module`. It does not depe
 
 `histos.scala` is compiled before those classes exist, so it only names the coordinate. `PluginSources.ship` is a published pin. `PluginSources.module` is an in-repo module, which is what this repository uses for itself. The load compiles that module, or resolves the pin, and then compiles `histos.wiring.scala` against those classes.
 
+The generated Getting started page replaces `<specular ship>` and `<specular-histos ship>` with the revisions from this build. The source keeps the tokens.
+
 ```scala
 val docs = module("docs", Jvm)(scala3)
   .libraryDependencies(

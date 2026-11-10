@@ -22,8 +22,8 @@ A Histos plugin is a ZIO service. `Specular` requires `Site`. You do not call `S
 still required. A repo with no wiring file registers no plugins. Published `0.0.1` has no
 layer, so this Histos does not load it.
 
-An adopter depends on the published artifacts. The versions on the install card are this build's
-ships, passed in as notes and read back here. This repository does not depend on those published
+An adopter depends on the published artifacts. The coordinates in the sample are the ships
+from the build that generated this page. This repository does not depend on those published
 jars. Its docs module `dependsOn` the in-repo modules, and `PluginSources.module` names the adapter.
 
 DocSpecs and `BuildSite` live on **Compile**. `specular-zio-test` lives on Test so

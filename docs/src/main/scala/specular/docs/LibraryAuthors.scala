@@ -19,7 +19,7 @@ interactive optional extras, release cadence, and hub registration.
       md"""
 On Histos the adapter is a layer, not a value you pass into the graph. An adopter's
 `histos.scala` names `PluginSources.ship` and does not import `Specular`. The revision is the
-`specular-histos` ship, the same number the install card prints. This repository names
+`specular-histos` ship, the same number Getting started shows for this build. This repository names
 `PluginSources.module` instead, and its docs module depends on the in-repo modules.
 `histos.wiring.scala` at the repo root provides the site:
 

@@ -31,12 +31,12 @@ object BuildSite extends DocsSite:
 
   override def site(settings: DocsSettings): SiteModel =
     val version = settings.meta.docsVersion
-    val adapter = settings.adapterVersion.getOrElse("<adapter ship>")
+    val adapter = settings.adapterVersion.getOrElse("<specular-histos ship>")
     val org     = settings.meta.organization
     val branded = EarlyEffectTheme.brand(super.site(settings))
     branded.copy(
       nav = Some(siteNav),
-      pages = siteNav.pages,
+      pages = BuildSite.stamp(siteNav.pages, version, adapter),
       clientScript = Some("assets/client.js"),
       summaryMarkdown = Some("A documentation page that can lie should fail the build."),
       installSnippets = Vector(
@@ -86,4 +86,17 @@ object HistosWiring:
         SiteError.WriteFailed(index, err)
       }
     promote *> EarlyEffectTheme.writeLogo(out)
+
+  /** The source keeps the tokens. Generation writes the ship revisions into the pages. */
+  private[docs] def stamp(pages: Vector[DocPage], library: String, adapter: String): Vector[DocPage] =
+    pages.map(page => page.copy(children = page.children.map(stampNode(library, adapter))))
+
+  private def stampNode(library: String, adapter: String)(node: DocNode): DocNode =
+    node match
+      case Prose(markdown)      => Prose(fill(markdown, library, adapter))
+      case Section(title, kids) => Section(title, kids.map(stampNode(library, adapter)))
+      case other                => other
+
+  private def fill(markdown: String, library: String, adapter: String): String =
+    markdown.replace("<specular-histos ship>", adapter).replace("<specular ship>", library)
 end BuildSite
