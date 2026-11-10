@@ -31,6 +31,7 @@ object BuildSite extends DocsSite:
 
   override def site(settings: DocsSettings): SiteModel =
     val version = settings.meta.docsVersion
+    val adapter = settings.adapterVersion.getOrElse("<adapter ship>")
     val org     = settings.meta.organization
     val branded = EarlyEffectTheme.brand(super.site(settings))
     branded.copy(
@@ -41,10 +42,14 @@ object BuildSite extends DocsSite:
       installSnippets = Vector(
         CodeSnippet(
           "Histos",
-          s"""// histos.scala
-.plugins(PluginSources.ship(dep"$org::specular-histos:0.0.2"))
+          s"""// histos.scala names the published ship. It does not import Specular.
+.plugins(PluginSources.ship(dep"$org::specular-histos:$adapter"))
 
-// histos.wiring.scala
+// histos.wiring.scala, repo root. Hide histos.plugin.Site.
+import dev.earlyeffect.specular.{Site, SiteCi, Specular}
+import histos.plugin.{Site as _, SitePublish, *}
+import zio.*
+
 object HistosWiring:
   def layer =
     ZLayer.succeed(site) >>> wire[Specular]
@@ -53,18 +58,15 @@ object HistosWiring:
     Site.forProject("docs", "com.example.docs.BuildSite")
       .linkClient
       .preview
-      .ci(SiteCi.Publish(SitePublish.Automatic))
-
-// then
-./histos run dev.earlyeffect.specular/site""",
+      .ci(SiteCi.Publish(SitePublish.Automatic))""",
         ),
         CodeSnippet(
-          "Libraries (optional)",
-          s"""libraryDependencies ++= Seq(
-  "$org" %% "specular-core"     % "$version",
-  "$org" %% "specular-zio-test" % "$version",
-  "$org" %% "specular-site"     % "$version", // JVM
-)""",
+          "Docs module",
+          s""".libraryDependencies(
+  dep"$org::specular-core:$version",
+  dep"$org::specular-site:$version",
+)
+.testDependencies(dep"$org::specular-zio-test:$version")""",
         ),
       ),
     )

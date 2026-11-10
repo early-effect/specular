@@ -15,6 +15,27 @@ object LibraryAuthors extends DocSpec:
 A practical path for documenting a Scala 3 library: module layout, what to assert,
 interactive optional extras, release cadence, and hub registration.
 """,
+    section("Wire the plugin")(
+      md"""
+On Histos the adapter is a layer, not a value you pass into the graph. An adopter's
+`histos.scala` names `PluginSources.ship` and does not import `Specular`. The revision is the
+`specular-histos` ship, the same number the install card prints. This repository names
+`PluginSources.module` instead, and its docs module depends on the in-repo modules.
+`histos.wiring.scala` at the repo root provides the site:
+
+```scala
+object HistosWiring:
+  def layer =
+    ZLayer.succeed(site) >>> wire[Specular]
+```
+
+`Specular.layer` requires `Site`. `wire[Specular]` calls it and also provides `Plugins`, which
+is what Histos runs. The wiring compile fails if `Site` is still open. No wiring file means
+the plugin is not registered. The copyable files, including the `Site` chain, are on
+[Getting started](getting-started.html). `Site.ci` in the table below is set on that `site`
+value. An sbt repository keeps `sbt-specular` and does not write this file.
+"""
+    ),
     section("Recommended module layout")(
       md"""
 Keep docs next to the library, not in a separate repo. **Docs-as-tests** means DocSpecs and

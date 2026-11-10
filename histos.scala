@@ -1,7 +1,10 @@
 import histos.*
+import histos.plugin.{NoteKey, NoteText, PluginId}
 
 object build extends HistosBuild:
   def graph =
+    val library                                       = Ship("specular").next(0, 21, 3)
+    val adapter                                       = Ship("specular-histos").next(0, 0, 2)
     val scala39                                       = scala"3.9.0"
     val scala310                                      = scala"3.10.0"
     val zio                                           = dep"dev.zio::zio:2.1.27"
@@ -97,6 +100,8 @@ object build extends HistosBuild:
         )
         .main(MainClass("specular.docs.ClientMain"))
     ).pipe(tested)
+      .note(PluginId("dev.earlyeffect.specular"), NoteKey("library"), shipNote(library.released.revision))
+      .note(PluginId("dev.earlyeffect.specular"), NoteKey("adapter"), shipNote(adapter.released.revision))
     val editor = flagged(
       module("editor", Jvm, Js)(scala39)
         .in(path"editor")
@@ -141,8 +146,8 @@ object build extends HistosBuild:
       .docCheck
       .plugins(PluginSources.module(specularHistos))(
         ships(
-          Ship("specular").next(0, 21, 3)(core, zioTestMod, site, eeDocsTheme, plugin),
-          Ship("specular-histos").next(0, 0, 2)(specularHistos),
+          library(core, zioTestMod, site, eeDocsTheme, plugin),
+          adapter(specularHistos),
         ),
         core,
         zioTestMod,
@@ -155,3 +160,10 @@ object build extends HistosBuild:
         editorView,
         specularHistos,
       )
+
+  /** A ship revision is one line. `not-a-ship` is the branch a revision cannot take. */
+  private def shipNote(revision: String): NoteText =
+    NoteText.from(revision) match
+      case Right(text) => text
+      case Left(_)     => NoteText("not-a-ship")
+end build

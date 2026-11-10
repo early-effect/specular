@@ -60,8 +60,12 @@ private final class Bound(site: Site) extends Specular:
 
   def contribute: Contribution =
     Contribution(
-      tasks = List(siteTask) ++ previewTask ++ EditorPackage.taskSpec(site.editorVersion).toList,
-      commands = siteCommand ++ previewCommand ++ EditorPackage.commands(site.editorVersion),
+      tasks = List(siteTask) ++ previewTask ++ EditorPackage
+        .taskSpec(site.project, site.editorVersion, site.passed.editor)
+        .toList,
+      commands = siteCommand ++ previewCommand ++ EditorPackage.commands(
+        site.editorVersion.isDefined || site.passed.editor
+      ),
       jobs = Site.job(site),
       checks = Nil,
       preflight = Nil,
@@ -78,7 +82,7 @@ private final class Bound(site: Site) extends Specular:
       name = Site.siteTask,
       seal = Seal.Open,
       needs = Set.empty,
-      inputs = List(DeclaredInput.Module(site.project, None, Some(Jvm))),
+      inputs = DeclaredInput.Module(site.project, None, Some(Jvm)) :: shipInputs,
       outputs = List(
         DeclaredOutput(Specular.indexName, Specular.indexPath),
         DeclaredOutput(Specular.metadataName, Specular.metadataPath),
@@ -156,14 +160,38 @@ private final class Bound(site: Site) extends Specular:
       s"-Dspecular.site.basePath=$base",
       "-Dspecular.cite.format=as-written",
       s"-Dspecular.meta.scalaVersion=${cell.version.value}",
-    ) ++ metaProps
+    ) ++ metaProps(request)
 
-  private def metaProps: List[String] =
-    site.meta.toList
+  private def shipInputs: List[DeclaredInput] =
+    val library =
+      if site.passed.library then List(DeclaredInput.Note(site.project, Site.libraryKey)) else Nil
+    val adapter =
+      if site.passed.adapter then List(DeclaredInput.Note(site.project, Site.adapterKey)) else Nil
+    library ++ adapter
+
+  private def metaProps(request: RunRequest): List[String] =
+    val library   = shipText(request, Site.libraryKey)
+    val versioned =
+      if site.passed.library then fill(fill(site.meta, "version", library), "displayVersion", library)
+      else site.meta
+    val adapted =
+      if site.passed.adapter then fill(versioned, "adapterVersion", shipText(request, Site.adapterKey))
+      else versioned
+    adapted.toList
       .sortBy(_._1)
       .flatMap: (key, raw) =>
         val value = raw.trim
         if value.isEmpty then Nil else List(s"-Dspecular.meta.$key=$value")
+
+  private def fill(meta: Map[String, String], key: String, found: Option[String]): Map[String, String] =
+    found match
+      case Some(value) if !meta.contains(key) => meta.updated(key, value)
+      case _                                  => meta
+
+  private def shipText(request: RunRequest, key: histos.plugin.NoteKey): Option[String] =
+    request.inputs.collectFirst:
+      case histos.plugin.MaterialInput.Note(module, found, text) if module == site.project && found == key =>
+        text.value
 
   /** Fork `DocsServe` once into the generation scope. The docs classpath already has it. This plugin compiles against
     * `histos-api` only, so it does not bind the socket itself. The child prints `Open http://localhost:<port>/` and

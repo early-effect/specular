@@ -13,14 +13,14 @@ object HistosWiring:
       .docsUrl("https://early-effect.github.io/specular/")
       .name("specular")
       .organization("rocks.earlyeffect")
-      .version("0.21.3")
       .title("Specular")
       .description("Code-first tests-as-docs site generator for Scala.")
       .homepage("https://github.com/early-effect/specular")
-      .displayVersion("0.21.3")
       .artifactKind("plugin")
       .linkClient
       .preview
-      .editor("0.21.3")
+      .libraryShip
+      .adapterShip
+      .editorFromLibrary
       .ci(SiteCi.Publish(SitePublish.Automatic))
 end HistosWiring

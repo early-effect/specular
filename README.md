@@ -71,28 +71,41 @@ The dogfood site expands this story for adopters:
 
 ## Installation
 
-specular is published to Maven Central under `rocks.earlyeffect`. The catalog numbers in
-`histos.scala` are the releases: `specular` `0.21.3` and `specular-histos` `0.0.2`. Histos does
-not derive them from git tags. `build.properties` pins the Histos toolchain at `0.2.7`.
+specular is published to Maven Central under `rocks.earlyeffect`. The releases are the
+`Ship.next` rows in `histos.scala`. Histos does not derive them from git tags.
+`build.properties` pins the Histos toolchain at `0.2.7`.
 
-A Histos build names the adapter. `histos.wiring.scala` provides the site. Published `0.0.1` has no layer, so this Histos does not load it.
+The adapter is a ZIO service. `Specular.layer` requires `Site`. `histos.scala` names the
+coordinate and does not import `Specular`. `histos.wiring.scala`, at the repo root, provides
+`Site`, and `wire[Specular]` calls that layer. An open `Site` fails the wiring compile. No wiring
+file means no plugins. Published `0.0.1` has no layer, so this Histos does not load it.
+
+Adopters depend on the published artifacts. The revisions are the ships. This repository does
+not. Its docs module `dependsOn` the in-repo modules, and `PluginSources.module` names the
+adapter. The docs module's `library` and `adapter` notes pass those ship revisions into the
+plugin. The install card on the site reads them back.
 
 ```scala
-.plugins(PluginSources.ship(dep"rocks.earlyeffect::specular-histos:0.0.2"))
+val docs = module("docs", Jvm)(scala3)
+  .libraryDependencies(
+    dep"rocks.earlyeffect::specular-core:<specular ship>",
+    dep"rocks.earlyeffect::specular-site:<specular ship>",
+  )
+  .testDependencies(dep"rocks.earlyeffect::specular-zio-test:<specular ship>")
 
-libraryDependencies ++= Seq(
-  "rocks.earlyeffect" %% "specular-core"     % "<version>",
-  "rocks.earlyeffect" %% "specular-site"     % "<version>",
-  "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
-)
+Projects
+  .plugins(PluginSources.ship(dep"rocks.earlyeffect::specular-histos:<specular-histos ship>"))(
+    ships(Ship("repo").next(1, 0, 0)(core)),
+    core,
+    docs,
+  )
 ```
 
 `specular-core` is also available for Scala.js (`%%%`) when the docs client needs the AST.
 
 ```scala
 import dev.earlyeffect.specular.{Site, SiteCi, Specular}
-import histos.plugin.SitePublish
-import histos.plugin.{Site as _, *}
+import histos.plugin.{Site as _, SitePublish, *}
 import zio.*
 
 object HistosWiring:
@@ -109,12 +122,13 @@ object HistosWiring:
       .ci(SiteCi.Publish(SitePublish.Automatic))
 ```
 
-`main` is the `DocsSite`. Leave off `linkClient` when the site has no browser client. Leave off
-`preview` when you do not want a local server. Leave off `ci` when CI should not build the site.
-`SiteCi.Check` builds it on a pull request and on a push to the default branch and does not deploy.
-`SiteCi.Publish` builds it and publishes `target/site` with Histos's `SitePublish`: `Automatic`
-deploys on the default branch, `Manual` deploys from the generated dispatch workflow, `Both` is
-the two together.
+The import hides Histos's own `Site`, so `Site.forProject` is Specular's. `forProject` is the
+docs module and the `DocsSite` main. Leave off `linkClient` when the site has no browser client.
+Leave off `preview` when you do not want a local server. Leave off `ci` when CI should not build
+the site. `SiteCi.Check` builds it on a pull request and on a push to the default branch and does
+not deploy. `SiteCi.Publish` builds it and publishes `target/site` with Histos's `SitePublish`:
+`Automatic` deploys on the default branch, `Manual` deploys from the generated dispatch workflow,
+`Both` is the two together.
 
 ```scala
 object BuildSite extends specular.site.DocsSite:
@@ -301,7 +315,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | Published for repositories that still build with sbt. `specularSite` passes `-Dspecular.meta.*` from sbt keys |
-| `specularHistos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, `0.0.2`. Compile-only dependency on `histos-api` `0.2.7` |
+| `specularHistos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, named in `histos.scala`. Compile-only dependency on `histos-api` `0.2.7` |
 | `docs` | (unpublished) | Dogfood site for specular itself |
 | `editor` | (unpublished) | Specular-aware editor: scan algebra and the Scala.js VS Code host |
 | `editorView` | (unpublished) | Ascent peek and mermaid source preview. Linked apart from the host so the webview never loads `vscode` |
@@ -315,7 +329,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 ./histos run doc                                           # scaladoc for the two ships
 ./histos run dev.earlyeffect.specular/site                 # write target/site (incl. metadata.json)
 ./histos run dev.earlyeffect.specular/vsix                 # package the editor
-./histos publishLocal                                      # install 0.21.3-ci and 0.0.2-ci locally
+./histos publishLocal                                      # install each ship's -ci coordinate locally
 ./histos publish release                                   # both ships, when you mean to release
 ./histos workflow --check                                  # generated workflows match the graph
 ./scripts/install-git-hooks                                # once per clone: pre-commit runs scalafmt
@@ -331,7 +345,7 @@ launch VS Code.
 ### Extension package
 
 `./histos run dev.earlyeffect.specular/vsix` links the host and the webview and writes
-`target/specular-editor.vsix`. `Site.editor` is the ship number (`0.21.3`), not the placeholder in
+`target/specular-editor.vsix`. The `library` note is that ship revision, not the placeholder in
 `editor/package.json`. Install that file from the Extensions view in VS Code or
 Cursor. A version that is not `x.y.z` is packaged as a `dev` prerelease.
 
@@ -347,14 +361,14 @@ examples need the docs module's JavaScript link, which the site task copies to
 
 ### Publishing docs (GitHub Pages)
 
-The generated `docs` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) is a `TaskJob`.
-It runs the site task on a pull request and on a push to the default branch. It does not upload a
-directory and it does not deploy GitHub Pages. `test`, `doc`, `versions`, and `workflow` run on a
-pull request or `workflow_dispatch`. A push to the default branch starts `ci.yml` and skips the suite.
+The generated `docs` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) is a site publish.
+It builds the site and uploads `target/site` on a push to the default branch. A pull request does
+not run that job. `test`, `doc`, `versions`, and `workflow` run on a pull request or
+`workflow_dispatch`. A push to the default branch starts `ci.yml` and skips the suite.
 
-The docs module notes in `histos.scala` set `basePath` to `/specular` and the docs URL to the project
-site. The generated job cannot set environment variables, so a local site build uses that same base
-path.
+`histos.wiring.scala` sets `basePath` to `/specular` and the docs URL to the project site. The
+`library` and `adapter` notes on the docs module are the ship revisions. The generated job cannot
+set environment variables, so a local site build uses that same `Site`.
 
 Enable **Settings → Pages → Source: GitHub Actions** on this repo before the first deploy.
 

@@ -1,6 +1,6 @@
 package dev.earlyeffect.specular
 
-import histos.plugin.{CiJob, JobName, RepoPath, Site as HistosSite, SiteJob, TaskJob, TaskName}
+import histos.plugin.{CiJob, JobName, NoteKey, RepoPath, Site as HistosSite, SiteJob, TaskJob, TaskName}
 
 /** One docs site a build asks the plugin to build.
   *
@@ -20,6 +20,7 @@ final case class Site private (
     serve: Boolean,
     port: Int,
     editorVersion: Option[String],
+    passed: PassedShips,
 ):
   def basePath(path: String): Site = copy(base = Some(path))
 
@@ -55,18 +56,32 @@ final case class Site private (
   /** The version `vsix` stamps into the extension. A release is `x.y.z`. Anything else is a `dev` prerelease. */
   def editor(version: String): Site = copy(editorVersion = Some(version))
 
+  /** The docs module's `library` note is that ship revision. It fills `version` and `displayVersion` when those are
+    * unset.
+    */
+  def libraryShip: Site = copy(passed = passed.copy(library = true))
+
+  /** The docs module's `adapter` note is the Histos adapter's ship revision. */
+  def adapterShip: Site = copy(passed = passed.copy(adapter = true))
+
+  /** Package the editor from the `library` note. */
+  def editorFromLibrary: Site = copy(passed = passed.copy(editor = true))
+
   private def noted(key: String, value: String): Site =
     copy(meta = meta.updated(key, value))
 end Site
 
 object Site:
-  private[specular] val siteTask: TaskName    = TaskName("site")
-  private[specular] val previewTask: TaskName = TaskName("preview")
+  private[specular] val siteTask: TaskName      = TaskName("site")
+  private[specular] val previewTask: TaskName   = TaskName("preview")
   private[specular] val siteDirectory: RepoPath = RepoPath("target/site")
+
+  private[specular] val libraryKey: NoteKey = NoteKey("library")
+  private[specular] val adapterKey: NoteKey = NoteKey("adapter")
 
   /** The docs module and the `DocsSite` main the site task forks. `project` is a literal. */
   inline def forProject(inline project: String, mainClass: String): Site =
-    Site(histos.ProjectName(project), mainClass, None, Map.empty, false, None, false, 8765, None)
+    Site(histos.ProjectName(project), mainClass, None, Map.empty, false, None, false, 8765, None, PassedShips())
 
   private[specular] def job(site: Site): List[CiJob] =
     site.mode.toList.map:
@@ -75,3 +90,12 @@ object Site:
       case SiteCi.Publish(mode) =>
         SiteJob(JobName("docs"), siteTask, HistosSite(siteDirectory, mode))
 end Site
+
+/** Which ship revisions the build passes on the docs module. The plugin reads the notes. It does not invent the
+  * numbers.
+  */
+private[specular] final case class PassedShips(
+    library: Boolean = false,
+    adapter: Boolean = false,
+    editor: Boolean = false,
+)
