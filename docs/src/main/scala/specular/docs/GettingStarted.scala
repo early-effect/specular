@@ -16,28 +16,65 @@ that builds with Histos.
 """,
     section("1. Add the artifacts")(
       md"""
-Publish line is Maven Central under `rocks.earlyeffect` (see the README badge for the
-current version). DocSpecs and `BuildSite` live on **Compile**. Thin `DocSpecSuite` wrappers
-live on Test so `./histos test` discovers them:
+A Histos plugin is a ZIO service. `Specular` requires `Site`. You do not call `Specular(site)`.
+`histos.scala` names the coordinate and does not import the plugin. `histos.wiring.scala` provides
+`Site`, and `wire[Specular]` calls `Specular.layer`. The wiring compile fails while `Site` is
+still required. A repo with no wiring file registers no plugins. Published `0.0.1` has no
+layer, so this Histos does not load it.
+
+An adopter depends on the published artifacts. The coordinates in the sample are the ships
+from the build that generated this page. This repository does not depend on those published
+jars. Its docs module `dependsOn` the in-repo modules, and `PluginSources.module` names the adapter.
+
+DocSpecs and `BuildSite` live on **Compile**. `specular-zio-test` lives on Test so
+`./histos test` discovers the suites. `specular-core` is also published for Scala.js (`%%%`)
+when the client needs the AST.
 
 ```scala
-plugin(dep"rocks.earlyeffect::specular-histos:0.0.1")
+val docs = module("docs", Jvm)(scala3)
+  .libraryDependencies(
+    dep"rocks.earlyeffect::specular-core:<specular ship>",
+    dep"rocks.earlyeffect::specular-site:<specular ship>",
+  )
+  .testDependencies(dep"rocks.earlyeffect::specular-zio-test:<specular ship>")
 
-libraryDependencies ++= Seq(
-  "rocks.earlyeffect" %% "specular-core"     % "<version>",
-  "rocks.earlyeffect" %% "specular-site"     % "<version>",
-  "rocks.earlyeffect" %% "specular-zio-test" % "<version>" % Test,
-)
-
-use(Specular(
-  Site.forProject("docs", "com.example.docs.BuildSite")
-    .name("repo")
-    .linkClient
-    .preview,
-))
+Projects
+  .plugins(PluginSources.ship(dep"rocks.earlyeffect::specular-histos:<specular-histos ship>"))(
+    ships(Ship("repo").next(1, 0, 0)(core)),
+    core,
+    docs,
+  )
 ```
 
-`specular-core` is also available for Scala.js (`%%%`) when you ship interactive examples.
+`histos.wiring.scala` is a second file at the repo root, in the empty package. The import
+hides Histos's own `Site`, so `Site.forProject` is Specular's:
+
+```scala
+import dev.earlyeffect.specular.{Site, SiteCi, Specular}
+import histos.plugin.{Site as _, SitePublish, *}
+import zio.*
+
+object HistosWiring:
+  def layer =
+    ZLayer.succeed(site) >>> wire[Specular]
+
+  private val site =
+    Site
+      .forProject("docs", "com.example.docs.BuildSite")
+      .basePath("/repo")
+      .name("repo")
+      .linkClient
+      .preview
+      .ci(SiteCi.Publish(SitePublish.Automatic))
+```
+
+`forProject` is the docs module and the `DocsSite` main. `ZLayer.succeed(site)` provides
+`Site`. `wire[Specular]` builds the plugin from that service and also provides `Plugins`,
+which is what Histos runs. Leave off `linkClient` when there is no browser client, `preview`
+when you do not want a local server, and `ci` when CI should not build the site.
+`SiteCi.Check` builds on a pull request and on a push to the default branch and does not
+deploy. `SiteCi.Publish(SitePublish.Automatic)` builds and publishes `target/site` on a push
+to the default branch. A pull request does not run that job.
 """
     ),
     section("2. Author a DocSpec")(
@@ -134,8 +171,9 @@ included when that module is the docs module.
     section("5. Publish on GitHub Pages")(
       md"""
 Any static host works; GitHub Pages is the common path. Enable **Settings → Pages →
-Source: GitHub Actions**. On a Histos build, `ci(SiteCi.Publish(SitePublish.Automatic))` is the
-deploy: a pull request builds the site, and a push to the default branch publishes `target/site`.
+Source: GitHub Actions**. On a Histos build, `ci(SiteCi.Publish(SitePublish.Automatic))` builds
+and publishes `target/site` on a push to the default branch. A pull request does not run that job.
+`SiteCi.Check` builds on a pull request and on that push, and does not deploy.
 
 `basePath` and `docsUrl` on the `Site` are the published project-site URL (for example `/my-lib`
 under `*.github.io`). The generated job cannot set environment variables, so a local build uses

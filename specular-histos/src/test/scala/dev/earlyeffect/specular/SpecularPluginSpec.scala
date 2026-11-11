@@ -77,13 +77,24 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       val plugin = Specular(Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").ci(SiteCi.Check))
       assertTrue(plugin.contribute.jobs == List(TaskJob(JobName("docs"), TaskName("site"))))
     },
-    test("the entry resource names Specular") {
+    test("the layer builds the site it is given") {
+      val site = Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").basePath("/histos").name("histos")
+      for plugin <- ZIO.service[Specular].provide(ZLayer.succeed(site) >>> Specular.layer)
+      yield assertTrue(
+        plugin.id == PluginId("dev.earlyeffect.specular"),
+        plugin.contribute.tasks.map(_.name) == List(TaskName("site")),
+      )
+    },
+    test("the classloader does not see a plugin entry file") {
       val loader = classOf[Specular.type].getClassLoader
-      val text   = Option(loader.getResourceAsStream("META-INF/histos/plugin")).map { in =>
-        try new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+      val found  = Option(loader.getResourceAsStream("META-INF/histos/plugin")).map { in =>
+        try true
         finally in.close()
       }
-      assertTrue(text.map(_.trim) == Some("dev.earlyeffect.specular.Specular$"))
+      assertTrue(found.isEmpty)
+    },
+    test("the source tree does not carry the api digest") {
+      assertTrue(resourceLines("META-INF/histos/version").isEmpty)
     },
     test("sbt-specular is not on the adapter classpath") {
       val entries     = classpathEntries
@@ -129,7 +140,7 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       yield assertTrue(
         shown == "ok",
         wrote == "one",
-        props == "basePath=.\ndocsUrl=absent\nname=absent\n",
+        props == "basePath=.\ndocsUrl=absent\nname=absent\nversion=absent\nadapter=absent\n",
       )
     },
     test("two sites are two plugins, and the fork sees the one it was given") {
@@ -146,8 +157,54 @@ object SpecularPluginSpec extends ZIOSpecDefault:
         first.contribute.jobs.isEmpty,
         second.contribute.jobs.isEmpty,
         shown == "ok",
-        props == "basePath=/histos\ndocsUrl=absent\nname=histos\n",
+        props == "basePath=/histos\ndocsUrl=absent\nname=histos\nversion=absent\nadapter=absent\n",
       )
+    },
+    test("ship notes fill the versions the site fork sees") {
+      val plugin =
+        Specular(Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").libraryShip.adapterShip)
+      val docs = ProjectName("docs")
+      for
+        repo <- ZIO.attempt(Files.createTempDirectory("specular-histos-ships").nn)
+        cell    = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
+        request = PluginFixture
+          .request(plugin.id, TaskName("site"), repo, modules = List(ModuleView(docs, "docs", Nil)))
+          .copy(
+            compiled = List(cell),
+            inputs = List(
+              MaterialInput.Note(docs, Site.libraryKey, NoteText("1.2.3")),
+              MaterialInput.Note(docs, Site.adapterKey, NoteText("4.5.6")),
+            ),
+          )
+        ran   <- plugin.run(request).provideSome[Scope](invocation).either
+        props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
+        shown = ran.fold(_.message, _ => "ok")
+      yield assertTrue(shown == "ok", props.contains("version=1.2.3"), props.contains("adapter=4.5.6"))
+    },
+    test("an explicit version wins over the library note") {
+      val plugin = Specular(
+        Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").version("9.9.9").libraryShip
+      )
+      val docs = ProjectName("docs")
+      for
+        repo <- ZIO.attempt(Files.createTempDirectory("specular-histos-explicit").nn)
+        cell    = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
+        request = PluginFixture
+          .request(plugin.id, TaskName("site"), repo, modules = List(ModuleView(docs, "docs", Nil)))
+          .copy(
+            compiled = List(cell),
+            inputs = List(MaterialInput.Note(docs, Site.libraryKey, NoteText("1.2.3"))),
+          )
+        ran   <- plugin.run(request).provideSome[Scope](invocation).either
+        props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
+        shown = ran.fold(_.message, _ => "ok")
+      yield assertTrue(shown == "ok", props.contains("version=9.9.9"))
+    },
+    test("the editor task can take the library ship note") {
+      val docs   = ProjectName("docs")
+      val plugin = Specular(Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").editorFromLibrary)
+      val inputs = plugin.contribute.tasks.flatMap(_.inputs)
+      assertTrue(inputs.contains(DeclaredInput.Note(docs, Site.libraryKey)))
     },
     test("a snapshot extension version is a dev prerelease") {
       val snapshot = EditorPackage.versionOf("0.21.3-SNAPSHOT")
@@ -190,6 +247,19 @@ object SpecularPluginSpec extends ZIOSpecDefault:
   private def classpathEntries: List[String] =
     propertyClasspath.map(_.toString)
 
+  private def resourceLines(name: String): List[String] =
+    val loader = classOf[Specular.type].getClassLoader
+    Option(loader.getResourceAsStream(name)) match
+      case None     => Nil
+      case Some(in) =>
+        try
+          new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+            .split("\n", -1)
+            .toList
+            .map(_.trim)
+            .filter(_.nonEmpty)
+        finally in.close()
+
   private def propertyClasspath: List[Path] =
     val raw = Option(java.lang.System.getProperty("java.class.path")).getOrElse("")
     raw
@@ -216,7 +286,12 @@ object ForkProbe:
     val name = property("specular.meta.name")
     Files.createDirectories(dir)
     Files.writeString(dir.resolve("wrote.txt"), "one")
-    Files.writeString(dir.resolve("props.txt"), s"basePath=$base\ndocsUrl=$docs\nname=$name\n")
+    val version = property("specular.meta.version")
+    val adapter = property("specular.meta.adapterVersion")
+    Files.writeString(
+      dir.resolve("props.txt"),
+      s"basePath=$base\ndocsUrl=$docs\nname=$name\nversion=$version\nadapter=$adapter\n",
+    )
 
   private def property(key: String): String =
     sys.props.get(key).map(_.trim).filter(_.nonEmpty).getOrElse("absent")

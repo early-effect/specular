@@ -21,11 +21,14 @@ A documentation page that can lie should fail the build.
     },
     cite[DocSpec](_.doc),
     md"""
-The library coordinate on Central is `0.21.3`. The Histos adapter is `specular-histos` `0.0.1`.
+Adopters depend on the published `specular` ship and on `specular-histos`. The coordinates
+below are the ships from the build that generated this page. The steps are on
+[Getting started](getting-started.html). `histos.wiring.scala`
+provides `Site`, and `wire[Specular]` calls `Specular.layer`.
 
 ```scala
-plugin(dep"rocks.earlyeffect::specular-histos:0.0.1")
-libraryDependencies += "rocks.earlyeffect" %% "specular-core" % "0.21.3"
+.plugins(PluginSources.ship(dep"rocks.earlyeffect::specular-histos:<specular-histos ship>"))
+dep"rocks.earlyeffect::specular-core:<specular ship>"
 ```
 """,
     md"""
@@ -86,8 +89,8 @@ Scala already has the ingredients Specular leans on:
 - **Types and compilers**: examples are not strings; they typecheck with your library.
 - **zio-test**: assertions you already trust in CI, not a docs-only checker.
 - **ascent**: the same Mount engine SSRs the snapshot and remounts interactives in the browser.
-- **Histos**: `specular-histos` injects project meta (`name`, `version`, `organization`, …) from
-  the `Site` you pass to `use`, so published sites stay in sync with the artifact you release.
+- **Histos**: `specular-histos` is a layer. The wiring provides `Site`, and `wire[Specular]`
+  calls `Specular.layer`, so published sites stay in sync with the artifact you release.
 
 If you document a ZIO or ascent library, dogfooding your own UI in the docs is a feature,
 not a distraction.
@@ -131,7 +134,7 @@ library**, **composable discovery for the org**.
 
 - Marketing sites with no executable examples
 - Huge narrative books where markdown + occasional snippets is enough
-- Non-sbt ecosystems (Specular's plugin and dogfood assume sbt today)
+- A build that is neither Histos nor sbt (those are the two adapters)
 
 If you are documenting a Scala 3 library and tired of fence rot, start with
 [Getting started](getting-started.html).

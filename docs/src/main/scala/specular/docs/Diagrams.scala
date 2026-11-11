@@ -5,7 +5,7 @@ import mermoid.ascent.MermoidAscent
 import specular.*
 import zio.test.*
 
-/** Figures these pages actually draw. mermoid 0.2.0 also parses `erDiagram`. There is no schema to draw. */
+/** Figures these pages actually draw. mermoid also parses `erDiagram`. There is no schema to draw. */
 object DocFigures:
 
   /** `DocSpec` on Compile, then the two interpreters: zio-test and the site build. */
@@ -76,16 +76,14 @@ placeholder, and the client passes the live element to a `Mounter`. `exampleDom`
 sample, with a source panel. Palette, width, and breakpoints are arguments to the tool, not
 theme tokens and not specular CSS.
 
-The figures below are [mermoid](https://www.earlyeffect.rocks/mermoid/specular-illustrations.html)
-0.2.0, a docs-only dependency of these pages. That release parses `flowchart`, `stateDiagram-v2`,
-`classDiagram`, `erDiagram`, and `sequenceDiagram`. `Mermaid("...")` parses the diagram at
-compile time, so a broken figure fails the build before it reaches a reader. There is no
-relational schema in specular, so this page does not draw an `erDiagram`.
+The figures below are [mermoid](https://www.earlyeffect.rocks/mermoid/specular-illustrations.html),
+a docs-only dependency of these pages. The coordinate is the `mermoid` value in `histos.scala`.
+It parses `flowchart`, `stateDiagram-v2`, `classDiagram`, `erDiagram`, and
+`sequenceDiagram`. `Mermaid("...")` parses the diagram at compile time, so a broken figure fails
+the build before it reaches a reader. There is no relational schema in specular, so this page
+does not draw an `erDiagram`.
 
 ```scala
-// the docs project, never a published module
-libraryDependencies += "rocks.earlyeffect" %%% "mermoid-ascent" % "0.2.0"
-
 illustration { MermoidAscent.diagram(Mermaid("flowchart LR\n  a --> b")) }
 
 illustrationDom("poster")

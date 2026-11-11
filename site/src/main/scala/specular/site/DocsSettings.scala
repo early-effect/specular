@@ -20,6 +20,8 @@ final case class DocsSettings(
     citeFormat: CiteFormat,
     /** `https://github.com/org/repo/blob/<rev>` when the build has a GitHub revision. Absent means no footer. */
     citeSourceBase: Option[String],
+    /** Ship revision of the Histos adapter, when the build passed that note. */
+    adapterVersion: Option[String],
 )
 
 object DocsSettings:
@@ -44,10 +46,11 @@ object DocsSettings:
   val config: Config[DocsSettings] =
     val site =
       (nonBlank("dir").map(_.map(Paths.get(_).nn)) ++ nonBlank("basePath") ++ nonBlank("parentHref")).nested("site")
-    val cite = (citeFormat ++ nonBlank("sourceBase")).nested("cite")
-    (ProjectMeta.config.nested("meta") ++ artifactKind.nested("meta") ++ site ++ cite)
-      .map { case (meta, kind, (dir, base, parent), (format, sourceBase)) =>
-        DocsSettings(meta, kind, dir, base, parent, format, sourceBase)
+    val cite    = (citeFormat ++ nonBlank("sourceBase")).nested("cite")
+    val adapter = nonBlank("adapterVersion").nested("meta")
+    (ProjectMeta.config.nested("meta") ++ artifactKind.nested("meta") ++ adapter ++ site ++ cite)
+      .map { case (meta, kind, adapterVersion, (dir, base, parent), (format, sourceBase)) =>
+        DocsSettings(meta, kind, dir, base, parent, format, sourceBase, adapterVersion)
       }
       .nested("specular")
 
