@@ -930,8 +930,8 @@ evict org.scala-lang scala3-library_sjs1_3 3.3.3 3.9.0
 evict org.scala-lang scala3-library_sjs1_3 3.3.6 3.9.0
 evict org.scala-lang scala3-library_sjs1_3 3.3.8 3.9.0
 cell specularHistos 3.10.0 jvm
-direct rocks.earlyeffect histos-api 0.2.7 binary
-artifact rocks.earlyeffect histos-api_3 0.2.7 3ad589afbefdbbaeeceae6c9e8b9eb94f4d843d7b45da18a2855fe327f1f769d central
+direct rocks.earlyeffect histos-api 0.2.8 binary
+artifact rocks.earlyeffect histos-api_3 0.2.8 55d9052bb5760473425e2efdaacbecc05d0f22dd811a7168670d54eb19881ce3 central
 artifact dev.zio zio_3 2.1.27 08633a13f88d4b7349bba1bce1eb5bdf69d9a89331721f397605449d5e783c20 central
 artifact dev.zio zio-internal-macros_3 2.1.27 b95c382830e74dd1ce5b43f646e1e77e265b642f23222439846dad41f856bfa1 central
 artifact dev.zio zio-stacktracer_3 2.1.27 ecdd5178029f9b85a0b3d5f8b475b42a680159ae1bad7ea64c5300f094908801 central
@@ -942,10 +942,10 @@ artifact org.scala-lang scala-library 2.13.18 4e85d96ff7bc7dc627985523c3541b9917
 artifact dev.zio izumi-reflect-thirdparty-boopickle-shaded_3 3.0.11 290f8a4b6d35b7de2150142a75252be4eb3fbdac8156b49ec6a13b2a884b9561 central
 evict org.scala-lang scala3-library_3 3.3.6 3.3.8
 test specularHistos 3.10.0 jvm
-direct rocks.earlyeffect histos-api 0.2.7 binary
+direct rocks.earlyeffect histos-api 0.2.8 binary
 direct dev.zio zio-test 2.1.27 binary
 direct dev.zio zio-test-sbt 2.1.27 binary
-artifact rocks.earlyeffect histos-api_3 0.2.7 3ad589afbefdbbaeeceae6c9e8b9eb94f4d843d7b45da18a2855fe327f1f769d central
+artifact rocks.earlyeffect histos-api_3 0.2.8 55d9052bb5760473425e2efdaacbecc05d0f22dd811a7168670d54eb19881ce3 central
 artifact dev.zio zio-test_3 2.1.27 6a9ae65b60c1882b21a4a5424981dc17aae24fa4c74918aa7ada7f2bd29c0369 central
 artifact dev.zio zio-test-sbt_3 2.1.27 169c96c829d462ca16b054570af26be3b5a8ca3ff47844aa801ccd880a600574 central
 artifact dev.zio zio_3 2.1.27 08633a13f88d4b7349bba1bce1eb5bdf69d9a89331721f397605449d5e783c20 central
