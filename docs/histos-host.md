@@ -1,6 +1,6 @@
 # Specular on Histos
 
-This repository builds with Histos 0.2.7. `build.properties` pins that release. `./histos` compiles, tests, and publishes. `sbt-specular` stays a published plugin for repositories that have not moved, and it does not depend on Histos.
+This repository builds with Histos. `build.properties` pins that release. `./histos` compiles, tests, and publishes. `sbt-specular` stays a published plugin for repositories that have not moved, and it does not depend on Histos.
 
 ## Ships
 
@@ -13,7 +13,7 @@ The numbers are the `Ship.next` rows in `histos.scala`. Everyday compiles append
 
 `docs`, `editor`, `editor-host`, and `editor-view` are not in a ship. `.docCheck` runs `./histos run doc` on the ship members. A scaladoc warning fails that job.
 
-`specular-histos` compiles with Scala 3.10.0, the compiler that produced `histos-api` 0.2.7. That dependency is compile-only. The adapter does not depend on `specular-site`. The module compiles against `histos-api` only, and that module is what the ship publishes, so the fork lives in the adapter. `sbt-specular` still calls `specular.site.SiteFork`. The other modules stay on Scala 3.9.0.
+`specular-histos` compiles with the Scala release named on that module in `histos.scala`, the compiler that produced the `histos-api` it depends on. That dependency is compile-only. The coordinate is in `histos.scala`. The adapter does not depend on `specular-site`. The module compiles against `histos-api` only, and that module is what the ship publishes, so the fork lives in the adapter. `sbt-specular` still calls `specular.site.SiteFork`. The other modules stay on their own Scala release in `histos.scala`.
 
 The dogfood build names the module with `PluginSources.module`. It does not depend on a published specular jar. `histos.wiring.scala` provides `Site` and `wire[Specular]`, and asks for the `library` and `adapter` notes. Those notes are the ship revisions, computed once from the `Ship.next` rows. Publish writes `META-INF/histos/version` into the binary jar. The source tree does not contain that file, and it does not contain `META-INF/histos/plugin`. Published `0.0.1` has neither a layer nor a version line, so this Histos does not load it.
 

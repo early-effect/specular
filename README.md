@@ -73,7 +73,7 @@ The dogfood site expands this story for adopters:
 
 specular is published to Maven Central under `rocks.earlyeffect`. The releases are the
 `Ship.next` rows in `histos.scala`. Histos does not derive them from git tags.
-`build.properties` pins the Histos toolchain at `0.2.7`.
+`build.properties` pins the Histos toolchain.
 
 The adapter is a ZIO service. `Specular.layer` requires `Site`. `histos.scala` names the
 coordinate and does not import `Specular`. `histos.wiring.scala`, at the repo root, provides
@@ -315,7 +315,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `site` | `specular-site` | Markdown → UI, SSR, themes, templates, `metadata.json`, JVM meta fetch |
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `sbt-specular` | `sbt-specular` | Published for repositories that still build with sbt. `specularSite` passes `-Dspecular.meta.*` from sbt keys |
-| `specularHistos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, named in `histos.scala`. Compile-only dependency on `histos-api` `0.2.7` |
+| `specularHistos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, named in `histos.scala`. Compile-only dependency on `histos-api`. The coordinate is in `histos.scala`. |
 | `docs` | (unpublished) | Dogfood site for specular itself |
 | `editor` | (unpublished) | Specular-aware editor: scan algebra and the Scala.js VS Code host |
 | `editorView` | (unpublished) | Ascent peek and mermaid source preview. Linked apart from the host so the webview never loads `vscode` |
@@ -335,7 +335,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 ./scripts/install-git-hooks                                # once per clone: pre-commit runs scalafmt
 ```
 
-`build.properties` pins Histos `0.2.7`. Ships are `Ship.next` in `histos.scala`. The edit loop is
+`build.properties` pins Histos. Ships are `Ship.next` in `histos.scala`. The edit loop is
 `./histos run dev.earlyeffect.specular/preview` once, then `./histos ~ run dev.earlyeffect.specular/site`.
 An sbt repository still uses `sbt docs/specularPreview`.
 

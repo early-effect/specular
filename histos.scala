@@ -123,7 +123,7 @@ object build extends HistosBuild:
       module("specularHistos", Jvm)(scala310)
         .in(path"specular-histos")
         .artifact(artifact"specular-histos")
-        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.2.8".compileOnly)
+        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.2.9".compileOnly)
     ).pipe(tested)
     Projects
       .organization(organization"rocks.earlyeffect")
