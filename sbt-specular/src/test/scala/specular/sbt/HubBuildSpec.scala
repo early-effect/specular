@@ -42,6 +42,7 @@ object HubBuildSpec extends ZIOSpecDefault:
       yield assertTrue(
         preview,
         built.code == 0,
+        !nested.log.contains("conflicting cross-version suffixes"),
         read(nestRoot.resolve("index.html")).contains("name=hub"),
         read(nestRoot.resolve("atlas").resolve("index.html")).contains("name=member-lib"),
         read(nestRoot.resolve("atlas").resolve("index.html")).contains("parent=../index.html"),
@@ -60,13 +61,11 @@ object HubBuildSpec extends ZIOSpecDefault:
 
   private def stage(repo: Path): Either[String, Unit] =
     for
-      core      <- classpathRoot("specular/DocPage.class")
-      site      <- classpathRoot("specular/site/SiteFork.class")
+      fork      <- classpathRoot("specular/fork/SiteFork.class")
       plugin    <- classpathRoot("specular/sbt/SpecularPlugin.class")
       resources <- classpathRoot("sbt/sbt.autoplugins")
     yield
-      writeModule(repo, "specular-core_3", core, corePom, Nil)
-      writeModule(repo, "specular-site_3", site, sitePom, Nil)
+      writeModule(repo, "specular-fork_3", fork, forkPom, Nil)
       writeModule(repo, "sbt-specular_sbt2_3", plugin, pluginPom, List(resources))
 
   private def classpathRoot(relative: String): Either[String, Path] =
@@ -119,41 +118,14 @@ object HubBuildSpec extends ZIOSpecDefault:
        |</project>
        |""".stripMargin
 
-  private def corePom: String =
-    pom(
-      "specular-core_3",
-      List(
-        dep("dev.zio", "zio_3", "2.1.27"),
-        dep("dev.zio", "zio-test_3", "2.1.27"),
-        dep("dev.zio", "zio-json_3", "1.1.0"),
-        dep(group, "ascent-core_3", "0.10.1"),
-        dep(group, "ascent-css_3", "0.10.1"),
-        dep("org.scalameta", "scalameta_3", "4.17.3"),
-        dep("org.scalameta", "scalafmt-core_3", "3.11.5"),
-        dep("org.scala-lang", "scala3-tasty-inspector_3", "3.9.0"),
-      ),
-    )
-
-  private def sitePom: String =
-    pom(
-      "specular-site_3",
-      List(
-        dep(group, "specular-core_3", version),
-        dep(group, "ascent-html_3", "0.10.0"),
-        dep(group, "ascent-preview_3", "0.11.1"),
-        dep(group, "heddle_3", "0.12.0"),
-        dep("org.commonmark", "commonmark", "0.30.0"),
-        dep("org.commonmark", "commonmark-ext-gfm-tables", "0.30.0"),
-        dep("org.scalameta", "scalafmt-core_3", "3.11.5"),
-        dep("org.scalameta", "scalameta_3", "4.17.3"),
-      ),
-    )
+  private def forkPom: String =
+    pom("specular-fork_3", Nil)
 
   private def pluginPom: String =
     pom(
       "sbt-specular_sbt2_3",
       List(
-        dep(group, "specular-site_3", version),
+        dep(group, "specular-fork_3", version),
         dep(group, "sbt-ascent-preview_sbt2_3", "0.11.1"),
       ),
     )
@@ -203,6 +175,7 @@ object HubBuildSpec extends ZIOSpecDefault:
       if raw.endsWith("/") then raw else s"$raw/"
     s"""resolvers += "fixture" at "$uri"
        |addSbtPlugin("$group" % "sbt-specular" % "$version")
+       |addSbtPlugin("ch.epfl.scala" % "sbt-debug-adapter" % "4.2.13")
        |""".stripMargin
 
   private def build(kind: String): String =

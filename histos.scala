@@ -3,7 +3,7 @@ import histos.plugin.{NoteKey, NoteText, PluginId}
 
 object build extends HistosBuild:
   def graph =
-    val library                                       = Ship("specular").next(0, 21, 4)
+    val library                                       = Ship("specular").next(0, 21, 5)
     val adapter                                       = Ship("specular-histos").next(0, 0, 2)
     val scala39                                       = scala"3.9.0"
     val scala310                                      = scala"3.10.1"
@@ -76,12 +76,17 @@ object build extends HistosBuild:
         .artifact(artifact"early-effect-docs-theme")
         .dependsOn(site)
     )
+    val fork = flagged(
+      module("fork", Jvm)(scala39)
+        .in(path"fork")
+        .artifact(artifact"specular-fork")
+    ).pipe(tested)
     val plugin = flagged(
       module("plugin", Jvm)(scala39)
         .in(path"sbt-specular")
         .artifact(artifact"sbt-specular")
         .sbtPlugin(sbt"2")
-        .dependsOn(site)
+        .dependsOn(fork)
         .libraryDependencies(
           dep"rocks.earlyeffect:sbt-ascent-preview_sbt2_3:0.11.1",
           dep"org.scala-sbt:sbt:2.1.0-RC1".compileOnly,
@@ -146,7 +151,7 @@ object build extends HistosBuild:
       .docCheck
       .plugins(PluginSources.module(specularHistos))(
         ships(
-          library(core, zioTestMod, site, eeDocsTheme, plugin),
+          library(core, zioTestMod, site, eeDocsTheme, fork, plugin),
           adapter(specularHistos),
         ),
         core,
@@ -154,6 +159,7 @@ object build extends HistosBuild:
         site,
         eeDocsTheme,
         docs,
+        fork,
         plugin,
         editor,
         editorHost,

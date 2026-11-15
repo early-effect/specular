@@ -6,9 +6,8 @@ import java.nio.file.{Files, Path}
 
 /** Why a forked site program stopped.
   *
-  * This is the same fork as `specular.site.SiteFork`. It lives in this tree because this module compiles against
-  * `histos-api` only, and this module is what `specular-histos` publishes. The sbt adapter keeps calling the copy in
-  * `specular-site`.
+  * This is a copy of `specular.fork.SiteFork`. It stays in this tree so `specular-histos` does not depend on the
+  * `specular` ship. The two ships publish on their own. The sbt plugin calls `specular.fork.SiteFork`.
   */
 enum SiteForkError:
   case NonZero(mainClass: String, code: Int)
@@ -91,8 +90,9 @@ object SiteFork:
       .name("specular-site-fork")
       .unstarted { () =>
         val reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))
-        try Iterator.continually(reader.readLine()).takeWhile(_ != null).foreach(emit)
-        finally reader.close()
+        val lines  = reader.lines()
+        try lines.forEach(emit(_))
+        finally lines.close()
       }
     worker.start()
     worker

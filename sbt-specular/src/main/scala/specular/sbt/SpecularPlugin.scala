@@ -6,7 +6,7 @@ import sbt.*
 import sbt.Keys.*
 import sbt.nio.Keys.{fileInputs, watchOnTermination}
 import sbt.nio.file.Glob
-import _root_.specular.site.{SiteFork, SiteForkError, SiteForkLog}
+import _root_.specular.fork.{SiteFork, SiteForkError, SiteForkLog}
 
 import java.nio.file.Path
 
