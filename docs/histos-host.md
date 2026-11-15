@@ -6,14 +6,14 @@ This repository builds with Histos. `build.properties` pins that release. `./his
 
 | Ship | Members |
 | --- | --- |
-| `specular` | `specular-core`, `specular-zio-test`, `specular-site`, `early-effect-docs-theme`, `sbt-specular` |
+| `specular` | `specular-core`, `specular-zio-test`, `specular-site`, `early-effect-docs-theme`, `specular-fork`, `sbt-specular` |
 | `specular-histos` | the Histos adapter |
 
 The numbers are the `Ship.next` rows in `histos.scala`. Everyday compiles append `-ci`. `./histos publish release` publishes the ship numbers. The generated release workflow sets `HISTOS_SESSION=release`.
 
 `docs`, `editor`, `editor-host`, and `editor-view` are not in a ship. `.docCheck` runs `./histos run doc` on the ship members. A scaladoc warning fails that job.
 
-`specular-histos` compiles with the Scala release named on that module in `histos.scala`, the compiler that produced the `histos-api` it depends on. That dependency is compile-only. The coordinate is in `histos.scala`. The adapter does not depend on `specular-site`. The module compiles against `histos-api` only, and that module is what the ship publishes, so the fork lives in the adapter. `sbt-specular` still calls `specular.site.SiteFork`. The other modules stay on their own Scala release in `histos.scala`.
+`specular-histos` compiles with the Scala release named on that module in `histos.scala`, the compiler that produced the `histos-api` it depends on. That dependency is compile-only. The coordinate is in `histos.scala`. The adapter does not depend on `specular-site` or `specular-fork`. The module compiles against `histos-api` only, and that module is what the ship publishes, so its fork stays in the adapter. `sbt-specular` depends on `specular-fork` and calls `specular.fork.SiteFork`. It does not depend on `specular-site`. The other modules stay on their own Scala release in `histos.scala`.
 
 The dogfood build names the module with `PluginSources.module`. It does not depend on a published specular jar. `histos.wiring.scala` provides `Site` and `wire[Specular]`, and asks for the `library` and `adapter` notes. Those notes are the ship revisions, computed once from the `Ship.next` rows. Publish writes `META-INF/histos/version` into the binary jar. The source tree does not contain that file, and it does not contain `META-INF/histos/plugin`. Published `0.0.1` has neither a layer nor a version line, so this Histos does not load it.
 

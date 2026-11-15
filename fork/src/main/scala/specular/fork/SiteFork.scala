@@ -1,4 +1,4 @@
-package specular.site
+package specular.fork
 
 import java.io.{BufferedReader, IOException, InputStream, InputStreamReader}
 import java.nio.charset.StandardCharsets
@@ -6,7 +6,8 @@ import java.nio.file.{Files, Path}
 
 /** Why a forked site program stopped.
   *
-  * The sbt adapter maps [[message]] back through `sys.error`. A Histos adapter maps it into `PluginRunError`.
+  * The sbt adapter maps [[message]] back through `sys.error`. The Histos adapter has its own copy of this fork and maps
+  * that copy into its own error.
   */
 enum SiteForkError:
   case NonZero(mainClass: String, code: Int)
@@ -90,8 +91,9 @@ object SiteFork:
       .name("specular-site-fork")
       .unstarted { () =>
         val reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))
-        try Iterator.continually(reader.readLine()).takeWhile(_ != null).foreach(emit)
-        finally reader.close()
+        val lines  = reader.lines()
+        try lines.forEach(emit(_))
+        finally lines.close()
       }
     worker.start()
     worker
