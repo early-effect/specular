@@ -6,9 +6,9 @@ import java.nio.file.{Files, Path}
 
 /** Why a forked site program stopped.
   *
-  * This is the same fork as `specular.site.SiteFork`. It lives in this tree because a path plugin compiles this
-  * directory against `histos-api` only, and that directory is also what `specular-histos` publishes. The sbt adapter
-  * keeps calling the copy in `specular-site`.
+  * This is the same fork as `specular.site.SiteFork`. It lives in this tree because this module compiles against
+  * `histos-api` only, and this module is what `specular-histos` publishes. The sbt adapter keeps calling the copy in
+  * `specular-site`.
   */
 enum SiteForkError:
   case NonZero(mainClass: String, code: Int)

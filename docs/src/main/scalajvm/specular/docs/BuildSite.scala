@@ -31,35 +31,42 @@ object BuildSite extends DocsSite:
 
   override def site(settings: DocsSettings): SiteModel =
     val version = settings.meta.docsVersion
+    val adapter = settings.adapterVersion.getOrElse("<specular-histos ship>")
     val org     = settings.meta.organization
     val branded = EarlyEffectTheme.brand(super.site(settings))
     branded.copy(
       nav = Some(siteNav),
-      pages = siteNav.pages,
+      pages = BuildSite.stamp(siteNav.pages, version, adapter),
       clientScript = Some("assets/client.js"),
       summaryMarkdown = Some("A documentation page that can lie should fail the build."),
       installSnippets = Vector(
         CodeSnippet(
           "Histos",
-          s"""plugin(dep"$org::specular-histos:0.0.1")
+          s"""// histos.scala names the published ship. It does not import Specular.
+.plugins(PluginSources.ship(dep"$org::specular-histos:$adapter"))
 
-use(Specular(
-  Site.forProject("docs", "com.example.docs.BuildSite")
-    .linkClient
-    .preview
-    .ci(SiteCi.Publish(SitePublish.Automatic)),
-))
+// histos.wiring.scala, repo root. Hide histos.plugin.Site.
+import dev.earlyeffect.specular.{Site, SiteCi, Specular}
+import histos.plugin.{Site as _, SitePublish, *}
+import zio.*
 
-// then
-./histos run dev.earlyeffect.specular/site""",
+object HistosWiring:
+  def layer =
+    ZLayer.succeed(site) >>> wire[Specular]
+
+  private val site =
+    Site.forProject("docs", "com.example.docs.BuildSite")
+      .linkClient
+      .preview
+      .ci(SiteCi.Publish(SitePublish.Automatic))""",
         ),
         CodeSnippet(
-          "Libraries (optional)",
-          s"""libraryDependencies ++= Seq(
-  "$org" %% "specular-core"     % "$version",
-  "$org" %% "specular-zio-test" % "$version",
-  "$org" %% "specular-site"     % "$version", // JVM
-)""",
+          "Docs module",
+          s""".libraryDependencies(
+  dep"$org::specular-core:$version",
+  dep"$org::specular-site:$version",
+)
+.testDependencies(dep"$org::specular-zio-test:$version")""",
         ),
       ),
     )
@@ -79,4 +86,17 @@ use(Specular(
         SiteError.WriteFailed(index, err)
       }
     promote *> EarlyEffectTheme.writeLogo(out)
+
+  /** The source keeps the tokens. Generation writes the ship revisions into the pages. */
+  private[docs] def stamp(pages: Vector[DocPage], library: String, adapter: String): Vector[DocPage] =
+    pages.map(page => page.copy(children = page.children.map(stampNode(library, adapter))))
+
+  private def stampNode(library: String, adapter: String)(node: DocNode): DocNode =
+    node match
+      case Prose(markdown)      => Prose(fill(markdown, library, adapter))
+      case Section(title, kids) => Section(title, kids.map(stampNode(library, adapter)))
+      case other                => other
+
+  private def fill(markdown: String, library: String, adapter: String): String =
+    markdown.replace("<specular-histos ship>", adapter).replace("<specular ship>", library)
 end BuildSite

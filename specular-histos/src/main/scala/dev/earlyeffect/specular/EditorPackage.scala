@@ -1,7 +1,7 @@
 package dev.earlyeffect.specular
 
 import histos.ProjectName
-import histos.plugin.*
+import histos.plugin.{Site as _, *}
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, StandardCopyOption}
@@ -16,39 +16,45 @@ import zio.{Scope, ZIO}
   * only for a release, and only when `upload` is set.
   */
 object EditorPackage:
-  val task: TaskName = TaskName("vsix")
-  val upload: FlagName = FlagName("upload")
+  val task: TaskName               = TaskName("vsix")
+  val upload: FlagName             = FlagName("upload")
   private val versionKey: InputKey = InputKey("version")
-  private val host = ProjectName("editorHost")
-  private val view = ProjectName("editorView")
+  private val host                 = ProjectName("editorHost")
+  private val view                 = ProjectName("editorView")
   private val vsixName: OutputName = OutputName("vsix")
-  private val vsixPath: RepoPath = RepoPath("target/specular-editor.vsix")
+  private val vsixPath: RepoPath   = RepoPath("target/specular-editor.vsix")
 
   final case class Version(semver: String, release: Boolean)
 
-  def taskSpec(version: Option[String]): Option[DeclaredTask] =
-    version.map: raw =>
-      DeclaredTask(
-      name = task,
-      seal = Seal.Open,
-      needs = Set.empty,
-      inputs = List(DeclaredInput.Text(versionKey, raw)),
-      outputs = List(DeclaredOutput(vsixName, vsixPath)),
-      dependsOn = List(TaskDep.Link(host, None), TaskDep.Link(view, None)),
-    )
+  def taskSpec(project: ProjectName, version: Option[String], fromLibrary: Boolean): Option[DeclaredTask] =
+    val inputs =
+      if fromLibrary then List(DeclaredInput.Note(project, Site.libraryKey))
+      else version.toList.map(raw => DeclaredInput.Text(versionKey, raw))
+    if inputs.isEmpty then None
+    else
+      Some(
+        DeclaredTask(
+          name = task,
+          seal = Seal.Open,
+          needs = Set.empty,
+          inputs = inputs,
+          outputs = List(DeclaredOutput(vsixName, vsixPath)),
+          dependsOn = List(TaskDep.Link(host, None), TaskDep.Link(view, None)),
+        )
+      )
 
-  def commands(version: Option[String]): List[CommandSpec] =
-    if version.isEmpty then Nil
+  def commands(enabled: Boolean): List[CommandSpec] =
+    if !enabled then Nil
     else
       List(
-      CommandSpec(CommandName("vsix"), Nil, task, PluginDetail("package the VS Code extension")),
-      CommandSpec(
-        CommandName("publishEditor"),
-        List(CliParam.Flag(upload)),
-        task,
-        PluginDetail("upload the VS Code extension"),
-      ),
-    )
+        CommandSpec(CommandName("vsix"), Nil, task, PluginDetail("package the VS Code extension")),
+        CommandSpec(
+          CommandName("publishEditor"),
+          List(CliParam.Flag(upload)),
+          task,
+          PluginDetail("upload the VS Code extension"),
+        ),
+      )
 
   def run(request: RunRequest): ZIO[Scope, PluginRunError, PluginOutput] =
     ZIO.fromEither(plan(request)).flatMap(write(request, _))
@@ -57,7 +63,7 @@ object EditorPackage:
     if release.matches(raw) then Right(Version(raw, true))
     else
       base.findPrefixOf(raw) match
-        case None => Left(s"cannot derive an extension version from $raw")
+        case None       => Left(s"cannot derive an extension version from $raw")
         case Some(stem) =>
           val rest = raw.stripPrefix(stem).dropWhile(char => char == '+' || char == '-')
           Right(Version(s"$stem-dev.${sanitize(rest)}", false))
@@ -78,22 +84,24 @@ object EditorPackage:
     val repo  = request.repo
     val stage = repo.resolve("target").resolve("vsix-stage")
     val vsix  = repo.resolve("target").resolve("specular-editor.vsix")
-    ZIO.attemptBlockingInterrupt {
-      stageOf(repo, stage, vsix, planned)
-      val packaged = List(
-        "npx",
-        "--yes",
-        "@vscode/vsce",
-        "package",
-        "--no-dependencies",
-        "--no-rewrite-relative-links",
-        "--out",
-        vsix.toAbsolutePath.toString,
-      ) ++ (if planned.version.release then Nil else List("--pre-release"))
-      command(stage, packaged).flatMap { _ =>
-        if planned.upload then publishRegistries(repo.resolve("target"), vsix) else Right(())
+    ZIO
+      .attemptBlockingInterrupt {
+        stageOf(repo, stage, vsix, planned)
+        val packaged = List(
+          "npx",
+          "--yes",
+          "@vscode/vsce",
+          "package",
+          "--no-dependencies",
+          "--no-rewrite-relative-links",
+          "--out",
+          vsix.toAbsolutePath.toString,
+        ) ++ (if planned.version.release then Nil else List("--pre-release"))
+        command(stage, packaged).flatMap { _ =>
+          if planned.upload then publishRegistries(repo.resolve("target"), vsix) else Right(())
+        }
       }
-    }.mapError(thrown => PluginRunError.Defect(thrown.getClass.getName))
+      .mapError(thrown => PluginRunError.Defect(thrown.getClass.getName))
       .flatMap(outcome => ZIO.fromEither(outcome.left.map(refuse).map(_ => written)))
 
   private def stageOf(repo: Path, stage: Path, vsix: Path, planned: Planned): Unit =
@@ -103,7 +111,11 @@ object EditorPackage:
     Files.copy(planned.webview, stage.resolve("out").resolve("webview.js"), StandardCopyOption.REPLACE_EXISTING)
     copyTree(repo.resolve("editor").resolve("syntaxes"), stage.resolve("syntaxes"))
     copyTree(repo.resolve("editor").resolve("media"), stage.resolve("media"))
-    Files.copy(repo.resolve("editor").resolve("README.md"), stage.resolve("README.md"), StandardCopyOption.REPLACE_EXISTING)
+    Files.copy(
+      repo.resolve("editor").resolve("README.md"),
+      stage.resolve("README.md"),
+      StandardCopyOption.REPLACE_EXISTING,
+    )
     Files.copy(repo.resolve("LICENSE"), stage.resolve("LICENSE"), StandardCopyOption.REPLACE_EXISTING)
     val json = Files.readString(repo.resolve("editor").resolve("package.json"))
     Files.writeString(stage.resolve("package.json"), stamp(json, planned.version.semver))
@@ -119,9 +131,11 @@ object EditorPackage:
       case None         => Left(refuse(s"${module.value} link is not on the run request"))
 
   private def text(request: RunRequest): Either[PluginRunError, String] =
-    request.inputs.collectFirst:
+    val noted = request.inputs.collectFirst:
+      case MaterialInput.Note(_, key, value) if key == Site.libraryKey => value.value
+    val fixed = request.inputs.collectFirst:
       case MaterialInput.Text(key, value) if key == versionKey => value
-    match
+    noted.orElse(fixed) match
       case Some(value) => Right(value)
       case None        => Left(refuse("the editor version is not on the task"))
 
@@ -170,7 +184,7 @@ object EditorPackage:
 
   private def deleteTree(root: Path): Unit =
     if Files.exists(root) then
-      val walk = Files.walk(root)
+      val walk  = Files.walk(root)
       val paths =
         try walk.iterator.asScala.toList
         finally walk.close()
@@ -191,7 +205,7 @@ object EditorPackage:
     val parts = raw.split("[^0-9A-Za-z]+").filter(_.nonEmpty).map { part =>
       if part.forall(_.isDigit) then
         part.dropWhile(_ == '0') match
-          case ""    => "0"
+          case ""     => "0"
           case number => number
       else part.toLowerCase
     }
