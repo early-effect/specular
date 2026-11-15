@@ -3,10 +3,10 @@ import histos.plugin.{NoteKey, NoteText, PluginId}
 
 object build extends HistosBuild:
   def graph =
-    val library                                       = Ship("specular").next(0, 21, 3)
+    val library                                       = Ship("specular").next(0, 21, 4)
     val adapter                                       = Ship("specular-histos").next(0, 0, 2)
     val scala39                                       = scala"3.9.0"
-    val scala310                                      = scala"3.10.0"
+    val scala310                                      = scala"3.10.1"
     val zio                                           = dep"dev.zio::zio:2.1.27"
     val zioTest                                       = dep"dev.zio::zio-test:2.1.27"
     val zioSbt                                        = dep"dev.zio::zio-test-sbt:2.1.27"
@@ -123,7 +123,7 @@ object build extends HistosBuild:
       module("specularHistos", Jvm)(scala310)
         .in(path"specular-histos")
         .artifact(artifact"specular-histos")
-        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.2.9".compileOnly)
+        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.4.3".compileOnly)
     ).pipe(tested)
     Projects
       .organization(organization"rocks.earlyeffect")

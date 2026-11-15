@@ -111,7 +111,7 @@ object SpecularPluginSpec extends ZIOSpecDefault:
         plugin = bare
         repo   <- ZIO.attempt(Files.createTempDirectory("specular-histos-run").nn)
         failed <- plugin
-          .run(PluginFixture.request(plugin.id, TaskName("site"), repo))
+          .run(runRequest(plugin.id, TaskName("site"), repo))
           .provideSome[Scope](invocation)
           .flip
         wrote = Files.exists(repo.resolve("target/site/index.html"))
@@ -167,15 +167,13 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       for
         repo <- ZIO.attempt(Files.createTempDirectory("specular-histos-ships").nn)
         cell    = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
-        request = PluginFixture
-          .request(plugin.id, TaskName("site"), repo, modules = List(ModuleView(docs, "docs", Nil)))
-          .copy(
-            compiled = List(cell),
-            inputs = List(
-              MaterialInput.Note(docs, Site.libraryKey, NoteText("1.2.3")),
-              MaterialInput.Note(docs, Site.adapterKey, NoteText("4.5.6")),
-            ),
-          )
+        request = runRequest(plugin.id, TaskName("site"), repo, List(ModuleView(docs, "docs", Nil))).copy(
+          compiled = List(cell),
+          inputs = List(
+            MaterialInput.Note(docs, Site.libraryKey, NoteText("1.2.3")),
+            MaterialInput.Note(docs, Site.adapterKey, NoteText("4.5.6")),
+          ),
+        )
         ran   <- plugin.run(request).provideSome[Scope](invocation).either
         props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
         shown = ran.fold(_.message, _ => "ok")
@@ -189,12 +187,10 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       for
         repo <- ZIO.attempt(Files.createTempDirectory("specular-histos-explicit").nn)
         cell    = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
-        request = PluginFixture
-          .request(plugin.id, TaskName("site"), repo, modules = List(ModuleView(docs, "docs", Nil)))
-          .copy(
-            compiled = List(cell),
-            inputs = List(MaterialInput.Note(docs, Site.libraryKey, NoteText("1.2.3"))),
-          )
+        request = runRequest(plugin.id, TaskName("site"), repo, List(ModuleView(docs, "docs", Nil))).copy(
+          compiled = List(cell),
+          inputs = List(MaterialInput.Note(docs, Site.libraryKey, NoteText("1.2.3"))),
+        )
         ran   <- plugin.run(request).provideSome[Scope](invocation).either
         props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
         shown = ran.fold(_.message, _ => "ok")
@@ -230,12 +226,18 @@ object SpecularPluginSpec extends ZIOSpecDefault:
 
   private def paired(scope: Scope): PluginScopes = paired(scope, scope)
 
+  private def runRequest(
+      id: PluginId,
+      task: TaskName,
+      repo: Path,
+      modules: List[ModuleView] = Nil,
+  ): RunRequest =
+    RunRequest(PluginTaskId(id, task), repo, modules, PluginArgs.empty, Nil)
+
   private def request(repo: Path, classpath: Boolean = false): RunRequest =
     val docs = ProjectName("docs")
     val cell = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, if classpath then testClasspath else Nil)
-    PluginFixture
-      .request(bare.id, TaskName("site"), repo, modules = List(ModuleView(docs, "docs", Nil)))
-      .copy(compiled = List(cell))
+    runRequest(bare.id, TaskName("site"), repo, List(ModuleView(docs, "docs", Nil))).copy(compiled = List(cell))
 
   private def read(path: Path): String =
     if Files.exists(path) then Files.readString(path) else "missing"
