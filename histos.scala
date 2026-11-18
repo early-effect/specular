@@ -1,10 +1,12 @@
+import dev.earlyeffect.specular.{Site, SiteCi, Specular}
 import histos.*
-import histos.plugin.{NoteKey, NoteText, PluginId}
+import histos.plugin.{BuildServices, NoteKey, NoteText, PluginId, Site as _, SitePublish}
+import zio.*
 
 object build extends HistosBuild:
   def graph =
     val library                                       = Ship("specular").next(0, 21, 5)
-    val adapter                                       = Ship("specular-histos").next(0, 0, 2)
+    val adapter                                       = Ship("specular-histos").next(0, 0, 3)
     val scala39                                       = scala"3.9.0"
     val scala310                                      = scala"3.10.1"
     val zio                                           = dep"dev.zio::zio:2.1.27"
@@ -128,7 +130,8 @@ object build extends HistosBuild:
       module("specularHistos", Jvm)(scala310)
         .in(path"specular-histos")
         .artifact(artifact"specular-histos")
-        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.4.3".compileOnly)
+        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.5.0-a91069ce8ed2-SNAPSHOT".compileOnly)
+        .pluginLibrary
     ).pipe(tested)
     Projects
       .organization(organization"rocks.earlyeffect")
@@ -148,8 +151,7 @@ object build extends HistosBuild:
       .url(url"https://github.com/early-effect/specular")
       .runnerTools(RunnerTools(Some(NodeFloor(25)), None, None))
       .locked
-      .docCheck
-      .plugins(PluginSources.module(specularHistos))(
+      .docCheck(
         ships(
           library(core, zioTestMod, site, eeDocsTheme, fork, plugin),
           adapter(specularHistos),
@@ -166,6 +168,29 @@ object build extends HistosBuild:
         editorView,
         specularHistos,
       )
+
+  override def services =
+    BuildServices.default
+      .add[Specular](ZLayer.succeed(site) >>> Specular.layer)
+      .tasks[Specular](ZLayer.succeed(site) >>> Specular.layer)
+
+  private val site =
+    Site
+      .forProject("docs", "specular.docs.BuildSite")
+      .basePath("/specular")
+      .docsUrl("https://early-effect.github.io/specular/")
+      .name("specular")
+      .organization("rocks.earlyeffect")
+      .title("Specular")
+      .description("Code-first tests-as-docs site generator for Scala.")
+      .homepage("https://github.com/early-effect/specular")
+      .artifactKind("plugin")
+      .linkClient
+      .preview
+      .libraryShip
+      .adapterShip
+      .editorFromLibrary
+      .ci(SiteCi.Publish(SitePublish.Automatic))
 
   /** A ship revision is one line. `not-a-ship` is the branch a revision cannot take. */
   private def shipNote(revision: String): NoteText =
