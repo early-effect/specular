@@ -2,7 +2,7 @@ import histos.*
 import histos.plugin.*
 
 object plugins extends HistosPlugins:
-  private val histosApi = dep"rocks.earlyeffect::histos-api:0.5.0-a91069ce8ed2-SNAPSHOT"
+  private val histosApi = dep"rocks.earlyeffect::histos-api:0.5.0-e9863bba6f6b-SNAPSHOT"
 
   val specularHistos =
     module("specularHistos", Jvm)(scala"3.10.1")
