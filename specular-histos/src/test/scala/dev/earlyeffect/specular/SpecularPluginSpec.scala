@@ -1,5 +1,6 @@
 package dev.earlyeffect.specular
 
+import histos.lock.ExecutionKind
 import histos.plugin.{Site as _, *}
 import histos.{Jvm, ProjectName, ScalaVersion}
 
@@ -232,7 +233,23 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       repo: Path,
       modules: List[ModuleView] = Nil,
   ): RunRequest =
-    RunRequest(PluginTaskId(id, task), repo, modules, PluginArgs.empty, Nil)
+    val taskId = PluginTaskId(id, task)
+    RunRequest(
+      taskId,
+      repo,
+      modules,
+      PluginArgs.empty,
+      Nil,
+      InvocationContext(
+        id = InvocationId.derive("site"),
+        client = ClientId("specular"),
+        command = CommandIdentity.Task(taskId),
+        execution = ExecutionKind.Local,
+        interaction = Interaction.Offers,
+        offline = OfflineSelection.Online,
+      ),
+      PluginEvents.closedInvocation,
+    )
 
   private def request(repo: Path, classpath: Boolean = false): RunRequest =
     val docs = ProjectName("docs")

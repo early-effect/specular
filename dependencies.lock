@@ -949,8 +949,8 @@ evict org.scala-lang scala3-library_sjs1_3 3.3.3 3.9.0
 evict org.scala-lang scala3-library_sjs1_3 3.3.6 3.9.0
 evict org.scala-lang scala3-library_sjs1_3 3.3.8 3.9.0
 cell specularHistos 3.10.1 jvm
-direct rocks.earlyeffect histos-api 0.4.3 binary
-artifact rocks.earlyeffect histos-api_3 0.4.3 2047ccfe8261767fa912b4713557285b739557879e31e548021558e52ca23332 central
+direct rocks.earlyeffect histos-api 0.5.0-003ce4864e3d-SNAPSHOT binary
+artifact rocks.earlyeffect histos-api_3 0.5.0-003ce4864e3d-SNAPSHOT 5b3c52a9e9528df345bb61e7381db0dd1e8f3b5752282e405bdb0991e798e886 maven:https://central.sonatype.com/repository/maven-snapshots/
 artifact dev.zio zio_3 2.1.27 08633a13f88d4b7349bba1bce1eb5bdf69d9a89331721f397605449d5e783c20 central
 artifact dev.zio zio-internal-macros_3 2.1.27 b95c382830e74dd1ce5b43f646e1e77e265b642f23222439846dad41f856bfa1 central
 artifact dev.zio zio-stacktracer_3 2.1.27 ecdd5178029f9b85a0b3d5f8b475b42a680159ae1bad7ea64c5300f094908801 central
@@ -961,10 +961,10 @@ artifact org.scala-lang scala-library 2.13.18 4e85d96ff7bc7dc627985523c3541b9917
 artifact dev.zio izumi-reflect-thirdparty-boopickle-shaded_3 3.0.11 290f8a4b6d35b7de2150142a75252be4eb3fbdac8156b49ec6a13b2a884b9561 central
 evict org.scala-lang scala3-library_3 3.3.6 3.3.8
 test specularHistos 3.10.1 jvm
-direct rocks.earlyeffect histos-api 0.4.3 binary
+direct rocks.earlyeffect histos-api 0.5.0-003ce4864e3d-SNAPSHOT binary
 direct dev.zio zio-test 2.1.27 binary
 direct dev.zio zio-test-sbt 2.1.27 binary
-artifact rocks.earlyeffect histos-api_3 0.4.3 2047ccfe8261767fa912b4713557285b739557879e31e548021558e52ca23332 central
+artifact rocks.earlyeffect histos-api_3 0.5.0-003ce4864e3d-SNAPSHOT 5b3c52a9e9528df345bb61e7381db0dd1e8f3b5752282e405bdb0991e798e886 maven:https://central.sonatype.com/repository/maven-snapshots/
 artifact dev.zio zio-test_3 2.1.27 6a9ae65b60c1882b21a4a5424981dc17aae24fa4c74918aa7ada7f2bd29c0369 central
 artifact dev.zio zio-test-sbt_3 2.1.27 169c96c829d462ca16b054570af26be3b5a8ca3ff47844aa801ccd880a600574 central
 artifact dev.zio zio_3 2.1.27 08633a13f88d4b7349bba1bce1eb5bdf69d9a89331721f397605449d5e783c20 central
@@ -985,6 +985,7 @@ root org.scala-lang scala3-compiler_3 3.10.1 closure build
 root org.scala-lang scala3-sbt-bridge 3.10.1 closure build
 root org.jline jline-reader 4.3.1 closure build
 root org.jline jline-terminal-jni 4.3.1 closure build
+resolver ivy-local
 resolver maven:https://central.sonatype.com/repository/maven-snapshots/
 resolver central
 artifact org.scala-lang scala3-compiler_3 3.10.1 786e93def1988c1c59d6348d335333f3624cfaee0d4191cbcc9040b46aa11992 central
@@ -1017,6 +1018,7 @@ root org.scala-lang scala3-compiler_3 3.9.0 closure build
 root org.scala-lang scala3-sbt-bridge 3.9.0 closure build
 root org.jline jline-reader 4.3.1 closure build
 root org.jline jline-terminal-jni 4.3.1 closure build
+resolver ivy-local
 resolver maven:https://central.sonatype.com/repository/maven-snapshots/
 resolver central
 artifact org.scala-lang scala3-compiler_3 3.9.0 3e2c09a5ca6cef17a55f2f66e123815f9c4ea061fce20d0e9d2371989405a61a central
@@ -1046,6 +1048,7 @@ root org.scala-lang scala-library 2.13.18 closure build
 root org.scala-lang scala-compiler 2.13.18 closure build
 root org.scala-lang scala-reflect 2.13.18 closure build
 root org.scala-lang scala2-sbt-bridge 2.13.18 closure build
+resolver ivy-local
 resolver maven:https://central.sonatype.com/repository/maven-snapshots/
 resolver central
 artifact org.scala-lang scala-library 2.13.18 4e85d96ff7bc7dc627985523c3541b9917aaa08e956391380c42db21a2c4e5a0 central
@@ -1056,6 +1059,7 @@ artifact io.github.java-diff-utils java-diff-utils 4.16 620403030d676a4a27f780a3
 artifact org.jline jline 3.29.0 ed2680487642df95379f220c09c0f77e25095713387e2bc00c2d6581bb79c804 central jdk8
 tool semanticdb 2.13.18 jvm
 root org.scalameta semanticdb-scalac_2.13.18 4.17.3 closure build
+resolver ivy-local
 resolver maven:https://central.sonatype.com/repository/maven-snapshots/
 resolver central
 artifact org.scalameta semanticdb-scalac_2.13.18 4.17.3 3aa0687e564957303f87c31388ec133d5a1002a842a065cd96f5ebcec3ca8e6a central
@@ -1067,6 +1071,7 @@ root org.scala-lang scala3-library_sjs1_3 3.9.0 single build
 root org.scala-js scalajs-library_2.13 1.22.0 single build
 root org.scala-js scalajs-scalalib_2.13 3.9.0 single build
 root org.scala-js scalajs-javalib 1.22.0 single build
+resolver ivy-local
 resolver maven:https://central.sonatype.com/repository/maven-snapshots/
 resolver central
 artifact org.scala-lang scala-library 3.9.0 b844bf6fb3080c73df6b9c523b7a69b9ef4a980bb15e5c37c35443d1d0b0e0cd central
@@ -1079,6 +1084,7 @@ evict org.scala-js scalajs-scalalib_2.13 2.13.18+1.22.0 3.9.0
 evict org.scala-lang scala-library 2.13.18 3.9.0
 tool jslinker 2.13.18 js:1.22.0
 root org.scala-js scalajs-linker_2.13 1.22.0 closure build
+resolver ivy-local
 resolver maven:https://central.sonatype.com/repository/maven-snapshots/
 resolver central
 artifact org.scala-js scalajs-linker_2.13 1.22.0 095d634f6472593872b84c2c8b91177a9c775fc2090cfcc3461f4f4e5b92f13d central
@@ -1092,6 +1098,7 @@ evict org.scala-lang scala-library 2.13.15 2.13.18
 evict org.scala-lang scala-library 2.13.2 2.13.18
 tool jsenvironment 2.13.18 node
 root org.scala-js scalajs-env-nodejs_2.13 1.6.0 closure build
+resolver ivy-local
 resolver maven:https://central.sonatype.com/repository/maven-snapshots/
 resolver central
 artifact org.scala-js scalajs-env-nodejs_2.13 1.6.0 fe71f3ffe1a173e0845894bade0c6bd8428e4e119485485de0ae02cfcf7c1ba3 central
@@ -1109,6 +1116,7 @@ tool jssuite 2.13.18 suite:1.22.0:node
 root org.scala-js scalajs-env-nodejs_2.13 1.6.0 closure build
 root org.scala-js scalajs-linker_2.13 1.22.0 closure build
 root org.scala-js scalajs-sbt-test-adapter_2.13 1.22.0 closure build
+resolver ivy-local
 resolver maven:https://central.sonatype.com/repository/maven-snapshots/
 resolver central
 artifact org.scala-js scalajs-env-nodejs_2.13 1.6.0 fe71f3ffe1a173e0845894bade0c6bd8428e4e119485485de0ae02cfcf7c1ba3 central
@@ -1134,6 +1142,7 @@ evict org.scala-lang scala-library 2.13.15 2.13.18
 evict org.scala-lang scala-library 2.13.2 2.13.18
 tool jstestbridge 2.13.18 js:1.22.0
 root org.scala-js scalajs-test-bridge_2.13 1.22.0 single build
+resolver ivy-local
 resolver maven:https://central.sonatype.com/repository/maven-snapshots/
 resolver central
 artifact org.scala-js scalajs-test-bridge_2.13 1.22.0 bcf08131cf2db3c8a51491591325f96bc95d2c527ddeee195a4f38c7f5ce8897 central
