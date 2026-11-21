@@ -333,7 +333,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 ./histos publishLocal                                      # install each ship's -ci coordinate locally
 ./histos publish release                                   # both ships, when you mean to release
 ./histos workflow --check                                  # generated workflows match the graph
-./scripts/install-git-hooks                                # once per clone: pre-commit runs scalafmt
+./scripts/install-git-hooks                                # once per clone: pre-commit runs scalafmt, commit-msg rejects agent attribution
 ```
 
 `build.properties` pins Histos. Ships are `Ship.next` in `histos.scala`. The edit loop is
