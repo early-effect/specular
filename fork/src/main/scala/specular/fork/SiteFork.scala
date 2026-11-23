@@ -4,10 +4,11 @@ import java.io.{BufferedReader, IOException, InputStream, InputStreamReader}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
+import zio.{IO, UIO, ZIO}
+
 /** Why a forked site program stopped.
   *
-  * The sbt adapter maps [[message]] back through `sys.error`. The Histos adapter has its own copy of this fork and maps
-  * that copy into its own error.
+  * The sbt plugin is the one caller that blocks on [[SiteFork.run]]. Every other caller stays in ZIO.
   */
 enum SiteForkError:
   case NonZero(mainClass: String, code: Int)
@@ -33,11 +34,14 @@ object SiteForkLog:
     def info(line: String): Unit  = ()
     def error(line: String): Unit = ()
 
-/** Fork the site program. No sbt type and no Histos type.
+/** Fork the site program. No sbt type.
   *
   * `jvmOptions` are the JDK flags and the `-Dspecular.*` properties, including `specular.site.port` when serving.
   * `arguments` are the program arguments. The build passes none. Serve passes the port and the site directory. After a
   * zero exit, `siteDirectory` must exist.
+  *
+  * Both pipes are read by scoped fibers while the process runs, so a full pipe cannot stall it. The fibers end with the
+  * scope. Interrupt destroys the process and every descendant, which closes the pipes.
   */
 object SiteFork:
   final case class Request(
@@ -48,32 +52,59 @@ object SiteFork:
       siteDirectory: Path,
   )
 
-  def run(request: Request, log: SiteForkLog): Either[SiteForkError, Unit] =
+  def run(request: Request, log: SiteForkLog): IO[SiteForkError, Unit] =
     execute(request, log).flatMap: code =>
-      if code != 0 then Left(SiteForkError.NonZero(request.mainClass, code))
-      else if !Files.isDirectory(request.siteDirectory) then
-        Left(SiteForkError.MissingDirectory(request.mainClass, request.siteDirectory))
-      else Right(())
+      if code != 0 then ZIO.fail(SiteForkError.NonZero(request.mainClass, code))
+      else
+        ZIO
+          .attemptBlocking(Files.isDirectory(request.siteDirectory))
+          .orElseSucceed(false)
+          .flatMap:
+            case true  => ZIO.unit
+            case false => ZIO.fail(SiteForkError.MissingDirectory(request.mainClass, request.siteDirectory))
 
-  private def execute(request: Request, log: SiteForkLog): Either[SiteForkError, Int] =
-    val builder = new java.lang.ProcessBuilder(command(request)*)
-    try
-      val process = builder.start().nn
-      val out     = drain(process.getInputStream.nn, log.info)
-      val err     = drain(process.getErrorStream.nn, log.error)
-      try
-        val code = process.waitFor()
-        out.join()
-        err.join()
-        Right(code)
-      catch
-        case _: InterruptedException =>
-          val _ = process.destroyForcibly()
-          out.interrupt()
-          err.interrupt()
-          Thread.currentThread.interrupt()
-          Left(SiteForkError.Interrupted(request.mainClass))
-    catch case cause: IOException => Left(SiteForkError.Launch(request.mainClass, cause))
+  private def execute(request: Request, log: SiteForkLog): IO[SiteForkError, Int] =
+    ZIO.scoped {
+      for
+        process <- ZIO.acquireRelease(launch(request))(destroy)
+        out     <- read(process.getInputStream.nn, log.info).forkScoped
+        err     <- read(process.getErrorStream.nn, log.error).forkScoped
+        code    <- ZIO
+          .attemptBlockingInterrupt(process.waitFor())
+          .refineToOrDie[IOException]
+          .mapError(SiteForkError.Launch(request.mainClass, _))
+        _ <- out.join
+        _ <- err.join
+      yield code
+    }
+
+  private def read(input: InputStream, emit: String => Unit): UIO[Unit] =
+    val reader          = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8))
+    def step: UIO[Unit] =
+      ZIO
+        .attemptBlockingInterrupt(Option(reader.readLine()))
+        .orElseSucceed(None)
+        .flatMap:
+          case None       => ZIO.unit
+          case Some(line) =>
+            ZIO.succeed(emit(line)) *> step
+    step.ensuring(ZIO.attemptBlocking(reader.close()).ignore)
+
+  private def launch(request: Request): IO[SiteForkError, Process] =
+    ZIO
+      .attemptBlocking(new java.lang.ProcessBuilder(command(request)*).start().nn)
+      .refineToOrDie[IOException]
+      .mapError(SiteForkError.Launch(request.mainClass, _))
+
+  /** Descendants first. A grandchild that inherited a pipe keeps that pipe open after this process has exited. */
+  private def destroy(process: Process): UIO[Unit] =
+    ZIO.attemptBlocking {
+      val handle = process.toHandle.nn
+      handle.descendants().nn.forEach { child =>
+        val _ = child.nn.destroyForcibly()
+      }
+      process.destroyForcibly()
+    }.ignore
 
   private def command(request: Request): List[String] =
     val classpath = request.classpath.map(_.toAbsolutePath.normalize.toString).mkString(java.io.File.pathSeparator)
@@ -82,19 +113,4 @@ object SiteFork:
   private def javaExecutable: String =
     val home = sys.props.get("java.home").filter(_.nonEmpty).fold(Path.of("."))(Path.of(_))
     home.resolve("bin").resolve("java").toString
-
-  /** Read the pipe on another thread. `waitFor` before the pipe is drained deadlocks the child. */
-  private def drain(stream: InputStream, emit: String => Unit): Thread =
-    val worker = Thread
-      .ofPlatform()
-      .daemon(true)
-      .name("specular-site-fork")
-      .unstarted { () =>
-        val reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))
-        val lines  = reader.lines()
-        try lines.forEach(emit(_))
-        finally lines.close()
-      }
-    worker.start()
-    worker
 end SiteFork

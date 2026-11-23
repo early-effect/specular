@@ -82,6 +82,7 @@ object build extends HistosBuild:
       module("fork", Jvm)(scala39)
         .in(path"fork")
         .artifact(artifact"specular-fork")
+        .libraryDependencies(zio)
     ).pipe(tested)
     val plugin = flagged(
       module("plugin", Jvm)(scala39)
@@ -92,6 +93,7 @@ object build extends HistosBuild:
         .libraryDependencies(
           dep"rocks.earlyeffect:sbt-ascent-preview_sbt2_3:0.11.1",
           dep"org.scala-sbt:sbt:2.1.0-RC1".compileOnly,
+          zio,
         )
     ).pipe(tested)
     val docs = flagged(
@@ -150,7 +152,6 @@ object build extends HistosBuild:
       .description(pom"Code-first tests-as-docs site generator for Scala.")
       .url(url"https://github.com/early-effect/specular")
       .runnerTools(RunnerTools(Some(NodeFloor(25)), None, None))
-      .locked
       .docCheck(
         ships(
           library(core, zioTestMod, site, eeDocsTheme, fork, plugin),

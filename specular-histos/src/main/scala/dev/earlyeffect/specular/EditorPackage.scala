@@ -1,9 +1,8 @@
 package dev.earlyeffect.specular
 
 import histos.ProjectName
-import histos.plugin.{Site as _, *}
+import histos.plugin.{Program, Site as _, *}
 
-import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, StandardCopyOption}
 
 import scala.jdk.CollectionConverters.*
@@ -84,25 +83,21 @@ object EditorPackage:
     val repo  = request.repo
     val stage = repo.resolve("target").resolve("vsix-stage")
     val vsix  = repo.resolve("target").resolve("specular-editor.vsix")
-    ZIO
-      .attemptBlockingInterrupt {
-        stageOf(repo, stage, vsix, planned)
-        val packaged = List(
-          "npx",
-          "--yes",
-          "@vscode/vsce",
-          "package",
-          "--no-dependencies",
-          "--no-rewrite-relative-links",
-          "--out",
-          vsix.toAbsolutePath.toString,
-        ) ++ (if planned.version.release then Nil else List("--pre-release"))
-        command(stage, packaged).flatMap { _ =>
-          if planned.upload then publishRegistries(repo.resolve("target"), vsix) else Right(())
-        }
-      }
-      .mapError(thrown => PluginRunError.Defect(thrown.getClass.getName))
-      .flatMap(outcome => ZIO.fromEither(outcome.left.map(refuse).map(_ => written)))
+    val packaged = List(
+      "npx",
+      "--yes",
+      "@vscode/vsce",
+      "package",
+      "--no-dependencies",
+      "--no-rewrite-relative-links",
+      "--out",
+      vsix.toAbsolutePath.toString,
+    ) ++ (if planned.version.release then Nil else List("--pre-release"))
+    ZIO.attemptBlockingInterrupt(stageOf(repo, stage, vsix, planned)).mapError(thrown =>
+      PluginRunError.Defect(thrown.getClass.getName)
+    ) *>
+      command(stage, packaged, request.events) *>
+      ZIO.whenDiscard(planned.upload)(publishRegistries(repo.resolve("target"), vsix, request.events)).as(written)
 
   private def stageOf(repo: Path, stage: Path, vsix: Path, planned: Planned): Unit =
     if Files.exists(stage) then deleteTree(stage)
@@ -143,9 +138,10 @@ object EditorPackage:
     val versionLine = """"version"\s*:\s*"[^"]*"""".r
     versionLine.replaceFirstIn(json, s""""version": "$semver"""")
 
-  private def publishRegistries(cwd: Path, vsix: Path): Either[String, Unit] =
-    if !present("VSCE_PAT") && !present("ACTIONS_ID_TOKEN_REQUEST_URL") then Left("VSCE_PAT is not set")
-    else if !present("OVSX_PAT") && !present("ACTIONS_ID_TOKEN_REQUEST_URL") then Left("OVSX_PAT is not set")
+  private def publishRegistries(cwd: Path, vsix: Path, events: PluginEvents.Invocation): ZIO[Any, PluginRunError, Unit] =
+    if !present("VSCE_PAT") && !present("ACTIONS_ID_TOKEN_REQUEST_URL") then ZIO.fail(refuse("VSCE_PAT is not set"))
+    else if !present("OVSX_PAT") && !present("ACTIONS_ID_TOKEN_REQUEST_URL") then
+      ZIO.fail(refuse("OVSX_PAT is not set"))
     else
       val vsce = List(
         "npx",
@@ -156,16 +152,16 @@ object EditorPackage:
         vsix.toAbsolutePath.toString,
         "--skip-duplicate",
       ) ++ (if present("VSCE_PAT") then Nil else List("--oidc"))
-      command(cwd, vsce).flatMap(_ =>
-        command(cwd, List("npx", "--yes", "ovsx", "publish", vsix.toAbsolutePath.toString, "--skip-duplicate"))
-      )
+      command(cwd, vsce, events) *>
+        command(cwd, List("npx", "--yes", "ovsx", "publish", vsix.toAbsolutePath.toString, "--skip-duplicate"), events)
 
-  private def command(cwd: Path, args: List[String]): Either[String, Unit] =
-    val process = new ProcessBuilder(args.asJava).directory(cwd.toFile).redirectErrorStream(true).start()
-    val text    = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
-    val code    = process.waitFor()
-    if code == 0 then Right(())
-    else Left(s"${args.drop(2).take(2).mkString(" ")} failed with exit code $code: ${text.take(500)}")
+  private def command(cwd: Path, args: List[String], events: PluginEvents.Invocation): ZIO[Any, PluginRunError, Unit] =
+    Program.run(args, cwd, events).flatMap: code =>
+      if code == 0 then ZIO.unit
+      else ZIO.fail(refuse(s"${shown(args)} failed with exit code $code"))
+
+  private def shown(args: List[String]): String =
+    args.drop(2).take(2).mkString(" ")
 
   private def present(name: String): Boolean =
     sys.env.get(name).exists(_.trim.nonEmpty)
