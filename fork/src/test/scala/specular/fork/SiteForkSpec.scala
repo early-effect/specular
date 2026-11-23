@@ -12,12 +12,12 @@ object SiteForkSpec extends ZIOSpecDefault:
         root <- ZIO.attempt(Files.createTempDirectory("site-fork-write"))
         dir = root.resolve("site")
         log = new MemLog
-        ran <- ZIO.attemptBlocking(
-          SiteFork.run(
+        ran <- SiteFork
+          .run(
             request("specular.fork.SiteForkWrite", dir, List(s"-Dspecular.site.dir=$dir"), List(dir.toString)),
             log,
           )
-        )
+          .either
         text <- ZIO.attempt(Files.readString(dir.resolve("wrote.txt")))
       yield assertTrue(
         ran == Right(()),
@@ -30,9 +30,7 @@ object SiteForkSpec extends ZIOSpecDefault:
       for
         root <- ZIO.attempt(Files.createTempDirectory("site-fork-fail"))
         dir = root.resolve("missing")
-        ran <- ZIO.attemptBlocking(
-          SiteFork.run(request("specular.fork.SiteForkFail", dir, Nil, Nil), SiteForkLog.silent)
-        )
+        ran <- SiteFork.run(request("specular.fork.SiteForkFail", dir, Nil, Nil), SiteForkLog.silent).either
       yield assertTrue(
         ran == Left(SiteForkError.NonZero("specular.fork.SiteForkFail", 4)),
         !Files.exists(dir),
@@ -42,9 +40,7 @@ object SiteForkSpec extends ZIOSpecDefault:
       for
         root <- ZIO.attempt(Files.createTempDirectory("site-fork-exit"))
         dir = root.resolve("missing")
-        ran <- ZIO.attemptBlocking(
-          SiteFork.run(request("specular.fork.SiteForkExit", dir, Nil, Nil), SiteForkLog.silent)
-        )
+        ran <- SiteFork.run(request("specular.fork.SiteForkExit", dir, Nil, Nil), SiteForkLog.silent).either
       yield assertTrue(
         ran == Left(SiteForkError.MissingDirectory("specular.fork.SiteForkExit", dir))
       )

@@ -10,6 +10,8 @@ import _root_.specular.fork.{SiteFork, SiteForkError, SiteForkLog}
 
 import java.nio.file.Path
 
+import zio.{Exit, Runtime, Unsafe}
+
 /** Specular site settings for consumer projects.
   *
   * Convention: DocSpecs, [[autoImport.specularBuildMain]], and demo UI live on **Compile**. Thin `DocSpecSuite`
@@ -365,7 +367,7 @@ object SpecularPlugin extends AutoPlugin:
     if metaFile.exists then log.info(s"specularSite: wrote ${metaFile.getName}")
     log.info(s"specularSite: ready at $dir")
 
-  /** [[SiteFork]] is the shared fork. `sys.error` stays here so the messages above do not move. */
+  /** The one sbt edge. [[SiteFork.run]] is a ZIO effect. This task blocks until that effect finishes. */
   private def forkMain(
       log: Logger,
       mainClass: String,
@@ -374,23 +376,34 @@ object SpecularPlugin extends AutoPlugin:
       jvmOpts: Vector[String],
       arguments: Seq[String],
   ): Unit =
-    val result = SiteFork.run(
-      SiteFork.Request(
-        classpath = jars.toList.map(path => Path.of(path)),
-        mainClass = mainClass,
-        jvmOptions = jvmOpts.toList,
-        arguments = arguments.toList,
-        siteDirectory = dir.toPath,
-      ),
-      SbtSiteLog(log),
-    )
-    result match
-      case Right(_)                                   => ()
-      case Left(error @ SiteForkError.Interrupted(_)) =>
-        Thread.currentThread.interrupt()
-        sys.error(error.message)
-      case Left(error) =>
-        sys.error(error.message)
+    val ran = Unsafe.unsafe { implicit unsafe =>
+      Runtime.default.unsafe.run(
+        SiteFork.run(
+          SiteFork.Request(
+            classpath = jars.toList.map(path => Path.of(path)),
+            mainClass = mainClass,
+            jvmOptions = jvmOpts.toList,
+            arguments = arguments.toList,
+            siteDirectory = dir.toPath,
+          ),
+          SbtSiteLog(log),
+        )
+      )
+    }
+    ran match
+      case Exit.Success(_)     => ()
+      case Exit.Failure(cause) =>
+        cause.failureOrCause match
+          case Left(error: SiteForkError.Interrupted) =>
+            Thread.currentThread.interrupt()
+            sys.error(error.message)
+          case Left(error) =>
+            sys.error(error.message)
+          case Right(_) if cause.isInterruptedOnly =>
+            Thread.currentThread.interrupt()
+            sys.error(SiteForkError.Interrupted(mainClass).message)
+          case Right(_) =>
+            sys.error(SiteForkError.Interrupted(mainClass).message)
 
   private final class SbtSiteLog(log: Logger) extends SiteForkLog:
     def info(line: String): Unit  = log.info(line)

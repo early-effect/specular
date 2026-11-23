@@ -82,6 +82,7 @@ object build extends HistosBuild:
       module("fork", Jvm)(scala39)
         .in(path"fork")
         .artifact(artifact"specular-fork")
+        .libraryDependencies(zio)
     ).pipe(tested)
     val plugin = flagged(
       module("plugin", Jvm)(scala39)
