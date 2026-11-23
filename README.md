@@ -145,6 +145,15 @@ object BuildSite extends specular.site.DocsSite:
 `preview` builds the site once and leaves the preview server up. `~ run .../site` rebuilds on
 save. The server watches `assets/dev-stamp` and reloads the tab. The socket stays open.
 
+The site task owns `target/site` as one Histos Directory output, including every page,
+metadata file, asset, and reload stamp. Histos supplies an invocation staging directory;
+the adapter copies the linked client there and passes that path to `BuildSite` through
+`-Dspecular.site.dir`. A successful run reports the directory for Histos to validate,
+cache, and publish. Failed or interrupted builds leave the complete last committed site
+and stamp unchanged. A site without a linked script creates no client placeholder.
+Preview stays on the logical `target/site` location and resolves one committed root per
+request, so it follows later successful builds without mixing generations within a response.
+
 Repositories that still build with sbt keep using the published plugin:
 
 ```scala

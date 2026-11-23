@@ -42,7 +42,7 @@ final case class Site private (
 
   def artifactKind(value: String): Site = noted("artifactKind", value)
 
-  /** Copy the linked docs script to `target/site/assets/client.js` before the fork. */
+  /** Copy the linked docs script into the staged site's `assets/client.js` before the fork. */
   def linkClient: Site = copy(client = true)
 
   /** Build the site in CI, or build it and publish `target/site`. */
