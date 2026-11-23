@@ -119,7 +119,7 @@ object HubBuildSpec extends ZIOSpecDefault:
        |""".stripMargin
 
   private def forkPom: String =
-    pom("specular-fork_3", Nil)
+    pom("specular-fork_3", List(zioDep))
 
   private def pluginPom: String =
     pom(
@@ -127,8 +127,12 @@ object HubBuildSpec extends ZIOSpecDefault:
       List(
         dep(group, "specular-fork_3", version),
         dep(group, "sbt-ascent-preview_sbt2_3", "0.11.1"),
+        zioDep,
       ),
     )
+
+  private def zioDep: String =
+    dep("dev.zio", "zio_3", "2.1.27")
 
   private def launcher(work: Path): Task[Path] =
     ZIO.attemptBlocking {

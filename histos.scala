@@ -93,6 +93,7 @@ object build extends HistosBuild:
         .libraryDependencies(
           dep"rocks.earlyeffect:sbt-ascent-preview_sbt2_3:0.11.1",
           dep"org.scala-sbt:sbt:2.1.0-RC1".compileOnly,
+          zio,
         )
     ).pipe(tested)
     val docs = flagged(
