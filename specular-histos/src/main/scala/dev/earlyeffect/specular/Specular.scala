@@ -1,17 +1,12 @@
 package dev.earlyeffect.specular
 
-import histos.plugin.{Site as _, *}
+import histos.plugin.{Program, ProgramEvent, Site as _, *}
 import histos.Jvm
 
-import java.io.{BufferedReader, InputStreamReader}
-import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, StandardCopyOption}
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicReference
 
-import scala.jdk.CollectionConverters.*
-
-import zio.{Scope, ZIO, ZLayer}
+import zio.{Promise, Scope, ZIO, ZLayer}
 
 /** The site service. Wiring provides [[Site]]. [[Specular.layer]] builds this plugin from it.
   */
@@ -74,7 +69,7 @@ private final class Bound(site: Site) extends Specular:
   def run(request: RunRequest): ZIO[Scope & PluginScopes, PluginRunError, PluginOutput] =
     if request.id.name == EditorPackage.task then EditorPackage.run(request)
     else if request.id.name == Site.previewTask then preview(request)
-    else ZIO.fromEither(copyClient(request).flatMap(_ => plan(request))).flatMap(fork)
+    else ZIO.fromEither(copyClient(request).flatMap(_ => plan(request))).flatMap(planned => fork(request, planned))
 
   private def siteTask: DeclaredTask =
     val link = if site.client then List(TaskDep.Link(site.project, None)) else Nil
@@ -128,17 +123,20 @@ private final class Bound(site: Site) extends Specular:
             Right(())
           catch case _: java.io.IOException => Left(Specular.refuse("could not copy the linked docs script"))
 
-  private def plan(request: RunRequest): Either[PluginRunError, SiteFork.Request] =
+  private def plan(request: RunRequest): Either[PluginRunError, Launch] =
     docsCell(request).flatMap: cell =>
       if cell.test.isEmpty then Left(Specular.refuse("docs JVM test classpath is empty"))
       else
+        val dir = directory(request.repo)
         Right(
-          SiteFork.Request(
-            classpath = cell.test,
+          Launch(
+            argv = Specular.javaExecutable :: (jvmOptions(request, cell) ::: List(
+              "-cp",
+              classpathOf(cell.test),
+              site.mainClass,
+            )),
             mainClass = site.mainClass,
-            jvmOptions = jvmOptions(request, cell),
-            arguments = Nil,
-            siteDirectory = directory(request.repo),
+            siteDirectory = dir,
           )
         )
 
@@ -202,53 +200,38 @@ private final class Bound(site: Site) extends Specular:
       case Some(url) => ZIO.succeed(PluginOutput(url, Nil))
       case None      =>
         ZIO.serviceWithZIO[PluginScopes]: scopes =>
-          ZIO
-            .fromEither(docsCell(request))
-            .flatMap: cell =>
-              scopes(ResourceLife.Generation)
-                .extend(ZIO.acquireRelease(launch(cell, request.repo))(stop))
-                .flatMap: child =>
-                  ZIO
-                    .attemptBlockingInterrupt(awaitUrl(child))
-                    .mapError(thrown => Specular.refuse(String.valueOf(thrown.getMessage)))
-                    .flatMap(ZIO.fromEither)
-                .tap(url => ZIO.succeed(bound.set(Some(url))))
-                .map(url => PluginOutput(url, Nil))
+          ZIO.fromEither(docsCell(request)).flatMap: cell =>
+            for
+              opened <- Promise.make[Nothing, String]
+              url    <- scopes(ResourceLife.Generation).extend(serve(request, cell, opened))
+              _      <- ZIO.succeed(bound.set(Some(url)))
+            yield PluginOutput(url, Nil)
+
+  /** The generation scope owns the server. The URL arriving does not stop it. The generation ending does. */
+  private def serve(
+      request: RunRequest,
+      cell: CellClasspath,
+      opened: Promise[Nothing, String],
+  ): ZIO[Scope, PluginRunError, String] =
+    val dir  = directory(request.repo)
+    val port = if site.port == 0 then Specular.freePort else site.port
+    val argv = List(Specular.javaExecutable, "-cp", classpathOf(cell.test), serveMain, port.toString, dir.toString)
+    val watch = (event: ProgramEvent) =>
+      event match
+        case ProgramEvent.Out(line) =>
+          urlOf(line) match
+            case Some(url) => opened.succeed(url).unit
+            case None      => ZIO.unit
+        case ProgramEvent.Err(_) => ZIO.unit
+    Program.start(argv, request.repo, request.events, watch).flatMap: fiber =>
+      opened.await.raceFirst(
+        fiber.join.flatMap(code => ZIO.fail(Specular.refuse(s"$serveMain exited $code before printing a URL")))
+      )
 
   private def directory(repo: Path): Path =
     repo.resolve("target").resolve("site")
 
   private val serveMain: String = "specular.site.DocsServe"
-
-  private def launch(cell: CellClasspath, repo: Path): ZIO[Any, PluginRunError, Process] =
-    val dir       = directory(repo)
-    val classpath = cell.test.map(_.toAbsolutePath.normalize.toString).mkString(java.io.File.pathSeparator)
-    val port      = if site.port == 0 then Specular.freePort else site.port
-    val command   = List(
-      Specular.javaExecutable,
-      "-cp",
-      classpath,
-      serveMain,
-      port.toString,
-      dir.toString,
-    )
-    ZIO
-      .attemptBlocking {
-        val process = new java.lang.ProcessBuilder(command*).redirectErrorStream(true).start().nn
-        process
-      }
-      .mapError(thrown => Specular.refuse(s"could not start $serveMain: ${thrown.getMessage}"))
-
-  /** `DocsServe` prints the bound URL and then serves until it is destroyed. */
-  private def awaitUrl(process: Process): Either[PluginRunError, String] =
-    val reader = new BufferedReader(new InputStreamReader(process.getInputStream.nn, StandardCharsets.UTF_8))
-    val found  =
-      Iterator.continually(reader.readLine()).takeWhile(_ != null).take(40).collectFirst(Function.unlift(urlOf))
-    found match
-      case Some(url) => Right(url)
-      case None      =>
-        val code = if process.isAlive then "still running" else s"exit ${process.exitValue}"
-        Left(Specular.refuse(s"$serveMain did not print its URL ($code)"))
 
   private def urlOf(line: String): Option[String] =
     val marker = "http://localhost:"
@@ -258,24 +241,17 @@ private final class Bound(site: Site) extends Specular:
       val rest = line.drop(at)
       Some(rest.takeWhile(char => char != ' ' && char != '"'))
 
-  private def stop(process: Process): ZIO[Any, Nothing, Unit] =
-    ZIO.attemptBlocking(process.destroyForcibly()).ignore
+  private def fork(request: RunRequest, planned: Launch): ZIO[Scope, PluginRunError, PluginOutput] =
+    Program.run(planned.argv, request.repo, request.events).flatMap: code =>
+      if code != 0 then ZIO.fail(Specular.refuse(s"${planned.mainClass} failed with exit code $code"))
+      else
+        ZIO.attemptBlocking(Files.isDirectory(planned.siteDirectory)).orElseSucceed(false).flatMap:
+          case true  => ZIO.succeed(written)
+          case false =>
+            ZIO.fail(Specular.refuse(s"site directory was not created: ${planned.siteDirectory}"))
 
-  private def fork(planned: SiteFork.Request): ZIO[Scope, PluginRunError, PluginOutput] =
-    ZIO
-      .attemptBlockingInterrupt {
-        val log = LineLog()
-        SiteFork.run(planned, log) -> log.lines
-      }
-      .mapError(thrown => PluginRunError.Defect(thrown.getClass.getName))
-      .flatMap:
-        case (Left(error), lines) => ZIO.fail(failed(error, lines))
-        case (Right(_), _)        => ZIO.succeed(written)
-
-  private def failed(error: SiteForkError, lines: List[String]): PluginRunError =
-    val extra = lines.map(_.trim).filter(_.nonEmpty).mkString(" | ")
-    val text  = if extra.isEmpty then error.message else s"${error.message}: $extra"
-    Specular.refuse(text.filterNot(_.isControl))
+  private def classpathOf(entries: List[Path]): String =
+    entries.map(_.toAbsolutePath.normalize.toString).mkString(java.io.File.pathSeparator)
 
   private def written: PluginOutput =
     PluginOutput(
@@ -286,12 +262,5 @@ private final class Bound(site: Site) extends Specular:
       ),
     )
 
-  private final class LineLog extends SiteForkLog:
-    private val outLines         = new ConcurrentLinkedQueue[String]
-    private val errLines         = new ConcurrentLinkedQueue[String]
-    def info(line: String): Unit =
-      val _ = outLines.add(line)
-    def error(line: String): Unit =
-      val _ = errLines.add(line)
-    def lines: List[String] = outLines.iterator.asScala.toList ++ errLines.iterator.asScala.toList
+  private final case class Launch(argv: List[String], mainClass: String, siteDirectory: Path)
 end Bound
