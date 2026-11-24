@@ -1,12 +1,12 @@
 import dev.earlyeffect.specular.{Site, SiteCi, Specular}
 import histos.*
-import histos.plugin.{BuildServices, NoteKey, NoteText, PluginId, Site as _, SitePublish}
+import histos.plugin.{BuildServices, NoteKey, NoteText, PluginId, SitePublish}
 import zio.*
 
 object build extends HistosBuild:
   def graph =
-    val library                                       = Ship("specular").next(0, 21, 5)
-    val adapter                                       = Ship("specular-histos").next(0, 0, 3)
+    val library                                       = Ship("specular").next(0, 22, 0)
+    val adapter                                       = Ship("specular-histos").next(0, 1, 0)
     val scala39                                       = scala"3.9.0"
     val scala310                                      = scala"3.10.1"
     val zio                                           = dep"dev.zio::zio:2.1.27"
@@ -141,16 +141,16 @@ object build extends HistosBuild:
         Resolver.Maven(RepositoryUrl("https://central.sonatype.com/repository/maven-snapshots/")),
         Resolver.Central,
       )
-      .license(License(license"Apache-2.0", url"https://www.apache.org/licenses/LICENSE-2.0.txt"))
+      .license(License(license"Apache-2.0", MetadataUri("https://www.apache.org/licenses/LICENSE-2.0.txt")))
       .developer(Developer(developer"russwyte", pom"Russ White"))
       .scm(
         Scm(
-          url"https://github.com/early-effect/specular",
+          MetadataUri("https://github.com/early-effect/specular"),
           connection"scm:git@github.com:early-effect/specular.git",
         )
       )
       .description(pom"Code-first tests-as-docs site generator for Scala.")
-      .url(url"https://github.com/early-effect/specular")
+      .url(MetadataUri("https://github.com/early-effect/specular"))
       .runnerTools(RunnerTools(Some(NodeFloor(25)), None, None))
       .docCheck(
         ships(
