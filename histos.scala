@@ -152,6 +152,7 @@ object build extends HistosBuild:
       .description(pom"Code-first tests-as-docs site generator for Scala.")
       .url(MetadataUri("https://github.com/early-effect/specular"))
       .runnerTools(RunnerTools(Some(NodeFloor(25)), None, None))
+      .scalafmt
       .docCheck(
         ships(
           library(core, zioTestMod, site, eeDocsTheme, fork, plugin),
