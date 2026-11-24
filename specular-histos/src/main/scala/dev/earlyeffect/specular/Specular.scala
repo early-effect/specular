@@ -251,12 +251,15 @@ private final class Bound(site: Site) extends Specular:
         if code != 0 then ZIO.fail(Specular.refuse(s"${planned.mainClass} failed with exit code $code"))
         else
           ZIO
-            .attemptBlocking(Files.isDirectory(planned.siteDirectory))
-            .orElseSucceed(false)
-            .flatMap:
-              case true  => ZIO.succeed(written)
-              case false =>
-                ZIO.fail(Specular.refuse(s"site directory was not created: ${planned.siteDirectory}"))
+            .foreachDiscard(List("index.html", "metadata.json")): name =>
+              val path = planned.siteDirectory.resolve(name)
+              ZIO
+                .attemptBlocking(Files.isRegularFile(path, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+                .mapError(_ => Specular.refuse(s"could not inspect required site file: $path"))
+                .flatMap(exists =>
+                  ZIO.fail(Specular.refuse(s"required site file was not created: $path")).unless(exists)
+                )
+            .as(written)
 
   private def classpathOf(entries: List[Path]): String =
     entries.map(_.toAbsolutePath.normalize.toString).mkString(java.io.File.pathSeparator)

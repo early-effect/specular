@@ -17,6 +17,42 @@ object SpecularTransactionSpec extends ZIOSpecDefault:
 
   def spec =
     val transaction = suite("site transaction")(
+      test("a zero-exit child with no site refuses a precreated stage and retains the complete previous tree") {
+        ZIO.scoped:
+          for
+            repo <- temporaryRepo
+            plugin = Specular(Site.forProject("docs", "dev.earlyeffect.specular.SiteTransactionProbe").linkClient)
+            _      <- prepare(repo, Mode.Complete)
+            _      <- buildPrevious(plugin, repo)
+            before <- tree(repo.resolve("target/site"))
+            stage = repo.resolve("invocation/site")
+            _       <- io("precreate engine stage")(Files.createDirectories(stage))
+            _       <- prepare(repo, Mode.NoOutput)
+            refused <- invoke(plugin, repo, stage, PluginEvents.closedInvocation).either
+            partial <- tree(stage)
+            after   <- tree(repo.resolve("target/site"))
+          yield assertTrue(
+            refused == Left(Specular.refuse(s"required site file was not created: ${stage.resolve("index.html")}")),
+            filesOf(partial) == Map("assets/client.js" -> "partial-client"),
+            completeTree(before),
+            after == before,
+          )
+      },
+      test("a zero-exit child that writes only an index refuses missing metadata") {
+        ZIO.scoped:
+          for
+            repo <- temporaryRepo
+            plugin = Specular(Site.forProject("docs", "dev.earlyeffect.specular.SiteTransactionProbe"))
+            stage  = repo.resolve("invocation/site")
+            _       <- io("precreate engine stage")(Files.createDirectories(stage))
+            _       <- prepare(repo, Mode.IndexOnly)
+            refused <- invoke(plugin, repo, stage, PluginEvents.closedInvocation).either
+            partial <- tree(stage)
+          yield assertTrue(
+            refused == Left(Specular.refuse(s"required site file was not created: ${stage.resolve("metadata.json")}")),
+            filesOf(partial) == Map("index.html" -> "index-only"),
+          )
+      },
       test("a failed partial rebuild retains the complete previous site and reload stamp") {
         ZIO.scoped:
           for
@@ -92,7 +128,7 @@ object SpecularTransactionSpec extends ZIOSpecDefault:
     )
     transaction
 
-  /** Fixture setup exposes the first real build; publication and replay are Histos integration gates. */
+  /** Fixture setup exposes the first real build; Histos owns publication and manifest restoration. */
   private def buildPrevious(plugin: HistosPlugin, repo: Path): IO[ProbeError | PluginRunError, PluginOutput] =
     val root = repo.resolve("baseline/site")
     for
@@ -151,8 +187,8 @@ object SpecularTransactionSpec extends ZIOSpecDefault:
 
   private def prepare(repo: Path, mode: Mode): IO[ProbeError, Unit] =
     val client = mode match
-      case Mode.Complete              => "complete-client"
-      case Mode.Fail | Mode.Interrupt => "partial-client"
+      case Mode.Complete                                               => "complete-client"
+      case Mode.Fail | Mode.Interrupt | Mode.NoOutput | Mode.IndexOnly => "partial-client"
     for
       _ <- io("write rebuild mode")(Files.writeString(repo.resolve("rebuild-mode"), mode.toString))
       _ <- io("write linked client")(Files.writeString(repo.resolve("linked-client.js"), client))
@@ -209,7 +245,7 @@ end SpecularTransactionSpec
 /** The child signals only after all partial writes, then fails or waits for interruption. */
 object SiteTransactionProbe extends ZIOAppDefault:
   enum Mode:
-    case Complete, Fail, Interrupt
+    case Complete, Fail, Interrupt, NoOutput, IndexOnly
 
   enum ProbeError:
     case Io(operation: String, cause: Throwable)
@@ -242,6 +278,8 @@ object SiteTransactionProbe extends ZIOAppDefault:
       text <- io("read mode")(Files.readString(Path.of("rebuild-mode")))
       mode <- ZIO.fromOption(Mode.values.find(_.toString == text)).orElseFail(ProbeError.InvalidMode)
       _    <- mode match
+        case Mode.NoOutput              => ZIO.unit
+        case Mode.IndexOnly             => write(root, List("index.html" -> "index-only"))
         case Mode.Complete              => write(root, completeFiles)
         case Mode.Fail | Mode.Interrupt =>
           for
@@ -250,9 +288,9 @@ object SiteTransactionProbe extends ZIOAppDefault:
               java.lang.System.out.println(s"partial-ready:${ProcessHandle.current().pid()}")
               java.lang.System.out.flush()
             _ <- mode match
-              case Mode.Fail      => ZIO.fail(ProbeError.RebuildFailed)
-              case Mode.Interrupt => ZIO.never
-              case Mode.Complete  => ZIO.unit
+              case Mode.Fail                                      => ZIO.fail(ProbeError.RebuildFailed)
+              case Mode.Interrupt                                 => ZIO.never
+              case Mode.Complete | Mode.NoOutput | Mode.IndexOnly => ZIO.unit
           yield ()
     yield ()
 

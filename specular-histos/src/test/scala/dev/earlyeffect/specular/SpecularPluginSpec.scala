@@ -353,6 +353,8 @@ object ForkProbe:
     val name = property("specular.meta.name")
     Files.createDirectories(dir)
     Files.writeString(dir.resolve("wrote.txt"), "one")
+    Files.writeString(dir.resolve("index.html"), "index")
+    Files.writeString(dir.resolve("metadata.json"), "{}")
     val version = property("specular.meta.version")
     val adapter = property("specular.meta.adapterVersion")
     Files.writeString(
