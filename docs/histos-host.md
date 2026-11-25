@@ -11,6 +11,12 @@ This repository builds with Histos. `build.properties` pins that release. `./his
 
 The numbers are the `Ship.next` rows in `histos.scala`. Everyday compiles append `-ci`. `./histos publish release` publishes the ship numbers. The generated release workflow sets `HISTOS_SESSION=release`.
 
+The integration snapshots are `0.22.0-SNAPSHOT` for the library and `0.1.0-SNAPSHOT` for the Histos adapter. Full JVM compatibility verification against each released coordinate requires these minor bumps: the fork has two member problems against `0.21.5`, and the adapter has 22 problems against `0.0.2`. Snapshot integration does not authorize a stable release.
+
+Publication URLs in `histos.scala` use compile-time `MetadataUri` literals. These are POM data, not `HttpUrl` network capabilities. The library modules remain on Scala 3.9.0, including their JVM TASTy inspector dependency; the Histos adapter remains on Scala 3.10.1. A consumer on a newer compiler supplies its matching inspector only in its JVM documentation Test runtime.
+
+`scripts/SpecularGraph.test.scala` checks both root source graphs against the matching Histos API and adapter classes. It asserts publication facts, ship membership and artifact identities, compiler boundaries, version notes, solving inheritance, and the source recipe's compile-only host API. The root graph contributes `dev.earlyeffect.specular/site` and `dev.earlyeffect.specular/preview`; metadata adoption does not change those task declarations. Library snapshot numbering requires complete JVM compatibility evidence against every released library coordinate before changing `Ship.next`. Source graph checks do not replace that gate or the assembled consumer recipe and preview checks.
+
 `docs`, `editor`, `editor-host`, and `editor-view` are not in a ship. `.docCheck` runs `./histos run doc` on the ship members. A scaladoc warning fails that job.
 
 `specular-histos` compiles with the Scala release named on that module in `histos.scala`, the compiler that produced the `histos-api` it depends on. That dependency is compile-only. The coordinate is in `histos.scala`. The adapter does not depend on `specular-site` or `specular-fork`. The module compiles against `histos-api` only, and that module is what the ship publishes, so its fork stays in the adapter. `sbt-specular` depends on `specular-fork` and calls `specular.fork.SiteFork`. It does not depend on `specular-site`. The other modules stay on their own Scala release in `histos.scala`.

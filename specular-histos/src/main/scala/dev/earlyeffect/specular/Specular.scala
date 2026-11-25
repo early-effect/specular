@@ -6,7 +6,7 @@ import histos.Jvm
 import java.nio.file.{Files, Path, StandardCopyOption}
 import java.util.concurrent.atomic.AtomicReference
 
-import zio.{Promise, Scope, ZIO, ZLayer}
+import zio.{IO, Promise, Scope, ZIO, ZLayer}
 
 /** The site service. Wiring provides [[Site]]. [[Specular.layer]] builds this plugin from it.
   */
@@ -20,10 +20,7 @@ object Specular:
 
   def apply(site: Site): Specular = new Bound(site)
 
-  private[specular] val indexPath: RepoPath      = RepoPath("target/site/index.html")
-  private[specular] val metadataPath: RepoPath   = RepoPath("target/site/metadata.json")
-  private[specular] val indexName: OutputName    = OutputName("index")
-  private[specular] val metadataName: OutputName = OutputName("metadata")
+  private[specular] val siteName: OutputName = OutputName("site")
 
   private[specular] val jdkFlags: List[String] = List(
     "--sun-misc-unsafe-memory-access=allow",
@@ -31,10 +28,10 @@ object Specular:
   )
 
   /** A port the operating system just handed out. `DocsServe` rejects 0. */
-  private[specular] def freePort: Int =
-    val socket = new java.net.ServerSocket(0)
-    try socket.getLocalPort
-    finally socket.close()
+  private[specular] def freePort: IO[PluginRunError, Int] =
+    ZIO.acquireReleaseWith(
+      ZIO.attemptBlocking(new java.net.ServerSocket(0)).mapError(_ => refuse("could not allocate a preview port"))
+    )(socket => ZIO.attemptBlocking(socket.close()).ignore)(socket => ZIO.succeed(socket.getLocalPort))
 
   private[specular] def javaExecutable: String =
     val home = sys.props.get("java.home").filter(_.nonEmpty).fold(Path.of("."))(Path.of(_))
@@ -69,8 +66,14 @@ private final class Bound(site: Site) extends Specular:
   def run(request: RunRequest): ZIO[Scope & PluginScopes, PluginRunError, PluginOutput] =
     if request.id.name == EditorPackage.task then EditorPackage.run(request)
     else if request.id.name == Site.previewTask then preview(request)
-    else ZIO.fromEither(copyClient(request).flatMap(_ => plan(request))).flatMap(planned => fork(request, planned))
+    else
+      for
+        planned <- ZIO.fromEither(plan(request))
+        _       <- copyClient(request, planned.siteDirectory)
+        result  <- fork(request, planned)
+      yield result
 
+  /** Histos publishes the complete staged tree only after success, retaining the committed tree on failure. */
   private def siteTask: DeclaredTask =
     val link = if site.client then List(TaskDep.Link(site.project, None)) else Nil
     DeclaredTask(
@@ -78,10 +81,7 @@ private final class Bound(site: Site) extends Specular:
       seal = Seal.Open,
       needs = Set.empty,
       inputs = DeclaredInput.Module(site.project, None, Some(Jvm)) :: shipInputs,
-      outputs = List(
-        DeclaredOutput(Specular.indexName, Specular.indexPath),
-        DeclaredOutput(Specular.metadataName, Specular.metadataPath),
-      ),
+      outputs = List(DeclaredOutput.Directory(Specular.siteName, Site.siteDirectory)),
       dependsOn = TaskDep.Compile(site.project, None, Some(Jvm)) :: link,
     )
 
@@ -107,38 +107,38 @@ private final class Bound(site: Site) extends Specular:
       List(CommandSpec(CommandName("serve"), Nil, Site.previewTask, PluginDetail("serve the docs site")))
     else Nil
 
-  /** The linked docs script becomes `target/site/assets/client.js` before the fork. A site that did not ask for a
-    * client, and a request with no script, skips the copy.
-    */
-  private def copyClient(request: RunRequest): Either[PluginRunError, Unit] =
-    if !site.client then Right(())
+  /** The client joins the invocation's staged tree. No script means no client file is created. */
+  private def copyClient(request: RunRequest, root: Path): IO[PluginRunError, Unit] =
+    if !site.client then ZIO.unit
     else
       request.linked.find(_.module == site.project) match
-        case None         => Right(())
+        case None         => ZIO.unit
         case Some(linked) =>
-          val dest = directory(request.repo).resolve("assets").resolve("client.js")
-          try
-            Files.createDirectories(dest.getParent)
-            Files.copy(linked.script, dest, StandardCopyOption.REPLACE_EXISTING)
-            Right(())
-          catch case _: java.io.IOException => Left(Specular.refuse("could not copy the linked docs script"))
+          val dest = root.resolve("assets").resolve("client.js")
+          ZIO
+            .attemptBlocking {
+              Files.createDirectories(dest.getParent)
+              Files.copy(linked.script, dest, StandardCopyOption.REPLACE_EXISTING)
+              ()
+            }
+            .mapError(_ => Specular.refuse("could not copy the linked docs script"))
 
   private def plan(request: RunRequest): Either[PluginRunError, Launch] =
     docsCell(request).flatMap: cell =>
       if cell.test.isEmpty then Left(Specular.refuse("docs JVM test classpath is empty"))
       else
-        val dir = directory(request.repo)
-        Right(
-          Launch(
-            argv = Specular.javaExecutable :: (jvmOptions(request, cell) ::: List(
-              "-cp",
-              classpathOf(cell.test),
-              site.mainClass,
-            )),
-            mainClass = site.mainClass,
-            siteDirectory = dir,
-          )
-        )
+        request
+          .directory(Specular.siteName)
+          .map: dir =>
+            Launch(
+              argv = Specular.javaExecutable :: (jvmOptions(request, cell, dir) ::: List(
+                "-cp",
+                classpathOf(cell.test),
+                site.mainClass,
+              )),
+              mainClass = site.mainClass,
+              siteDirectory = dir,
+            )
 
   /** The docs module's one JVM cell. Several Scala versions is a refusal, not a guess. */
   private def docsCell(request: RunRequest): Either[PluginRunError, CellClasspath] =
@@ -149,8 +149,7 @@ private final class Bound(site: Site) extends Specular:
         val versions = many.map(_.version.value).distinct.mkString(", ")
         Left(Specular.refuse(s"docs has more than one JVM classpath on the request: $versions"))
 
-  private def jvmOptions(request: RunRequest, cell: CellClasspath): List[String] =
-    val dir  = directory(request.repo)
+  private def jvmOptions(request: RunRequest, cell: CellClasspath, dir: Path): List[String] =
     val base = site.base.map(_.trim).filter(_.nonEmpty).getOrElse(".")
     Specular.jdkFlags ++ List(
       s"-Dspecular.site.dir=$dir",
@@ -200,12 +199,14 @@ private final class Bound(site: Site) extends Specular:
       case Some(url) => ZIO.succeed(PluginOutput(url, Nil))
       case None      =>
         ZIO.serviceWithZIO[PluginScopes]: scopes =>
-          ZIO.fromEither(docsCell(request)).flatMap: cell =>
-            for
-              opened <- Promise.make[Nothing, String]
-              url    <- scopes(ResourceLife.Generation).extend(serve(request, cell, opened))
-              _      <- ZIO.succeed(bound.set(Some(url)))
-            yield PluginOutput(url, Nil)
+          ZIO
+            .fromEither(docsCell(request))
+            .flatMap: cell =>
+              for
+                opened <- Promise.make[Nothing, String]
+                url    <- scopes(ResourceLife.Generation).extend(serve(request, cell, opened))
+                _      <- ZIO.succeed(bound.set(Some(url)))
+              yield PluginOutput(url, Nil)
 
   /** The generation scope owns the server. The URL arriving does not stop it. The generation ending does. */
   private def serve(
@@ -213,9 +214,7 @@ private final class Bound(site: Site) extends Specular:
       cell: CellClasspath,
       opened: Promise[Nothing, String],
   ): ZIO[Scope, PluginRunError, String] =
-    val dir  = directory(request.repo)
-    val port = if site.port == 0 then Specular.freePort else site.port
-    val argv = List(Specular.javaExecutable, "-cp", classpathOf(cell.test), serveMain, port.toString, dir.toString)
+    val dir   = directory(request.repo)
     val watch = (event: ProgramEvent) =>
       event match
         case ProgramEvent.Out(line) =>
@@ -223,10 +222,14 @@ private final class Bound(site: Site) extends Specular:
             case Some(url) => opened.succeed(url).unit
             case None      => ZIO.unit
         case ProgramEvent.Err(_) => ZIO.unit
-    Program.start(argv, request.repo, request.events, watch).flatMap: fiber =>
-      opened.await.raceFirst(
+    for
+      port <- if site.port == 0 then Specular.freePort else ZIO.succeed(site.port)
+      argv = List(Specular.javaExecutable, "-cp", classpathOf(cell.test), serveMain, port.toString, dir.toString)
+      fiber <- Program.start(argv, request.repo, request.events, watch)
+      url   <- opened.await.raceFirst(
         fiber.join.flatMap(code => ZIO.fail(Specular.refuse(s"$serveMain exited $code before printing a URL")))
       )
+    yield url
 
   private def directory(repo: Path): Path =
     repo.resolve("target").resolve("site")
@@ -242,13 +245,21 @@ private final class Bound(site: Site) extends Specular:
       Some(rest.takeWhile(char => char != ' ' && char != '"'))
 
   private def fork(request: RunRequest, planned: Launch): ZIO[Scope, PluginRunError, PluginOutput] =
-    Program.run(planned.argv, request.repo, request.events).flatMap: code =>
-      if code != 0 then ZIO.fail(Specular.refuse(s"${planned.mainClass} failed with exit code $code"))
-      else
-        ZIO.attemptBlocking(Files.isDirectory(planned.siteDirectory)).orElseSucceed(false).flatMap:
-          case true  => ZIO.succeed(written)
-          case false =>
-            ZIO.fail(Specular.refuse(s"site directory was not created: ${planned.siteDirectory}"))
+    Program
+      .run(planned.argv, request.repo, request.events)
+      .flatMap: code =>
+        if code != 0 then ZIO.fail(Specular.refuse(s"${planned.mainClass} failed with exit code $code"))
+        else
+          ZIO
+            .foreachDiscard(List("index.html", "metadata.json")): name =>
+              val path = planned.siteDirectory.resolve(name)
+              ZIO
+                .attemptBlocking(Files.isRegularFile(path, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+                .mapError(_ => Specular.refuse(s"could not inspect required site file: $path"))
+                .flatMap(exists =>
+                  ZIO.fail(Specular.refuse(s"required site file was not created: $path")).unless(exists)
+                )
+            .as(written)
 
   private def classpathOf(entries: List[Path]): String =
     entries.map(_.toAbsolutePath.normalize.toString).mkString(java.io.File.pathSeparator)
@@ -256,10 +267,8 @@ private final class Bound(site: Site) extends Specular:
   private def written: PluginOutput =
     PluginOutput(
       "built the docs site",
-      List(
-        WrittenFile(Specular.indexName, Specular.indexPath),
-        WrittenFile(Specular.metadataName, Specular.metadataPath),
-      ),
+      Nil,
+      List(WrittenDirectory(Specular.siteName, Site.siteDirectory)),
     )
 
   private final case class Launch(argv: List[String], mainClass: String, siteDirectory: Path)

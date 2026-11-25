@@ -1,9 +1,12 @@
 package specular.site
 
 import ascent.preview.{Preview, PreviewConfig}
+import heddle.{Response, Routes, Status}
 import zio.*
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.{AccessDeniedException, NoSuchFileException, Path, Paths}
+
+import scala.jdk.CollectionConverters.*
 
 /** Preview server for a built site directory (`specularServe` / local docs loop).
   *
@@ -23,10 +26,26 @@ object DocsServe extends ZIOAppDefault:
     for
       args                <- getArgs
       (propPort, propDir) <- ZIO.config(settings)
-      port = args.headOption.flatMap(_.trim.toIntOption).orElse(propPort).getOrElse(DefaultPort)
-      root = resolveRoot(args, propDir)
-      _ <- Preview.serveForever(PreviewConfig(root = root, port = port))
+      port   = args.headOption.flatMap(_.trim.toIntOption).orElse(propPort).getOrElse(DefaultPort)
+      root   = resolveRoot(args, propDir)
+      config = PreviewConfig(root = root, port = port)
+      _ <- Preview.serve(config, extraRoutes = routes(config)).provideSome[Scope](Preview.server(port))
     yield ()
+
+  /** Static requests pin one root before Ascent's jail and file metadata lookup. Reload polls the logical root. */
+  private[site] def routes(config: PreviewConfig): Routes[Any, Response] =
+    val reload = Chunk.fromIterator(config.reloadPath.normalize.iterator().asScala.map(_.toString))
+    Routes.choose: request =>
+      if request.path.segments == reload then ZIO.succeed(Preview.routes(config))
+      else
+        ZIO
+          .attemptBlocking(config.root.toRealPath())
+          .mapError {
+            case _: NoSuchFileException   => Response.notFound()
+            case _: AccessDeniedException => Response.empty(Status.Forbidden)
+            case cause                    => heddle.error.FileError.Unreadable(config.root.toString, cause).toResponse
+          }
+          .map(root => Preview.routes(config.copy(root = root)))
 
   /** `args(1)` if present, else `-Dspecular.site.dir`, else cwd-relative `target/site`. */
   private[site] def resolveRoot(args: Chunk[String], propDir: Option[String]): Path =

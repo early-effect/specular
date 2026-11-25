@@ -38,6 +38,7 @@ object SpecularPluginSpec extends ZIOSpecDefault:
         contribution.tasks.map(_.needs) == List(Set.empty[Need]),
         contribution.tasks.map(_.dependsOn) == List(List(TaskDep.Compile(docs, None, Some(Jvm)))),
         contribution.tasks.map(_.inputs) == List(List(DeclaredInput.Module(docs, None, Some(Jvm)))),
+        contribution.tasks.flatMap(_.outputs) == List(DeclaredOutput.Directory(Specular.siteName, Site.siteDirectory)),
         contribution.commands.map(_.name) == List(CommandName("site")),
         contribution.jobs.isEmpty,
       )
@@ -115,7 +116,7 @@ object SpecularPluginSpec extends ZIOSpecDefault:
           .run(runRequest(plugin.id, TaskName("site"), repo))
           .provideSome[Scope](invocation)
           .flip
-        wrote = Files.exists(repo.resolve("target/site/index.html"))
+        wrote = Files.exists(repo.resolve("stage/site/index.html"))
       yield assertTrue(failed == PluginRunError.Failed(classpathMissing), !wrote)
     },
     test("run refuses an empty docs classpath before it forks") {
@@ -124,7 +125,7 @@ object SpecularPluginSpec extends ZIOSpecDefault:
         repo <- ZIO.attempt(Files.createTempDirectory("specular-histos-empty").nn)
         plugin = bare
         failed <- plugin.run(request(repo)).provideSome[Scope](invocation).flip
-        wrote = Files.exists(repo.resolve("target/site/wrote.txt"))
+        wrote = Files.exists(repo.resolve("stage/site/wrote.txt"))
       yield assertTrue(
         failed == PluginRunError.Failed(PluginDetail("docs JVM test classpath is empty")),
         !wrote,
@@ -135,14 +136,58 @@ object SpecularPluginSpec extends ZIOSpecDefault:
         plugin = bare
         repo  <- ZIO.attempt(Files.createTempDirectory("specular-histos-fork").nn)
         ran   <- plugin.run(request(repo, classpath = true)).provideSome[Scope](invocation).either
-        wrote <- ZIO.attempt(read(repo.resolve("target/site/wrote.txt")))
-        props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
+        wrote <- ZIO.attempt(read(repo.resolve("stage/site/wrote.txt")))
+        props <- ZIO.attempt(read(repo.resolve("stage/site/props.txt")))
         shown = ran.fold(_.message, _ => "ok")
       yield assertTrue(
         shown == "ok",
         wrote == "one",
         props == "basePath=.\ndocsUrl=absent\nname=absent\nversion=absent\nadapter=absent\n",
       )
+    },
+    test("a site run requires a directory destination and never falls back to the published tree") {
+      ZIO.scoped:
+        for
+          repo <- SpecularTransactionSpec.temporaryRepo
+          plugin = bare
+          missing <- plugin
+            .run(request(repo, classpath = true).copy(destinations = OutputDestinations.empty))
+            .provideSome[Scope](invocation)
+            .flip
+          wrong <- plugin
+            .run(
+              request(repo, classpath = true).copy(
+                destinations =
+                  OutputDestinations(List(OutputDestination.File(Specular.siteName, repo.resolve("wrong"))))
+              )
+            )
+            .provideSome[Scope](invocation)
+            .flip
+          untouched <- SiteTransactionProbe.io("inspect refused output")(
+            !Files.exists(repo.resolve("target/site")) && !Files.exists(repo.resolve("stage/site"))
+          )
+        yield assertTrue(
+          missing == PluginRunError.MissingDestination(Specular.siteName),
+          wrong == PluginRunError.OutputKindMismatch(Specular.siteName, OutputKind.Directory, OutputKind.File),
+          untouched,
+        )
+    },
+    test("no linked script creates no client placeholder, and a successful run reports only the site directory") {
+      ZIO.scoped:
+        for
+          repo <- SpecularTransactionSpec.temporaryRepo
+          plugin = Specular(Site.forProject("docs", "dev.earlyeffect.specular.ForkProbe").linkClient)
+          built    <- plugin.run(request(repo, classpath = true)).provideSome[Scope](invocation)
+          noScript <- SiteTransactionProbe.io("inspect absent client")(
+            !Files.exists(repo.resolve("stage/site/assets/client.js"))
+          )
+          unpublished <- SiteTransactionProbe.io("inspect unpublished site")(!Files.exists(repo.resolve("target/site")))
+        yield assertTrue(
+          built.files.isEmpty,
+          built.directories == List(WrittenDirectory(Specular.siteName, Site.siteDirectory)),
+          noScript,
+          unpublished,
+        )
     },
     test("two sites are two plugins, and the fork sees the one it was given") {
       val first =
@@ -151,7 +196,7 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       for
         repo  <- ZIO.attempt(Files.createTempDirectory("specular-histos-two").nn)
         ran   <- first.run(request(repo, classpath = true)).provideSome[Scope](invocation).either
-        props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
+        props <- ZIO.attempt(read(repo.resolve("stage/site/props.txt")))
         shown = ran.fold(_.message, _ => "ok")
       yield assertTrue(
         first ne second,
@@ -167,7 +212,7 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       val docs = ProjectName("docs")
       for
         repo <- ZIO.attempt(Files.createTempDirectory("specular-histos-ships").nn)
-        cell    = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
+        cell    = CellClasspath.testComplete(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
         request = runRequest(plugin.id, TaskName("site"), repo, List(ModuleView(docs, "docs", Nil))).copy(
           compiled = List(cell),
           inputs = List(
@@ -176,7 +221,7 @@ object SpecularPluginSpec extends ZIOSpecDefault:
           ),
         )
         ran   <- plugin.run(request).provideSome[Scope](invocation).either
-        props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
+        props <- ZIO.attempt(read(repo.resolve("stage/site/props.txt")))
         shown = ran.fold(_.message, _ => "ok")
       yield assertTrue(shown == "ok", props.contains("version=1.2.3"), props.contains("adapter=4.5.6"))
     },
@@ -187,13 +232,13 @@ object SpecularPluginSpec extends ZIOSpecDefault:
       val docs = ProjectName("docs")
       for
         repo <- ZIO.attempt(Files.createTempDirectory("specular-histos-explicit").nn)
-        cell    = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
+        cell    = CellClasspath.testComplete(docs, ScalaVersion("3.9.0"), Jvm, Nil, testClasspath)
         request = runRequest(plugin.id, TaskName("site"), repo, List(ModuleView(docs, "docs", Nil))).copy(
           compiled = List(cell),
           inputs = List(MaterialInput.Note(docs, Site.libraryKey, NoteText("1.2.3"))),
         )
         ran   <- plugin.run(request).provideSome[Scope](invocation).either
-        props <- ZIO.attempt(read(repo.resolve("target/site/props.txt")))
+        props <- ZIO.attempt(read(repo.resolve("stage/site/props.txt")))
         shown = ran.fold(_.message, _ => "ok")
       yield assertTrue(shown == "ok", props.contains("version=9.9.9"))
     },
@@ -249,11 +294,14 @@ object SpecularPluginSpec extends ZIOSpecDefault:
         offline = OfflineSelection.Online,
       ),
       PluginEvents.closedInvocation,
+      destinations =
+        OutputDestinations(List(OutputDestination.Directory(Specular.siteName, repo.resolve("stage/site")))),
     )
 
   private def request(repo: Path, classpath: Boolean = false): RunRequest =
     val docs = ProjectName("docs")
-    val cell = CellClasspath(docs, ScalaVersion("3.9.0"), Jvm, Nil, if classpath then testClasspath else Nil)
+    val cell =
+      CellClasspath.testComplete(docs, ScalaVersion("3.9.0"), Jvm, Nil, if classpath then testClasspath else Nil)
     runRequest(bare.id, TaskName("site"), repo, List(ModuleView(docs, "docs", Nil))).copy(compiled = List(cell))
 
   private def read(path: Path): String =
@@ -305,6 +353,8 @@ object ForkProbe:
     val name = property("specular.meta.name")
     Files.createDirectories(dir)
     Files.writeString(dir.resolve("wrote.txt"), "one")
+    Files.writeString(dir.resolve("index.html"), "index")
+    Files.writeString(dir.resolve("metadata.json"), "{}")
     val version = property("specular.meta.version")
     val adapter = property("specular.meta.adapterVersion")
     Files.writeString(
