@@ -57,10 +57,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-      - uses: early-effect/histos/.github/actions/setup@af16c748b1cc2cb95b936aaae601f900679c9ef2 # af16c748b1cc2cb95b936aaae601f900679c9ef2
+      - uses: early-effect/histos/.github/actions/setup@35724d60188466584ed469012df59a6e8efc92a9 # 35724d60188466584ed469012df59a6e8efc92a9
       - run: ./histos doctor --preflight snapshots
-      - run: "./histos compile core zioTest site eeDocsTheme fork plugin specularHistos --platform jvm"
-      - run: ./histos doctor --area release
       - id: authorized
         env:
           GH_TOKEN: ${{ github.token }}
