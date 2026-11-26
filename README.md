@@ -330,7 +330,7 @@ refresh picks up new versions; rebuild the hub when the allowlist changes.
 | `early-effect-docs-theme` | `early-effect-docs-theme` | EE hub tokens + logo (optional brand pack; not required for Specular) |
 | `fork` | `specular-fork` | Process fork used by `sbt-specular`. No parser. Not a user dependency |
 | `sbt-specular` | `sbt-specular` | Published for repositories that still build with sbt. `specularSite` passes `-Dspecular.meta.*` from sbt keys |
-| `specularHistos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, named in `histos.scala`. Compile-only dependency on `histos-api`. The coordinate is in `histos.scala`. |
+| `specular-histos` | `specular-histos` | Histos `site` and `preview` tasks. Its own ship, named in `histos.scala`. Compile-only dependency on `histos-api`. The coordinate is in `histos.scala`. |
 | `docs` | (unpublished) | Dogfood site for specular itself |
 | `editor` | (unpublished) | Specular-aware editor: scan algebra and the Scala.js VS Code host |
 | `editorView` | (unpublished) | Ascent peek and mermaid source preview. Linked apart from the host so the webview never loads `vscode` |

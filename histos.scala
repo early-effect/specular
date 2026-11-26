@@ -5,8 +5,10 @@ import zio.*
 
 object build extends HistosBuild:
   def graph =
-    val library                                       = Ship("specular").next(0, 22, 0)
-    val adapter                                       = Ship("specular-histos").next(0, 1, 0)
+    val specularShip                                  = Ship("specular")
+    val adapterShip                                   = Ship("specular-histos")
+    val library                                       = specularShip.next(0, 22, 0)
+    val adapter                                       = adapterShip.next(0, 1, 0)
     val scala39                                       = scala"3.9.0"
     val scala310                                      = scala"3.10.1"
     val zio                                           = dep"dev.zio::zio:2.1.27"
@@ -37,7 +39,6 @@ object build extends HistosBuild:
       )
     val core = flagged(
       module("core", Jvm, Js)(scala39)
-        .artifact(artifact"specular-core")
         .libraryDependencies(
           zio,
           zioTest,
@@ -60,7 +61,6 @@ object build extends HistosBuild:
     ).pipe(tested)
     val site = flagged(
       module("site", Jvm)(scala39)
-        .artifact(artifact"specular-site")
         .dependsOn(core)
         .libraryDependencies(
           ascentHtml,
@@ -81,7 +81,6 @@ object build extends HistosBuild:
     val fork = flagged(
       module("fork", Jvm)(scala39)
         .in(path"fork")
-        .artifact(artifact"specular-fork")
         .libraryDependencies(zio)
     ).pipe(tested)
     val plugin = flagged(
@@ -129,10 +128,10 @@ object build extends HistosBuild:
         .libraryDependencies(ascentJs, zio)
     )
     val specularHistos = flagged(
-      module("specularHistos", Jvm)(scala310)
+      adapterShip
+        .parent(Jvm)(scala310)
         .in(path"specular-histos")
-        .artifact(artifact"specular-histos")
-        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.5.0-003ce4864e3d-SNAPSHOT".compileOnly)
+        .libraryDependencies(dep"rocks.earlyeffect::histos-api:0.6.0".compileOnly)
         .pluginLibrary
     ).pipe(tested)
     Projects
