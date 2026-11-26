@@ -2,12 +2,11 @@ import histos.*
 import histos.plugin.*
 
 object plugins extends HistosPlugins:
-  private val histosApi = dep"rocks.earlyeffect::histos-api:0.5.0-c9452ed8bffb-SNAPSHOT"
+  private val histosApi = dep"rocks.earlyeffect::histos-api:0.6.0"
 
   val specularHistos =
-    module("specularHistos", Jvm)(scala"3.10.1")
+    module("specular-histos", Jvm)(scala"3.10.1")
       .in(path"specular-histos")
-      .artifact(artifact"specular-histos")
       .libraryDependencies(histosApi.compileOnly)
       .scalac(
         ScalacFlag.Deprecation,

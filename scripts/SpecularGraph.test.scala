@@ -4,16 +4,15 @@ import zio.*
 import zio.test.*
 
 object SpecularGraphSpec extends ZIOSpecDefault:
-  private val libraryArtifacts = Map(
-    "core"        -> "specular-core",
+  private val implied  = Set("core", "site", "fork")
+  private val explicit = Map(
     "zioTest"     -> "specular-zio-test",
-    "site"        -> "specular-site",
     "eeDocsTheme" -> "early-effect-docs-theme",
-    "fork"        -> "specular-fork",
     "plugin"      -> "sbt-specular",
   )
-  private val libraryNote = ModuleNote(PluginId("dev.earlyeffect.specular"), NoteKey("library"), NoteText("0.22.0"))
-  private val adapterNote = ModuleNote(PluginId("dev.earlyeffect.specular"), NoteKey("adapter"), NoteText("0.1.0"))
+  private val libraryNames = implied ++ explicit.keySet
+  private val libraryNote  = ModuleNote(PluginId("dev.earlyeffect.specular"), NoteKey("library"), NoteText("0.22.0"))
+  private val adapterNote  = ModuleNote(PluginId("dev.earlyeffect.specular"), NoteKey("adapter"), NoteText("0.1.0"))
 
   private val metadata = ZIO
     .fromEither(build.graph)
@@ -38,12 +37,13 @@ object SpecularGraphSpec extends ZIOSpecDefault:
     .fromEither(build.graph)
     .map: graph =>
       val modules = graph.projects.collect { case module: Module => module }
-      val library = modules.filter(module => libraryArtifacts.contains(module.name.value))
-      val adapter = modules.find(_.name.value == "specularHistos")
+      val library = modules.filter(module => libraryNames.contains(module.name.value))
+      val adapter = modules.find(_.name.value == "specular-histos")
       val core    = modules.find(_.name.value == "core")
       val docs    = modules.find(_.name.value == "docs")
       assertTrue(
-        library.flatMap(module => module.published.map(module.name.value -> _.value)).toMap == libraryArtifacts,
+        library.filter(module => implied.contains(module.name.value)).forall(_.published.isEmpty),
+        library.flatMap(module => module.published.map(module.name.value -> _.value)).toMap == explicit,
         library.forall(_.versions.all.map(_.value) == List("3.9.0")),
         graph.catalog.ships.map(ship => ship.name.value -> ship.release.render) == List(
           "specular"        -> "0.22.0",
@@ -51,12 +51,9 @@ object SpecularGraphSpec extends ZIOSpecDefault:
         ),
         graph.catalog.ships
           .find(_.name.value == "specular")
-          .exists(_.members.map(_.value).toSet == libraryArtifacts.keySet),
-        adapter.exists(module =>
-          module.versions.all.map(_.value) == List("3.10.1") && module.published.contains(artifact"specular-histos")
-        ),
-        adapter
-          .exists(_.dependencies == List(dep"rocks.earlyeffect::histos-api:0.5.0-003ce4864e3d-SNAPSHOT".compileOnly)),
+          .exists(_.members.map(_.value).toSet == libraryNames),
+        adapter.exists(module => module.versions.all.map(_.value) == List("3.10.1") && module.published.isEmpty),
+        adapter.exists(_.dependencies == List(dep"rocks.earlyeffect::histos-api:0.6.0".compileOnly)),
         core.exists(_.dependencies.contains(dep"org.scala-lang::scala3-tasty-inspector:3.9.0".on(Jvm))),
         docs.exists(_.notes.contains(libraryNote)),
         docs.exists(_.notes.contains(adapterNote)),
@@ -74,10 +71,10 @@ object SpecularGraphSpec extends ZIOSpecDefault:
       graph.resolution == Resolution.Solve,
       graph.intent == ResolutionIntent.Inherit,
       plugins.resolution == Resolution.Solve,
-      entries == List(Some("specularHistos")),
+      entries == List(Some("specular-histos")),
       modules.size == 1,
       modules.forall(_.versions.all.map(_.value) == List("3.10.1")),
-      modules.forall(_.dependencies == List(dep"rocks.earlyeffect::histos-api:0.5.0-c9452ed8bffb-SNAPSHOT".compileOnly)),
+      modules.forall(_.dependencies == List(dep"rocks.earlyeffect::histos-api:0.6.0".compileOnly)),
     )
 
   def spec = suite("Specular source graph")(
