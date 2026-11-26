@@ -12,7 +12,6 @@ jobs:
   format:
     if: "github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'"
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -35,7 +34,6 @@ jobs:
           "$dir/scala-cli" fmt --check .
   affected:
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       actions: read
       contents: read
@@ -46,7 +44,7 @@ jobs:
         with:
           fetch-depth: "0"
           fetch-tags: "true"
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - run: ./histos doctor --preflight affected
       - id: affected
         env:
@@ -68,13 +66,12 @@ jobs:
     needs: [affected, format]
     if: "(github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push') && (!cancelled() && !contains(needs.*.result, 'failure'))"
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       actions: write
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - run: ./histos doctor --preflight compile
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -109,12 +106,11 @@ jobs:
     needs: [affected, format, compile]
     if: "(github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push') && (!cancelled() && !contains(needs.*.result, 'failure'))"
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - run: ./histos doctor --preflight test
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -136,24 +132,22 @@ jobs:
     if: "github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'"
     needs: [affected]
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - run: ./histos doctor --preflight versions
       - run: "./histos run versions"
   compatibility:
     needs: [affected, format, compile]
     if: "(github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push') && (!cancelled() && !contains(needs.*.result, 'failure'))"
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: "~/.cache/coursier/v1"
@@ -181,12 +175,11 @@ jobs:
     needs: [affected, format, compile]
     if: "(github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push') && (!cancelled() && !contains(needs.*.result, 'failure'))"
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - run: ./histos doctor --preflight scaladoc
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -205,13 +198,12 @@ jobs:
     needs: [format, compile]
     if: "(github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) || github.event_name == 'workflow_dispatch') && (!cancelled() && !contains(needs.*.result, 'failure'))"
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       contents: read
       actions: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - run: ./histos doctor --preflight docs
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: store
@@ -227,7 +219,6 @@ jobs:
     needs: [docs, affected, compile, workflow, supply-chain, test, versions, compatibility, scaladoc, format]
     if: "(github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) && !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')"
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -246,13 +237,12 @@ jobs:
     needs: [affected, format, compile]
     if: "(github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) && (!cancelled() && !contains(needs.*.result, 'failure'))"
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       actions: write
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - run: ./histos doctor --preflight cache-seed
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -287,7 +277,6 @@ jobs:
     if: "github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'"
     needs: [affected]
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -296,7 +285,7 @@ jobs:
           fetch-depth: "0"
           fetch-tags: "true"
       - run: git remote set-head origin --auto
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - run: ./histos doctor --preflight workflow
       - run: ./histos doctor
         env:
@@ -305,7 +294,6 @@ jobs:
   supply-chain:
     needs: [affected]
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       contents: read
       issues: write
@@ -315,7 +303,7 @@ jobs:
           fetch-depth: "0"
           fetch-tags: "true"
       - run: git remote set-head origin --auto
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/histos/advisories
@@ -335,12 +323,11 @@ jobs:
     needs: [affected]
     if: "github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
     runs-on: ubuntu-26.04
-    timeout-minutes: 30
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: early-effect/histos/.github/actions/setup@6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4 # 6d1eb0f2850b3e99870a9627c4da4cd68c8d82a4
+      - uses: early-effect/histos/.github/actions/setup@f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8 # f8a13e5a612eb2bbc68d0ecf11888c0773fab0f8
       - run: ./histos doctor --preflight dependency-snapshot
       - run: ./histos deps snapshot --submit
         env:
